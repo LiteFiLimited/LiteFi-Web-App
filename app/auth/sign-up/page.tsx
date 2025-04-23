@@ -72,7 +72,7 @@ export default function SignUp() {
   };
 
   return (
-    <div className="bg-background min-h-screen flex">
+    <div className="bg-gray-50 min-h-screen flex">
       {/* Left side - Image */}
       <div className="hidden md:block md:w-3/5">
         <div className="h-screen w-full p-4">
