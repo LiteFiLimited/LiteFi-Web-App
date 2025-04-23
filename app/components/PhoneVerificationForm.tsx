@@ -29,7 +29,7 @@ export default function PhoneVerificationForm({ onComplete }: PhoneVerificationF
     console.log("Verifying OTP:", otp);
     // Close modal and redirect to password creation page
     setShowVerificationModal(false);
-    router.push("/auth/create-password");
+    router.push("/create-password");
   };
 
   const handleResendOtp = () => {
