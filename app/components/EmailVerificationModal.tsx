@@ -39,7 +39,7 @@ export default function EmailVerificationModal({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       
       {/* Modal */}
-      <div className="bg-white rounded-lg w-full max-w-md p-8 z-10 relative mx-4">
+      <div className="bg-white w-full max-w-md p-8 z-10 relative mx-4 rounded-none">
         <h2 className="text-2xl font-bold mb-6 text-center">
           Confirm your email to complete your account setup.
         </h2>
