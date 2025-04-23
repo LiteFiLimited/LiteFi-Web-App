@@ -1,0 +1,107 @@
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { Button } from "@/app/components/ui/button";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
+
+// Import images directly
+import heroImage from "@/public/assets/images/image.png";
+import logoImage from "@/public/assets/images/logo.png";
+
+export default function Login() {
+  const [showPassword, setShowPassword] = React.useState(false);
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  return (
+    <div className="bg-background min-h-screen flex">
+      {/* Left side - Image */}
+      <div className="hidden md:block md:w-3/5">
+        <div className="h-screen w-full p-4">
+          <Image
+            src={heroImage}
+            alt="Login hero"
+            className="object-fill h-full w-full rounded-lg"
+            style={{ width: '100%', height: '100%' }}
+            priority
+          />
+        </div>
+      </div>
+
+      {/* Right side - Form */}
+      <div className="w-full md:w-2/5 flex justify-center items-start">
+        <div className="bg-white w-full max-h-[calc(100vh-2rem)] overflow-y-auto px-8 pt-10 m-4 rounded-lg">
+          <div className="flex justify-start mb-6">
+            <Image 
+              src={logoImage} 
+              alt="LiteFi Logo" 
+              width={80}
+              height={24}
+              style={{ width: 'auto', height: 'auto' }}
+            />
+          </div>
+
+          <h1 className="text-2xl font-bold mb-2 text-start">Log into your account</h1>
+          <p className="text-gray-500 text-sm mb-6 text-start">Provide the details below to access your account</p>
+
+          <form className="space-y-5 pb-8">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="Enter your email" className="bg-gray-50" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="text-gray-400 hover:text-gray-500 flex items-center text-sm"
+                >
+                  {showPassword ? (
+                    <>
+                      <EyeOffIcon className="h-4 w-4 mr-1" />
+                      Hide
+                    </>
+                  ) : (
+                    <>
+                      <EyeIcon className="h-4 w-4 mr-1" />
+                      Show
+                    </>
+                  )}
+                </button>
+              </div>
+              <Input 
+                id="password" 
+                type={showPassword ? "text" : "password"} 
+                placeholder="Enter your password"
+                className="bg-gray-50"
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <Link href="/auth/reset-password" className="text-red-600 text-sm hover:underline">
+                Reset Password?
+              </Link>
+            </div>
+
+            <Button className="w-full bg-red-600 hover:bg-red-700">Log In</Button>
+
+            <p className="text-center text-sm text-gray-500 mt-4">
+              Don't have an account?{" "}
+              <Link href="/auth/sign-up" className="text-red-600 hover:underline">
+                Sign Up
+              </Link>
+            </p>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+} 
