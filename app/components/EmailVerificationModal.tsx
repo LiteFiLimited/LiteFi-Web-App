@@ -30,7 +30,7 @@ export default function EmailVerificationModal({
     e.preventDefault();
     // If successful, redirect to phone verification page
     onVerify(otp);
-    router.push("/auth/verify-phone");
+    router.push("/verify-phone");
   };
 
   return (
