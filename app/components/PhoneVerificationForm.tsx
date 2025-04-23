@@ -2,9 +2,11 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Button } from "@/app/components/ui/button";
 import { PhoneInput } from "@/app/components/ui/phone-input";
 import { Label } from "@/app/components/ui/label";
+import PhoneVerificationModal from "@/app/components/PhoneVerificationModal";
 
 import logoImage from "@/public/assets/images/logo.png";
 
@@ -14,13 +16,28 @@ interface PhoneVerificationFormProps {
 
 export default function PhoneVerificationForm({ onComplete }: PhoneVerificationFormProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmitPhone = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle OTP sending here
-    console.log("Sending OTP to:", phoneNumber);
-    // Go to next step or show OTP verification
-    onComplete();
+    // Show verification modal
+    setShowVerificationModal(true);
+  };
+
+  const handleVerifyOtp = (otp: string) => {
+    console.log("Verifying OTP:", otp);
+    // Close modal and redirect to password creation page
+    setShowVerificationModal(false);
+    router.push("/auth/create-password");
+  };
+
+  const handleResendOtp = () => {
+    console.log("Resending OTP to:", phoneNumber);
+  };
+
+  const handleChangePhone = () => {
+    setShowVerificationModal(false);
   };
 
   const isPhoneValid = phoneNumber && phoneNumber.length > 8;
@@ -51,19 +68,19 @@ export default function PhoneVerificationForm({ onComplete }: PhoneVerificationF
               </div>
               <span className="text-sm font-medium">Verify Phone</span>
             </div>
-            <div className="flex flex-col items-center opacity-50">
+            <div className="flex flex-col items-center">
               <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center mb-2">
                 2
               </div>
-              <span className="text-sm font-medium">Create Password</span>
+              <span className="text-sm font-medium opacity-50">Create Password</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-8 shadow-sm mb-6">
+        <div className="bg-white p-8 shadow-sm mb-6">
           <h2 className="text-xl font-bold mb-6">Your phone number</h2>
           
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmitPhone}>
             <div className="mb-4">
               <Label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                 Phone number
@@ -88,6 +105,17 @@ export default function PhoneVerificationForm({ onComplete }: PhoneVerificationF
           </form>
         </div>
       </div>
+
+      {/* Phone Verification Modal */}
+      {showVerificationModal && (
+        <PhoneVerificationModal
+          phoneNumber={phoneNumber}
+          onClose={() => setShowVerificationModal(false)}
+          onVerify={handleVerifyOtp}
+          onResendOtp={handleResendOtp}
+          onChangePhone={handleChangePhone}
+        />
+      )}
     </div>
   );
 } 
