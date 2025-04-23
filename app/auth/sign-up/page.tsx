@@ -7,12 +7,70 @@ import { Checkbox } from "@/app/components/ui/checkbox";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
+import EmailVerificationModal from "@/app/components/EmailVerificationModal";
 
 // Import images directly
 import heroImage from "@/public/assets/images/image.png";
 import logoImage from "@/public/assets/images/logo.png";
 
 export default function SignUp() {
+  const [formData, setFormData] = React.useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    referralCode: "",
+    agreeToTerms: false
+  });
+
+  const [showVerificationModal, setShowVerificationModal] = React.useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      agreeToTerms: checked
+    }));
+  };
+
+  const isFormValid = () => {
+    return (
+      formData.firstName.trim() !== "" &&
+      formData.lastName.trim() !== "" &&
+      formData.email.trim() !== "" &&
+      formData.agreeToTerms
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isFormValid()) {
+      setShowVerificationModal(true);
+    }
+  };
+
+  const handleVerifyEmail = (otp: string) => {
+    // Handle OTP verification here
+    console.log("Verifying OTP:", otp);
+    // If verification is successful, redirect to dashboard or next step
+  };
+
+  const handleResendOtp = () => {
+    // Handle resending OTP here
+    console.log("Resending OTP to:", formData.email);
+  };
+
+  const handleChangeEmail = () => {
+    // Close modal and let user change email
+    setShowVerificationModal(false);
+  };
+
   return (
     <div className="bg-background min-h-screen flex">
       {/* Left side - Image */}
@@ -44,29 +102,62 @@ export default function SignUp() {
           <h1 className="text-2xl font-bold mb-2 text-start">Create an account</h1>
           <p className="text-gray-500 text-sm mb-6 text-start">Create an account to access easy loans and smart investments</p>
 
-          <form className="space-y-5 pb-8">
+          <form className="space-y-5 pb-8" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" placeholder="Enter your first name" className="bg-gray-50" />
+              <Input 
+                id="firstName" 
+                placeholder="Enter your first name" 
+                className="bg-gray-50"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                required
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" placeholder="Enter your last name" className="bg-gray-50" />
+              <Input 
+                id="lastName" 
+                placeholder="Enter your last name" 
+                className="bg-gray-50"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                required
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="Enter your email" className="bg-gray-50" />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="Enter your email" 
+                className="bg-gray-50"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="referralCode">Referral code (Optional)</Label>
-              <Input id="referralCode" placeholder="Enter referral code" className="bg-gray-50" />
+              <Input 
+                id="referralCode" 
+                placeholder="Enter referral code" 
+                className="bg-gray-50"
+                value={formData.referralCode}
+                onChange={handleInputChange}
+              />
             </div>
 
             <div className="flex items-start space-x-2">
-              <Checkbox id="terms" />
+              <Checkbox 
+                id="terms" 
+                checked={formData.agreeToTerms}
+                onCheckedChange={handleCheckboxChange}
+                required
+              />
               <Label htmlFor="terms" className="text-xs text-gray-500">
                 By creating an account, I agree to your{" "}
                 <Link href="/terms" className="text-red-600 hover:underline">
@@ -79,7 +170,13 @@ export default function SignUp() {
               </Label>
             </div>
 
-            <Button className="w-full bg-red-600 hover:bg-red-700">Create Account</Button>
+            <Button 
+              type="submit" 
+              className="w-full bg-red-600 hover:bg-red-700"
+              disabled={!isFormValid()}
+            >
+              Create Account
+            </Button>
 
             <p className="text-center text-sm text-gray-500 mt-4">
               Already have an account?{" "}
@@ -90,6 +187,17 @@ export default function SignUp() {
           </form>
         </div>
       </div>
+
+      {/* Email Verification Modal */}
+      {showVerificationModal && (
+        <EmailVerificationModal
+          email={formData.email}
+          onClose={() => setShowVerificationModal(false)}
+          onVerify={handleVerifyEmail}
+          onResendOtp={handleResendOtp}
+          onChangeEmail={handleChangeEmail}
+        />
+      )}
     </div>
   );
 } 
