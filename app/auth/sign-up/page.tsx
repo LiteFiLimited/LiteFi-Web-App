@@ -120,7 +120,7 @@ export default function SignUp() {
 
       {/* Right side - Form */}
       <div className="w-full md:w-2/5 flex justify-center items-start">
-        <div className="bg-white w-full max-h-[calc(100vh-2rem)] overflow-y-auto px-8 pt-10 m-4 rounded-lg">
+        <div className="bg-white w-full max-h-[calc(100vh-2rem)] overflow-y-auto px-8 pt-10 m-4">
           <div className="flex justify-start mb-6">
             <Image 
               src={logoImage} 
