@@ -22,6 +22,12 @@ export default function SignUp() {
     agreeToTerms: false
   });
 
+  const [fieldTouched, setFieldTouched] = React.useState({
+    firstName: false,
+    lastName: false,
+    email: false
+  });
+
   const [showVerificationModal, setShowVerificationModal] = React.useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,6 +38,13 @@ export default function SignUp() {
     }));
   };
 
+  const handleInputBlur = (field: string) => {
+    setFieldTouched(prev => ({
+      ...prev,
+      [field]: true
+    }));
+  };
+
   const handleCheckboxChange = (checked: boolean) => {
     setFormData(prev => ({
       ...prev,
@@ -39,17 +52,36 @@ export default function SignUp() {
     }));
   };
 
+  // Field validations
+  const isNameValid = (name: string) => name.trim().length > 1;
+  const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const validations = {
+    firstName: isNameValid(formData.firstName),
+    lastName: isNameValid(formData.lastName),
+    email: isEmailValid(formData.email)
+  };
+
+  const showErrors = {
+    firstName: fieldTouched.firstName && !validations.firstName,
+    lastName: fieldTouched.lastName && !validations.lastName,
+    email: fieldTouched.email && !validations.email
+  };
+
   const isFormValid = () => {
-    return (
-      formData.firstName.trim() !== "" &&
-      formData.lastName.trim() !== "" &&
-      formData.email.trim() !== "" &&
-      formData.agreeToTerms
-    );
+    return validations.firstName && validations.lastName && validations.email && formData.agreeToTerms;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Touch all fields to display errors
+    setFieldTouched({
+      firstName: true,
+      lastName: true,
+      email: true
+    });
+
     if (isFormValid()) {
       setShowVerificationModal(true);
     }
@@ -108,11 +140,15 @@ export default function SignUp() {
               <Input 
                 id="firstName" 
                 placeholder="Enter your first name" 
-                className="bg-gray-50"
+                className={`bg-gray-50 ${showErrors.firstName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 value={formData.firstName}
                 onChange={handleInputChange}
+                onBlur={() => handleInputBlur('firstName')}
                 required
               />
+              {showErrors.firstName && (
+                <p className="text-xs text-red-500">First name must be at least 2 characters</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -120,11 +156,15 @@ export default function SignUp() {
               <Input 
                 id="lastName" 
                 placeholder="Enter your last name" 
-                className="bg-gray-50"
+                className={`bg-gray-50 ${showErrors.lastName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 value={formData.lastName}
                 onChange={handleInputChange}
+                onBlur={() => handleInputBlur('lastName')}
                 required
               />
+              {showErrors.lastName && (
+                <p className="text-xs text-red-500">Last name must be at least 2 characters</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -133,11 +173,15 @@ export default function SignUp() {
                 id="email" 
                 type="email" 
                 placeholder="Enter your email" 
-                className="bg-gray-50"
+                className={`bg-gray-50 ${showErrors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 value={formData.email}
                 onChange={handleInputChange}
+                onBlur={() => handleInputBlur('email')}
                 required
               />
+              {showErrors.email && (
+                <p className="text-xs text-red-500">Please enter a valid email address</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -180,7 +224,7 @@ export default function SignUp() {
 
             <p className="text-center text-sm text-gray-500 mt-4">
               Already have an account?{" "}
-              <Link href="/auth/login" className="text-red-600 hover:underline">
+              <Link href="/login" className="text-red-600 hover:underline">
                 Log In
               </Link>
             </p>
