@@ -14,9 +14,7 @@ const LoanTypeCard = ({ title, amount, description }: LoanTypeProps) => {
   return (
     <div className="bg-white p-6 h-full flex flex-col">
       <div className="flex items-center mb-4">
-        <div className="bg-black rounded-full w-10 h-10 flex items-center justify-center mr-3">
-          <span className="text-white text-xs font-medium">LiteFi</span>
-        </div>
+        <img src="/assets/svgs/logo.svg" alt="LiteFi" className="w-10 h-10 mr-3" />
         <h3 className="font-medium">{title}</h3>
       </div>
       
