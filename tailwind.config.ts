@@ -40,6 +40,11 @@ const config: Config = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
+  			red: {
+  				DEFAULT: '#D81324',
+  				500: '#D81324',
+  				600: '#D81324'
+  			},
   			muted: {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
@@ -107,4 +112,4 @@ const config: Config = {
   plugins: [require("tailwindcss-animate")],
 };
 
-export default config; 
+export default config;
