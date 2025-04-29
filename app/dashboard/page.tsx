@@ -5,11 +5,27 @@ import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RxEyeClosed } from "react-icons/rx";
 import { VscEye } from "react-icons/vsc";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 export default function DashboardPage() {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
   const [showInvestmentBalance, setShowInvestmentBalance] = useState(false);
   const [showLoanBalance, setShowLoanBalance] = useState(false);
+  const [selectedInvestmentPeriod, setSelectedInvestmentPeriod] = useState("week");
+
+  // Time period options for the investment dropdown
+  const investmentPeriodOptions = [
+    { value: "week", label: "This week" },
+    { value: "month", label: "This month" },
+    { value: "quarter", label: "This quarter" },
+    { value: "year", label: "This year" }
+  ];
 
   return (
     <>
@@ -17,6 +33,7 @@ export default function DashboardPage() {
       <p className="text-muted-foreground mb-6">Welcome back, Andrew tate</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Wallet Balance Card - Updated to match the wallet page format */}
         <Card className="rounded-none shadow-none border-4 border-white overflow-hidden">
           <div className="bg-gray-50 p-6 border-b border-white">
             <div className="flex justify-between items-center">
@@ -53,17 +70,25 @@ export default function DashboardPage() {
           </div>
           <div className="bg-white p-6">
             <div className="text-sm text-gray-500">
-              <p>You can also fund account using the details below</p>
-              <div className="flex items-center mt-1">
-                <span className="font-bold text-black">John Doe 3588020135 LiteFi MFB</span>
-                <button className="ml-2 hover:opacity-70 transition-opacity">
-                  <Image
-                    src="/assets/svgs/copy.svg"
-                    alt="Copy"
-                    width={16}
-                    height={16}
-                  />
-                </button>
+              <p className="mb-1">You can also fund account using the details below</p>
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <span className="text-gray-500">Acc name:</span> <span className="font-bold text-black">John Doe</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
+                  <button className="ml-2 hover:opacity-70 transition-opacity">
+                    <Image
+                      src="/assets/svgs/copy.svg"
+                      alt="Copy"
+                      width={16}
+                      height={16}
+                    />
+                  </button>
+                </div>
+                <div>
+                  <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
+                </div>
               </div>
             </div>
           </div>
@@ -73,15 +98,21 @@ export default function DashboardPage() {
           <div className="bg-gray-50 p-6 border-b border-white">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-medium">Your Investment Portfolio</h3>
-              <button className="text-xs border border-gray-200 flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100 transition-colors">
-                This week
-                <Image
-                  src="/assets/svgs/arrow-down.svg"
-                  alt="This week"
-                  width={16}
-                  height={16}
-                />
-              </button>
+              <Select
+                value={selectedInvestmentPeriod}
+                onValueChange={setSelectedInvestmentPeriod}
+              >
+                <SelectTrigger className="text-xs border border-gray-200 h-auto px-3 py-1 rounded-full hover:bg-gray-100 transition-colors w-auto gap-1">
+                  <SelectValue placeholder="This week" />
+                </SelectTrigger>
+                <SelectContent>
+                  {investmentPeriodOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-2 mt-4 mb-8">
               <div className="text-2xl font-bold">
@@ -149,4 +180,4 @@ export default function DashboardPage() {
       </div>
     </>
   );
-} 
+}
