@@ -1,12 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Trash2 } from "lucide-react";
+import { ChevronLeft, Trash2, X } from "lucide-react"; // Import X icon
 import { HiOutlineUpload } from "react-icons/hi";
 import { useDropzone } from "react-dropzone";
 import {
@@ -42,8 +42,40 @@ export default function AutoLoanPage() {
     registration?: FileWithPreview;
     plateNumber?: FileWithPreview;
     ownership?: FileWithPreview;
-    customs?: FileWithPreview;
-  }>({});
+    customs: FileWithPreview[];
+  }>({
+    customs: []
+  });
+
+  const handleCustomsDocDrop = useCallback((acceptedFiles: File[]) => {
+    const filesWithPreview = acceptedFiles.map(file => 
+      Object.assign(file, {
+        preview: URL.createObjectURL(file)
+      })
+    );
+    setDocuments(prev => ({ 
+      ...prev, 
+      customs: [...(prev.customs || []), ...filesWithPreview] 
+    }));
+  }, []);
+
+  const removeCustomsDoc = (fileToRemove: FileWithPreview) => {
+    if (fileToRemove.preview) {
+      URL.revokeObjectURL(fileToRemove.preview);
+    }
+    setDocuments(prev => ({
+      ...prev,
+      customs: prev.customs.filter(file => file !== fileToRemove)
+    }));
+  };
+
+  const { getRootProps: getCustomsRootProps, getInputProps: getCustomsInputProps, isDragActive: isCustomsDragActive } = useDropzone({ 
+    onDrop: handleCustomsDocDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'image/*': ['.png', '.jpg', '.jpeg']
+    }
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,12 +275,67 @@ export default function AutoLoanPage() {
                 />
               </div>
               <div className="mt-4">
-                <DocumentUploadBox
-                  title="Customs Documents (for imported vehicles)"
-                  file={documents.customs}
-                  onDrop={(files) => setDocuments(prev => ({ ...prev, customs: files[0] }))}
-                  onRemove={() => setDocuments(prev => ({ ...prev, customs: undefined }))}
-                />
+                {documents.customs && documents.customs.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">Customs Documents (for imported vehicles)</p>
+                    <div className="space-y-2">
+                      {documents.customs.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-white p-3 border">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-red-600 text-xs">DOC</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCustomsDoc(file)}
+                            className="flex-shrink-0 ml-4 w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 p-0 flex items-center justify-center"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      ))}
+
+                      {/* Add more files option */}
+                      <div 
+                        {...getCustomsRootProps()} 
+                        className="cursor-pointer transition-all duration-200 p-4 text-center border-2 border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 mt-2"
+                      >
+                        <input {...getCustomsInputProps()} />
+                        <div className="flex flex-col items-center gap-1">
+                          <HiOutlineUpload className="w-5 h-5 text-gray-400" />
+                          <div className="text-xs text-gray-600">Add more files</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">Customs Documents (for imported vehicles)</p>
+                    <div
+                      {...getCustomsRootProps()}
+                      className={`cursor-pointer transition-all duration-200 p-8 text-center border-2 border-dashed 
+                        ${isCustomsDragActive 
+                          ? 'border-gray-400 bg-gray-50' 
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                        }`}
+                    >
+                      <input {...getCustomsInputProps()} />
+                      <div className="flex flex-col items-center gap-2">
+                        <HiOutlineUpload className="w-6 h-6 text-gray-400" />
+                        <div className="text-sm text-gray-600">
+                          {isCustomsDragActive ? 'Drop files here' : 'Upload'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -300,7 +387,7 @@ function ImageUploadBox({ title, file, onDrop, onRemove }: UploadBoxProps) {
             onClick={onRemove}
             className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 p-0"
           >
-            <Trash2 className="h-3 w-3 text-red-500" />
+            <X className="h-3 w-3 text-red-500" />
           </Button>
         </div>
       ) : (
@@ -314,7 +401,9 @@ function ImageUploadBox({ title, file, onDrop, onRemove }: UploadBoxProps) {
         >
           <input {...getInputProps()} />
           <HiOutlineUpload className="w-5 h-5 text-gray-400 mb-1" />
-          <span className="text-xs text-gray-500">Upload</span>
+          <span className="text-xs text-gray-500">
+            {isDragAccept ? 'Drop image here' : 'Upload'}
+          </span>
         </div>
       )}
     </div>
@@ -367,10 +456,12 @@ function DocumentUploadBox({ title, file, onDrop, onRemove }: UploadBoxProps) {
           <input {...getInputProps()} />
           <div className="flex flex-col items-center gap-2">
             <HiOutlineUpload className="w-6 h-6 text-gray-400" />
-            <div className="text-sm text-gray-600">Upload</div>
+            <div className="text-sm text-gray-600">
+              {isDragAccept ? 'Drop file here' : 'Upload'}
+            </div>
           </div>
         </div>
       )}
     </div>
   );
-} 
+}
