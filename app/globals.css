@@ -107,10 +107,27 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Utility class for dealing with hydration mismatches if needed */
+.suppress-hydration-warning {
+  display: none;
+}
+
+.client-only {
+  opacity: 0;
+  animation: fadeIn 0.2s ease-in-out forwards;
+  animation-delay: 0.1s;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
   }
 }
 
@@ -130,4 +147,4 @@
 /* Override hover states for sidebar menu buttons */
 [data-sidebar="menu-button"]:hover {
   border-radius: 0 !important;
-} 
+}
