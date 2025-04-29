@@ -346,7 +346,9 @@ function ImageUploadBox({ title, file, onDrop, onRemove }: UploadBoxProps) {
         >
           <input {...getInputProps()} />
           <HiOutlineUpload className="w-5 h-5 text-gray-400 mb-1" />
-          <span className="text-xs text-gray-500">Upload</span>
+          <span className="text-xs text-gray-500">
+            {isDragAccept ? 'Drop image here' : 'Upload'}
+          </span>
         </div>
       )}
     </div>
@@ -399,10 +401,12 @@ function DocumentUploadBox({ title, file, onDrop, onRemove }: UploadBoxProps) {
           <input {...getInputProps()} />
           <div className="flex flex-col items-center gap-2">
             <HiOutlineUpload className="w-6 h-6 text-gray-400" />
-            <div className="text-sm text-gray-600">Upload</div>
+            <div className="text-sm text-gray-600">
+              {isDragAccept ? 'Drop file here' : 'Upload'}
+            </div>
           </div>
         </div>
       )}
     </div>
   );
-} 
+}
