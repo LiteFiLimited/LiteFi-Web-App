@@ -45,7 +45,7 @@ export default function Login() {
   return (
     <div className="bg-gray-50 min-h-screen flex">
       {/* Left side - Image */}
-      <div className="hidden md:block md:w-3/5">
+      <div className="hidden md:block md:w-[55%]">
         <div className="h-screen w-full p-4">
           <Image
             src={heroImage}
@@ -58,7 +58,7 @@ export default function Login() {
       </div>
 
       {/* Right side - Form */}
-      <div className="w-full md:w-2/5 flex justify-center items-start">
+      <div className="w-full md:w-[45%] flex justify-center items-start">
         <div className="bg-white w-full max-h-[calc(100vh-2rem)] overflow-y-auto px-8 pt-10 m-4">
           <div className="flex justify-start mb-6">
             <Image 
@@ -152,4 +152,4 @@ export default function Login() {
       </div>
     </div>
   );
-} 
+}
