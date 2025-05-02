@@ -27,6 +27,8 @@ import {
   PaginationPrevious 
 } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
+import CreateNewInvestmentModal from "@/app/components/CreateNewInvestmentModal";
+import { InvestmentType } from "@/types/investments";
 
 export default function DashboardPage() {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
@@ -34,6 +36,7 @@ export default function DashboardPage() {
   const [showLoanBalance, setShowLoanBalance] = useState(false);
   const [selectedInvestmentPeriod, setSelectedInvestmentPeriod] = useState("week");
   const [currentPage, setCurrentPage] = useState(1);
+  const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
   const router = useRouter();
 
   // Demo Profile Status Toggle - in real app this would come from backend
@@ -45,6 +48,22 @@ export default function DashboardPage() {
     { value: "month", label: "This month" },
     { value: "quarter", label: "This quarter" },
     { value: "year", label: "This year" }
+  ];
+
+  // Investment types data - same structure as in the investments page
+  const investmentTypes: InvestmentType[] = [
+    {
+      title: "Litefi Naira Investment",
+      description: "Explore new Naira-based investment opportunities",
+      route: "naira-investment",
+      icon: "/assets/svgs/naira.svg"
+    },
+    {
+      title: "Litefi Foreign Investment",
+      description: "Grow your wealth globally",
+      route: "foreign-investment",
+      icon: "/assets/svgs/currency.svg"
+    }
   ];
 
   // Sample investment data
@@ -256,10 +275,10 @@ export default function DashboardPage() {
             </div>
             <div className="flex space-x-2">
               <button 
-                onClick={() => router.push('/dashboard/investments/create')}
+                onClick={() => setShowCreateInvestmentModal(true)}
                 className="bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
               >
-                Create Investment
+                Create New Investment
               </button>
               {isProfileComplete && (
                 <button 
@@ -617,6 +636,14 @@ export default function DashboardPage() {
             </div>
           </Card>
         </>
+      )}
+
+      {/* Create New Investment Modal */}
+      {showCreateInvestmentModal && (
+        <CreateNewInvestmentModal 
+          investmentTypes={investmentTypes}
+          onClose={() => setShowCreateInvestmentModal(false)}
+        />
       )}
     </>
   );
