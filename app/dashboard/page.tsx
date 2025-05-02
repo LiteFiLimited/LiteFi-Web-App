@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { RxEyeClosed } from "react-icons/rx";
 import { VscEye } from "react-icons/vsc";
 import { FaCheck } from "react-icons/fa";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   Select, 
   SelectContent, 
@@ -36,11 +38,6 @@ export default function DashboardPage() {
 
   // Demo Profile Status Toggle - in real app this would come from backend
   const [isProfileComplete, setIsProfileComplete] = useState(false);
-
-  // Toggle profile status for demo purposes
-  const toggleProfileStatus = () => {
-    setIsProfileComplete(!isProfileComplete);
-  };
 
   // Time period options for the investment dropdown
   const investmentPeriodOptions = [
@@ -143,19 +140,21 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Demo Profile Status Toggle */}
-      <div className="bg-gray-100 p-4 mb-6 rounded flex justify-between items-center">
-        <p className="font-medium">Profile Status (Demo Toggle): </p>
-        <button 
-          onClick={toggleProfileStatus}
-          className={`py-2 px-4 rounded text-white ${isProfileComplete ? 'bg-green-500' : 'bg-red-600'}`}
-        >
-          {isProfileComplete ? 'Completed' : 'Incomplete'}
-        </button>
-        <span className="text-gray-500">(Click to toggle the display state for demo purposes)</span>
+      {/* Replace Profile Status Toggle with Demo Mode Switch */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Your Financial Dashboard</h1>
+        <div className="flex items-center space-x-2">
+          <Label htmlFor="demo-mode" className="text-sm text-gray-500">
+            Demo Mode
+          </Label>
+          <Switch
+            id="demo-mode"
+            checked={isProfileComplete}
+            onCheckedChange={setIsProfileComplete}
+          />
+        </div>
       </div>
-
-      <h1 className="text-2xl font-bold mb-2">Your Financial Dashboard</h1>
+      
       <p className="text-muted-foreground mb-6">Welcome back, Andrew tate</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
