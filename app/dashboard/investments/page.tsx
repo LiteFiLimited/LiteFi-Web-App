@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -16,11 +17,13 @@ import { ActiveInvestmentsTable } from "@/components/investments/ActiveInvestmen
 import { PendingReviewTable } from "@/components/investments/PendingReviewTable";
 import { ClosedInvestmentsTable } from "@/components/investments/ClosedInvestmentsTable";
 import { InvestmentType, Investment } from "@/types/investments";
+import CreateNewInvestmentModal from "@/app/components/CreateNewInvestmentModal";
 
 export default function InvestmentsPage() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState("usd");
   const [activeTab, setActiveTab] = useState<string>("active-investments");
+  const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
   const router = useRouter();
   
   // Investment types data
@@ -92,20 +95,40 @@ export default function InvestmentsPage() {
   // Sample data for Closed Investments
   const closedInvestmentsData = [
     {
-      principalAmount: "₦ 5,000,000",
+      principalAmount: "₦ 1,000,000",
       currency: "NGN",
-      tenure: "12 months",
-      startDate: "15-02-2024",
+      tenure: "24 months",
+      startDate: "15-02-2023",
       maturityDate: "15-02-2025",
-      totalPayouts: "₦ 6,500,000"
+      totalPayouts: "₦ 1,850,000",
+      canWithdraw: true
     },
     {
-      principalAmount: "£ 10,000",
+      principalAmount: "$ 5,000",
+      currency: "USD",
+      tenure: "24 months",
+      startDate: "15-02-2023",
+      maturityDate: "15-02-2025",
+      totalPayouts: "$ 7,000",
+      canWithdraw: true
+    },
+    {
+      principalAmount: "€ 11,000",
+      currency: "CAD",
+      tenure: "12 months",
+      startDate: "15-02-2023",
+      maturityDate: "15-02-2024",
+      totalPayouts: "€ 17,300",
+      canWithdraw: true
+    },
+    {
+      principalAmount: "£ 25,000",
       currency: "GBP",
-      tenure: "36 months",
-      startDate: "05-12-2021",
-      maturityDate: "05-12-2024",
-      totalPayouts: "£ 15,000"
+      tenure: "24 months",
+      startDate: "15-02-2023",
+      maturityDate: "15-02-2025",
+      totalPayouts: "£ 32,000",
+      canWithdraw: false
     }
   ];
 
@@ -117,16 +140,28 @@ export default function InvestmentsPage() {
           <p className="text-muted-foreground">An overview of all your investments</p>
         </div>
         
-        {/* Demo Toggle */}
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="demo-mode" className="text-sm text-gray-500">
-            Demo Mode
-          </Label>
-          <Switch
-            id="demo-mode"
-            checked={isDemoMode}
-            onCheckedChange={setIsDemoMode}
-          />
+        <div className="flex items-center gap-4">
+          {/* Create Investment Button - Only show when in demo mode */}
+          {isDemoMode && (
+            <Button 
+              onClick={() => setShowCreateInvestmentModal(true)}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 h-10 rounded-none"
+            >
+              Create New Investment
+            </Button>
+          )}
+          
+          {/* Demo Toggle */}
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="demo-mode" className="text-sm text-gray-500">
+              Demo Mode
+            </Label>
+            <Switch
+              id="demo-mode"
+              checked={isDemoMode}
+              onCheckedChange={setIsDemoMode}
+            />
+          </div>
         </div>
       </div>
 
@@ -302,6 +337,14 @@ export default function InvestmentsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Create New Investment Modal */}
+      {showCreateInvestmentModal && (
+        <CreateNewInvestmentModal 
+          investmentTypes={investmentTypes}
+          onClose={() => setShowCreateInvestmentModal(false)}
+        />
       )}
     </div>
   );

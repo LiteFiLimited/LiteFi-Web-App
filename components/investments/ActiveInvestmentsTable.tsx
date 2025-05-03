@@ -1,5 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 interface ActiveInvestment {
   principalAmount: string;
@@ -8,6 +9,7 @@ interface ActiveInvestment {
   startDate: string;
   maturityDate: string;
   totalPayouts: string;
+  id?: string;
 }
 
 interface ActiveInvestmentsTableProps {
@@ -15,6 +17,13 @@ interface ActiveInvestmentsTableProps {
 }
 
 export function ActiveInvestmentsTable({ data }: ActiveInvestmentsTableProps) {
+  const router = useRouter();
+  
+  const handleViewInvestment = (investment: ActiveInvestment) => {
+    // Navigate to investment overview page
+    router.push(`/dashboard/investments/investmentoverview`);
+  };
+
   return (
     <table className="w-full">
       <thead className="bg-gray-50 border-b border-white">
@@ -67,6 +76,7 @@ export function ActiveInvestmentsTable({ data }: ActiveInvestmentsTableProps) {
               <Button 
                 variant="outline"
                 className="text-sm px-4 py-1 h-auto rounded-none"
+                onClick={() => handleViewInvestment(investment)}
               >
                 View
               </Button>

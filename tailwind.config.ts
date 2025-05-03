@@ -16,6 +16,9 @@ const config: Config = {
   		}
   	},
   	extend: {
+  		width: {
+  			'3/10': '30%',
+  		},
   		fontFamily: {
   			sans: [
   				'var(--font-outfit)',
@@ -44,7 +47,12 @@ const config: Config = {
   				DEFAULT: '#D81324',
   				500: '#D81324',
   				600: '#D81324'
-  			},
+  			 },
+  			 green: {
+  			 	400: '#00D09C',
+  			 	500: '#089600',
+  			 	600: '#089600'
+  			 },
   			muted: {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
