@@ -167,7 +167,7 @@ export default function LoanDetailsPage() {
                     />
                   </div>
                   
-                  {/* Navigation arrows - Using React Icons instead of SVG */}
+                  {/* Navigation arrows */}
                   <button 
                     onClick={prevImage}
                     className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white hover:bg-gray-100 rounded-full flex items-center justify-center shadow-md transition-colors"
