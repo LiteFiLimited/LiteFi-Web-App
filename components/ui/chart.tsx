@@ -40,8 +40,8 @@ export function Chart({
   // Function to resolve color references
   const resolveColor = (colorRef: string): string => {
     // If it's a direct reference to our predefined colors (e.g., "purple", "orange")
-    if (CHART_COLORS[colorRef as keyof typeof CHART_COLORS]) {
-      return CHART_COLORS[colorRef as keyof typeof CHART_COLORS];
+    if (typeof CHART_COLORS[colorRef as keyof typeof CHART_COLORS] === 'string') {
+      return CHART_COLORS[colorRef as keyof typeof CHART_COLORS] as string;
     }
     
     // If it's already a hex value (#FF9500) or any other CSS color format
@@ -52,8 +52,8 @@ export function Chart({
     // Handle hsl(var(--chart-*)) format - extract the chart color name
     if (colorRef.includes('var(--chart-')) {
       const colorName = colorRef.match(/var\(--chart-(.*?)\)/)?.[1];
-      if (colorName && CHART_COLORS[colorName as keyof typeof CHART_COLORS]) {
-        return CHART_COLORS[colorName as keyof typeof CHART_COLORS];
+      if (colorName && typeof CHART_COLORS[colorName as keyof typeof CHART_COLORS] === 'string') {
+        return CHART_COLORS[colorName as keyof typeof CHART_COLORS] as string;
       }
     }
     
@@ -91,7 +91,7 @@ export function Chart({
             bottom: 5,
           }}
         >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={CHART_COLORS.grid} />
           <XAxis 
             dataKey={xAxisDataKey} 
             tickLine={false} 
@@ -113,10 +113,10 @@ export function Chart({
           />
           <Tooltip 
             contentStyle={{
-              backgroundColor: "white",
+              backgroundColor: CHART_COLORS.white,
               borderRadius: 0,
-              border: "1px solid #e0e0e0",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
+              border: `1px solid ${CHART_COLORS.tooltip.border}`,
+              boxShadow: `0 2px 8px ${CHART_COLORS.tooltip.shadow}`
             }}
             formatter={(value: number, name: string) => {
               // Format the value with commas for better readability in tooltip
