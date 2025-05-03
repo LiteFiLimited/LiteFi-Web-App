@@ -44,6 +44,10 @@
 
     --chart-5: 27 87% 67%;
 
+    --chart-green-400: 165 100% 41%; /* #00D09C */
+    --chart-green-500: 120 100% 29%; /* #089600 */
+    --chart-green-600: 120 100% 29%; /* #089600 */
+
     --sidebar-background: 0 0% 100%;
 
     --sidebar-foreground: 240 5.3% 26.1%;
