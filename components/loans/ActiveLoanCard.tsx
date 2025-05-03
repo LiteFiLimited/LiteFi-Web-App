@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { RxEyeClosed } from "react-icons/rx";
 import { VscEye } from "react-icons/vsc";
 import { LoanType, ActiveLoan } from "@/types/loans";
+import { useRouter } from "next/navigation";
 
 interface ActiveLoanCardProps {
   loan: LoanType;
@@ -13,6 +14,11 @@ interface ActiveLoanCardProps {
 
 export function ActiveLoanCard({ loan, activeLoanData }: ActiveLoanCardProps) {
   const [showLoanBalance, setShowLoanBalance] = useState(false);
+  const router = useRouter();
+  
+  const handleViewLoanDetails = () => {
+    router.push(`/dashboard/loans/loandetails`);
+  };
 
   return (
     <Card className="rounded-none shadow-none border-4 border-white overflow-hidden h-full">
@@ -48,7 +54,7 @@ export function ActiveLoanCard({ loan, activeLoanData }: ActiveLoanCardProps) {
             <Button 
               variant="outline" 
               className="border border-gray-300 hover:bg-gray-100 transition-colors text-gray-800 rounded-none text-sm font-medium h-auto px-4 py-3 lg:w-full"
-              onClick={() => window.location.href = `/dashboard/loans/${activeLoanData.route}`}
+              onClick={handleViewLoanDetails}
             >
               View loan details
             </Button>
