@@ -83,7 +83,7 @@ export default function TravelLoanPage() {
                 <Input
                   id="amount"
                   type="text"
-                  placeholder="Enter amount in naira"
+                  placeholder="Enter amount in naira (up to ₦100,000,000)"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="h-12 rounded-none"
