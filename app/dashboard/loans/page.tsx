@@ -10,35 +10,36 @@ import { UpcomingRepaymentsTable } from "@/components/loans/UpcomingRepaymentsTa
 import { PendingApprovalTable } from "@/components/loans/PendingApprovalTable";
 import { CompletedLoansTable } from "@/components/loans/CompletedLoansTable";
 import { LoanType, ActiveLoan } from "@/types/loans";
-import Image from "next/image";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 export default function LoansPage() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("upcoming-repayments");
+  const isMobile = useMediaQuery("(max-width: 768px)");
   
   // Loan types data
   const loanTypes: LoanType[] = [
     {
       title: "Salary Loan",
-      amount: "500,000",
+      amount: "10 million",
       description: "Get a salary loan now and repay in easy monthly instalments.",
       route: "salary-loan"
     },
     {
       title: "Working Capital Loan",
-      amount: "5 million",
+      amount: "10 million",
       description: "Boost Your Business Cash Flow – Get Fast, Flexible Financing for Your Daily Operations",
       route: "working-capital-loan"
     },
     {
       title: "Auto Loan",
-      amount: "50 million",
+      amount: "100 million",
       description: "Drive Your Dream Car with Ease – Get an Auto Loan with Flexible Repayment Plans",
       route: "auto-loan"
     },
     {
-      title: "Travel Loan (POF)",
-      amount: "30 million",
+      title: "Travel Loan",
+      amount: "100 million",
       description: "Explore the World Without Financial Worries – Get a Travel Loan with Proof of Funds Today",
       route: "travel-loan"
     }
@@ -195,41 +196,65 @@ export default function LoansPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {loanTypes.map((loan) => {
-          const isActive = isLoanActive(loan.title);
-          const activeLoanData = getActiveLoanData(loan.title);
-          
-          if (isDemoMode) {
+      {/* Only show loan cards grid when in demo mode */}
+      {isDemoMode && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {loanTypes.map((loan) => {
+            const isActive = isLoanActive(loan.title);
+            const activeLoanData = getActiveLoanData(loan.title);
+            
             return isActive && activeLoanData ? (
               <ActiveLoanCard key={loan.title} loan={loan} activeLoanData={activeLoanData} />
             ) : (
               <EmptyLoanCard key={loan.title} loan={loan} />
             );
-          } else {
-            // Show loan type card when demo mode is off
-            return <div key={loan.title} className="h-full"><InactiveLoanCard loan={loan} /></div>;
-          }
-        })}
-      </div>
-
-      {!isDemoMode && (
-        <div className="bg-white p-8 mt-6">
-          <div className="text-center mb-8">
-            <h2 className="text-xl font-medium mb-2">You do not have any active loan</h2>
-            <p className="text-gray-500">You're all set! No active loans at the moment. Ready to explore new financing options?</p>
-          </div>
-
-          <div className="bg-gray-50 p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {loanTypes.map((loan) => (
-                <div key={loan.title} className="h-full">
-                  <InactiveLoanCard loan={loan} />
-                </div>
-              ))}
-            </div>
-          </div>
+          })}
         </div>
+      )}
+
+      {/* Display loan types when not in demo mode */}
+      {!isDemoMode && (
+        <>
+          {/* On mobile, display loan types outside the container */}
+          {isMobile && (
+            <>
+              <div className="bg-white p-8 mb-6">
+                <div className="text-center">
+                  <h2 className="text-xl font-medium mb-2">You do not have any active loan</h2>
+                  <p className="text-gray-500">You're all set! No active loans at the moment. Ready to explore new financing options?</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                {loanTypes.map((loan) => (
+                  <div key={loan.title} className="h-full">
+                    <InactiveLoanCard loan={loan} />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Medium and desktop view - Keep everything in one container */}
+          {!isMobile && (
+            <div className="bg-white p-8 mt-6">
+              <div className="text-center mb-8">
+                <h2 className="text-xl font-medium mb-2">You do not have any active loan</h2>
+                <p className="text-gray-500">You're all set! No active loans at the moment. Ready to explore new financing options?</p>
+              </div>
+
+              <div className="bg-gray-50 p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {loanTypes.map((loan) => (
+                    <div key={loan.title} className="h-full">
+                      <InactiveLoanCard loan={loan} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Loans Repayment Table Section - Only show when in demo mode */}
