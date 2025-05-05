@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { TransactionTable } from "@/components/loans/TransactionTable";
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 
-export default function LoanDetailsPage() {
+// Create a component that uses search params
+function LoanDetailsContent() {
   const [isCollateralExpanded, setIsCollateralExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const searchParams = useSearchParams();
@@ -223,5 +224,14 @@ export default function LoanDetailsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main page component with suspense
+export default function LoanDetailsPage() {
+  return (
+    <Suspense fallback={<div>Loading loan details...</div>}>
+      <LoanDetailsContent />
+    </Suspense>
   );
 }
