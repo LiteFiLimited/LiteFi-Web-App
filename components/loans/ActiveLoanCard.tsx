@@ -25,7 +25,7 @@ export function ActiveLoanCard({ loan, activeLoanData }: ActiveLoanCardProps) {
       <div className="bg-gray-50 p-6">
         <div className="flex justify-between items-center">
           <h3 className="text-sm font-medium">{loan.title}</h3>
-          <div className="bg-orange-100 text-orange-500 text-xs px-2 py-1">DUE TODAY</div>
+          <div className="bg-gray-100 text-orange-500 text-xs px-2 py-1">DUE TODAY</div>
         </div>
         <div className="flex items-center gap-2 my-4">
           <div className="text-2xl font-bold">
