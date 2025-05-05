@@ -13,6 +13,7 @@ interface DocumentsFormProps {
   onSave?: (data: any) => void;
   allFormsCompleted?: boolean;
   onGetLoan?: () => void;
+  savedDocuments?: boolean; // Add this new prop
 }
 
 interface FileWithPreview extends File {
@@ -29,10 +30,13 @@ interface DocumentsState {
   goodsImages?: FileWithPreview;
 }
 
-export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: DocumentsFormProps) {
+export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, savedDocuments = false }: DocumentsFormProps) {
   const [documents, setDocuments] = useState<DocumentsState>({});
   const [showSavedModal, setShowSavedModal] = useState(false);
   const router = useRouter();
+
+  // Define which documents can be edited even after saving
+  const editableAfterSave = ['storeFront', 'goodsImages'];
 
   // Generic handler for document drop
   const handleDocumentDrop = useCallback((docType: keyof DocumentsState) => {
@@ -46,9 +50,14 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
     };
   }, []);
 
-  // Generic handler for document removal
+  // Modified document removal handler to check if document can be edited
   const handleDocumentRemove = useCallback((docType: keyof DocumentsState) => {
     return () => {
+      // If documents are saved and this document is not in the editable list, prevent removal
+      if (savedDocuments && !editableAfterSave.includes(docType)) {
+        return;
+      }
+      
       if (documents[docType]?.preview) {
         URL.revokeObjectURL(documents[docType]!.preview!);
       }
@@ -58,17 +67,20 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
         return updated;
       });
     };
-  }, [documents]);
+  }, [documents, savedDocuments]);
 
-  // Create dropzone handlers for each document type
+  // Create modified dropzone props that respect locked documents
   const createDropzoneProps = (docType: keyof DocumentsState) => {
     const { getRootProps, getInputProps, isDragAccept } = useDropzone({
-      onDrop: handleDocumentDrop(docType),
+      onDrop: savedDocuments && !editableAfterSave.includes(docType) 
+        ? () => {} // No-op if document is locked
+        : handleDocumentDrop(docType),
       accept: {
         'application/pdf': ['.pdf'],
         'image/*': ['.png', '.jpg', '.jpeg']
       },
-      maxFiles: 1
+      maxFiles: 1,
+      disabled: savedDocuments && !editableAfterSave.includes(docType), // Disable if document is locked
     });
 
     return { getRootProps, getInputProps, isDragAccept };
@@ -83,6 +95,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
       dropzoneProps: createDropzoneProps('governmentId'),
       onRemove: handleDocumentRemove('governmentId'),
       required: true,
+      editable: !savedDocuments || editableAfterSave.includes('governmentId')
     },
     {
       id: 'utilityBill',
@@ -91,6 +104,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
       dropzoneProps: createDropzoneProps('utilityBill'),
       onRemove: handleDocumentRemove('utilityBill'),
       required: true,
+      editable: !savedDocuments || editableAfterSave.includes('utilityBill')
     },
     {
       id: 'workId',
@@ -99,6 +113,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
       dropzoneProps: createDropzoneProps('workId'),
       onRemove: handleDocumentRemove('workId'),
       required: false,
+      editable: !savedDocuments || editableAfterSave.includes('workId')
     },
     {
       id: 'cacCertificate',
@@ -107,6 +122,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
       dropzoneProps: createDropzoneProps('cacCertificate'),
       onRemove: handleDocumentRemove('cacCertificate'),
       required: false,
+      editable: !savedDocuments || editableAfterSave.includes('cacCertificate')
     },
     {
       id: 'cacMemart',
@@ -115,6 +131,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
       dropzoneProps: createDropzoneProps('cacMemart'),
       onRemove: handleDocumentRemove('cacMemart'),
       required: false,
+      editable: !savedDocuments || editableAfterSave.includes('cacMemart')
     },
     {
       id: 'storeFront',
@@ -123,6 +140,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
       dropzoneProps: createDropzoneProps('storeFront'),
       onRemove: handleDocumentRemove('storeFront'),
       required: false,
+      editable: true // Always editable
     },
     {
       id: 'goodsImages',
@@ -131,6 +149,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
       dropzoneProps: createDropzoneProps('goodsImages'),
       onRemove: handleDocumentRemove('goodsImages'),
       required: false,
+      editable: true // Always editable
     },
   ];
 
@@ -169,7 +188,11 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {documentTypes.map(doc => (
             <div key={doc.id} className="space-y-2">
-              <Label className="block mb-3">{doc.label}</Label>
+              <Label className="block mb-3">
+                {doc.label}
+                {!doc.editable && doc.file && <span className="ml-2 text-xs text-gray-500">(Locked)</span>}
+              </Label>
+              
               {doc.file ? (
                 <div className="flex items-center justify-between bg-white p-3 border">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -181,32 +204,42 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan }: 
                       <p className="text-xs text-gray-500">{(doc.file.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={doc.onRemove}
-                    className="flex-shrink-0 ml-4 w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 p-0 flex items-center justify-center"
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
+                  
+                  {doc.editable && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={doc.onRemove}
+                      className="flex-shrink-0 ml-4 w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 p-0 flex items-center justify-center"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <div
-                  {...doc.dropzoneProps.getRootProps()}
-                  className={`cursor-pointer transition-all duration-200 h-32 flex flex-col items-center justify-center border-2 border-dashed 
-                    ${doc.dropzoneProps.isDragAccept 
-                      ? 'border-gray-400 bg-gray-50' 
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                    }`}
-                >
-                  <input {...doc.dropzoneProps.getInputProps()} />
-                  <HiOutlineUpload className="w-6 h-6 text-gray-400 mb-2" />
-                  <div className="text-sm text-gray-600 text-center">
-                    {doc.dropzoneProps.isDragAccept ? 'Drop file here' : 'Upload'}
+                doc.editable ? (
+                  <div
+                    {...doc.dropzoneProps.getRootProps()}
+                    className={`cursor-pointer transition-all duration-200 h-32 flex flex-col items-center justify-center border-2 border-dashed 
+                      ${doc.dropzoneProps.isDragAccept 
+                        ? 'border-gray-400 bg-gray-50' 
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                      }`}
+                  >
+                    <input {...doc.dropzoneProps.getInputProps()} />
+                    <HiOutlineUpload className="w-6 h-6 text-gray-400 mb-2" />
+                    <div className="text-sm text-gray-600 text-center">
+                      {doc.dropzoneProps.isDragAccept ? 'Drop file here' : 'Upload'}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400">
+                    <p className="text-sm">Document required</p>
+                  </div>
+                )
               )}
+              
               {doc.required && !doc.file && (
                 <p className="text-xs text-red-500 mt-1">{doc.label} is required</p>
               )}

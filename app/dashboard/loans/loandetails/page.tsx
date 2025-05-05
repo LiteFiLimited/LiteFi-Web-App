@@ -19,13 +19,6 @@ export default function LoanDetailsPage() {
     "/assets/images/car2.png"
   ];
 
-  const documents = [
-    { name: "Vehicle Registration Certificate", path: "#", type: "pdf" },
-    { name: "Customs Documents", path: "#", type: "pdf" },
-    { name: "Proof of Ownership", path: "#", type: "pdf" },
-    { name: "Vehicle Inspection Report", path: "#", type: "docx" },
-  ];
-
   const loanData = {
     id: "#46876",
     title: "Salary loan",
@@ -94,7 +87,6 @@ export default function LoanDetailsPage() {
               <div className="inline-block bg-gray-50 p-2">
                 <div className="text-orange-500 text-xs font-medium">DUE TODAY</div>
               </div>
-              <div className="text-sm text-gray-500 mt-2">Amount due today</div>
               <div className="flex justify-between items-center mt-2">
                 <div className="text-xl font-bold">{loanData.dueAmount}</div>
                 <Button 
@@ -219,24 +211,6 @@ export default function LoanDetailsPage() {
                       <p className="font-medium">{loanData.collateral.modelNumber}</p>
                     </div>
                   </div>
-                </div>
-
-                {/* Documents */}
-                <div className="pt-4">
-                  {documents.map((doc, index) => (
-                    <div key={index} className="my-2">
-                      <Link href={doc.path} className="flex items-center text-sm text-gray-700">
-                        <Image 
-                          src={doc.type === "pdf" ? "/assets/svgs/pdf.svg" : "/assets/svgs/docx.svg"}
-                          alt={doc.type === "pdf" ? "PDF" : "DOCX"}
-                          width={24}
-                          height={24}
-                          className="mr-2"
-                        />
-                        {doc.name}
-                      </Link>
-                    </div>
-                  ))}
                 </div>
               </div>
             )}

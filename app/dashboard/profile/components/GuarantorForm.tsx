@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import ProfileSavedModal from "@/app/components/ProfileSavedModal";
 import { useRouter } from "next/navigation";
 import { useFormValidator, validationRules } from "@/lib/formValidator";
+import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface GuarantorFormProps {
   onSave?: (data: any) => void;
@@ -27,6 +29,8 @@ interface GuarantorFormProps {
 interface FileWithPreview extends File {
   preview?: string;
 }
+
+type ValidationState = "idle" | "loading" | "success" | "error";
 
 export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan }: GuarantorFormProps) {
   const initialFormData = {
@@ -42,6 +46,11 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan }: 
   const [showSavedModal, setShowSavedModal] = useState(false);
   const [idCardFile, setIdCardFile] = useState<FileWithPreview | null>(null);
   const router = useRouter();
+  
+  // Add BVN validation state
+  const [bvnValidationState, setBvnValidationState] = useState<ValidationState>("idle");
+  const [bvnReadOnly, setBvnReadOnly] = useState(false);
+  const [testSuccess, setTestSuccess] = useState(true);
 
   // Define validation rules for the form fields
   const rules = {
@@ -51,7 +60,7 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan }: 
     relationship: validationRules.required,
     phoneNumber: validationRules.phone,
     emailAddress: validationRules.optionalEmail, // Optional but must be valid if provided
-    bvn: validationRules.bvn
+    bvn: (value: string) => /^\d{11}$/.test(value) && bvnValidationState === "success"
   };
 
   // Use the form validator hook
@@ -64,6 +73,26 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan }: 
     touchAllFields,
     isFormValid
   } = useFormValidator(initialFormData, rules);
+
+  // Implement BVN validation
+  const validateBVN = async () => {
+    if (!/^\d{11}$/.test(formData.bvn)) return;
+    
+    setBvnValidationState("loading");
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      const isValid = testSuccess;
+      
+      if (isValid) {
+        setBvnValidationState("success");
+        setBvnReadOnly(true);
+      } else {
+        setBvnValidationState("error");
+      }
+    } catch (error) {
+      setBvnValidationState("error");
+    }
+  };
 
   // Dropzone setup for ID card upload
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -119,6 +148,19 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan }: 
   const handleViewProfile = () => {
     setShowSavedModal(false);
     router.push('/dashboard/profile');
+  };
+
+  const renderBvnValidationIndicator = () => {
+    switch (bvnValidationState) {
+      case "loading":
+        return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />;
+      case "success":
+        return <CheckCircle className="h-5 w-5 text-green-500" />;
+      case "error":
+        return <XCircle className="h-5 w-5 text-red-500" />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -236,17 +278,58 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan }: 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="bvn">BVN</Label>
-              <Input
-                id="bvn"
-                value={formData.bvn}
-                onChange={(e) => handleChange("bvn", e.target.value)}
-                onBlur={() => handleBlur("bvn")}
-                placeholder="Enter BVN"
-                className={`h-12 rounded-none ${showErrors.bvn ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
+              <div className="flex justify-between items-center">
+                <Label htmlFor="bvn">BVN</Label>
+                <div className="flex items-center gap-2">
+                  {/^\d{11}$/.test(formData.bvn) && bvnValidationState !== "loading" && bvnValidationState !== "success" && !bvnReadOnly && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500">{testSuccess ? "Success" : "Fail"}</span>
+                        <Switch 
+                          checked={testSuccess}
+                          onCheckedChange={setTestSuccess}
+                          className="scale-75"
+                        />
+                      </div>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={validateBVN}
+                        className="text-xs h-8"
+                      >
+                        Validate
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="relative">
+                <Input
+                  id="bvn"
+                  value={formData.bvn}
+                  onChange={(e) => handleChange("bvn", e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  onBlur={() => handleBlur("bvn")}
+                  placeholder="Enter BVN"
+                  className={`h-12 rounded-none pr-10 ${
+                    bvnValidationState === "error" || showErrors.bvn ? 'border-red-500 focus-visible:ring-red-500' : 
+                    bvnValidationState === "success" ? 'border-green-500 focus-visible:ring-green-500' : ''
+                  }`}
+                  readOnly={bvnReadOnly}
+                  disabled={bvnValidationState === "loading" || bvnReadOnly}
+                />
+                <div className="absolute right-3 top-3.5">
+                  {renderBvnValidationIndicator()}
+                </div>
+              </div>
               {showErrors.bvn && (
-                <p className="text-xs text-red-500">Enter a valid BVN (10-11 digits)</p>
+                <p className="text-xs text-red-500">BVN must be validated</p>
+              )}
+              {bvnValidationState === "error" && (
+                <p className="text-xs text-red-500">Invalid BVN. Please check and try again.</p>
+              )}
+              {!/^\d{11}$/.test(formData.bvn) && formData.bvn !== "" && (
+                <p className="text-xs text-gray-500">BVN must be exactly 11 digits</p>
               )}
             </div>
 

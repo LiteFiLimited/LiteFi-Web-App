@@ -11,13 +11,6 @@ import { FaCheck } from "react-icons/fa";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { 
   Pagination, 
   PaginationContent, 
   PaginationEllipsis, 
@@ -34,21 +27,12 @@ export default function DashboardPage() {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
   const [showInvestmentBalance, setShowInvestmentBalance] = useState(false);
   const [showLoanBalance, setShowLoanBalance] = useState(false);
-  const [selectedInvestmentPeriod, setSelectedInvestmentPeriod] = useState("week");
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
   const router = useRouter();
 
   // Demo Profile Status Toggle - in real app this would come from backend
   const [isProfileComplete, setIsProfileComplete] = useState(false);
-
-  // Time period options for the investment dropdown
-  const investmentPeriodOptions = [
-    { value: "week", label: "This week" },
-    { value: "month", label: "This month" },
-    { value: "quarter", label: "This quarter" },
-    { value: "year", label: "This year" }
-  ];
 
   // Investment types data - same structure as in the investments page
   const investmentTypes: InvestmentType[] = [
@@ -246,21 +230,18 @@ export default function DashboardPage() {
           <div className="bg-gray-50 p-6 border-b border-white">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-medium">Your Investment Portfolio</h3>
-              <Select
-                value={selectedInvestmentPeriod}
-                onValueChange={setSelectedInvestmentPeriod}
+              <button 
+                onClick={() => router.push('/dashboard/investments')}
+                className="text-xs border border-gray-200 flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100 transition-colors"
               >
-                <SelectTrigger className="text-xs border border-gray-200 h-auto px-3 py-1 rounded-full hover:bg-gray-100 transition-colors w-auto gap-1">
-                  <SelectValue placeholder="This week" />
-                </SelectTrigger>
-                <SelectContent>
-                  {investmentPeriodOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                This week
+                <Image
+                  src="/assets/svgs/arrow-right.svg"
+                  alt="View Investments"
+                  width={16}
+                  height={16}
+                />
+              </button>
             </div>
             <div className="flex items-center gap-2 mt-4 mb-8">
               <div className="text-2xl font-bold">
