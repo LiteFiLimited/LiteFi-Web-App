@@ -15,6 +15,7 @@ import { AreaChart } from '@/components/ui/area-chart';
 
 export default function InvestmentOverviewPage() {
   const [selectedPeriod, setSelectedPeriod] = useState("this-year");
+  const [liquidationRequested, setLiquidationRequested] = useState(false);
   const searchParams = useSearchParams();
   
   // Sample investment data - in a real app, this would come from an API based on the ID
@@ -53,6 +54,10 @@ export default function InvestmentOverviewPage() {
     { month: "Jun", value: 55000 },
     { month: "Jul", value: 82000 },
   ];
+
+  const handleRequestLiquidation = () => {
+    setLiquidationRequested(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -160,11 +165,22 @@ export default function InvestmentOverviewPage() {
               </div>
             </div>
 
-            {/* Button */}
+            {/* Buttons */}
             <div className="mt-8">
-              <button className="w-full bg-red-600 text-white py-4 hover:bg-red-700 transition-colors">
-                Withdraw Investment
-              </button>
+              {!liquidationRequested ? (
+                /* Request Investment Liquidation Button - shown initially */
+                <button 
+                  onClick={handleRequestLiquidation}
+                  className="w-full border border-red-600 text-red-600 py-4 hover:bg-red-50 transition-colors"
+                >
+                  Request Investment Liquidation
+                </button>
+              ) : (
+                /* Withdraw Investment Button - shown after liquidation is requested */
+                <button className="w-full bg-red-600 text-white py-4 hover:bg-red-700 transition-colors">
+                  Withdraw Investment
+                </button>
+              )}
             </div>
           </div>
         </div>
