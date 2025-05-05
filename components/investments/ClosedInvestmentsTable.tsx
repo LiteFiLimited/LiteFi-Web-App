@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import WithdrawModal from "@/app/components/WithdrawModal";
-import ForeignWithdrawModal from "@/app/components/ForeignWithdrawModal";
+import EarningsDepositedModal from "@/app/components/EarningsDepositedModal";
 
 interface ClosedInvestment {
   principalAmount: string;
@@ -18,17 +17,12 @@ interface ClosedInvestmentsTableProps {
 }
 
 export function ClosedInvestmentsTable({ data }: ClosedInvestmentsTableProps) {
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [showForeignWithdrawModal, setShowForeignWithdrawModal] = useState(false);
+  const [showEarningsDepositedModal, setShowEarningsDepositedModal] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState("");
   
   const handleWithdraw = (amount: string, currency: string) => {
     setSelectedAmount(amount);
-    if (currency === "NGN") {
-      setShowWithdrawModal(true);
-    } else {
-      setShowForeignWithdrawModal(true);
-    }
+    setShowEarningsDepositedModal(true);
   };
 
   return (
@@ -103,19 +97,11 @@ export function ClosedInvestmentsTable({ data }: ClosedInvestmentsTableProps) {
         </tbody>
       </table>
 
-      {/* Naira Withdrawal Modal */}
-      {showWithdrawModal && (
-        <WithdrawModal
+      {/* Earnings Deposited Modal */}
+      {showEarningsDepositedModal && (
+        <EarningsDepositedModal
           amount={selectedAmount}
-          onClose={() => setShowWithdrawModal(false)}
-        />
-      )}
-
-      {/* Foreign Currency Withdrawal Modal */}
-      {showForeignWithdrawModal && (
-        <ForeignWithdrawModal
-          amount={selectedAmount}
-          onClose={() => setShowForeignWithdrawModal(false)}
+          onViewWallet={() => setShowEarningsDepositedModal(false)}
         />
       )}
     </>
