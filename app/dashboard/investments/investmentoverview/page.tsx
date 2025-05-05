@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select";
 import { AreaChart } from '@/components/ui/area-chart';
 
-export default function InvestmentOverviewPage() {
+// Create a client component that uses search params
+function InvestmentOverviewContent() {
   const [selectedPeriod, setSelectedPeriod] = useState("this-year");
   const [liquidationRequested, setLiquidationRequested] = useState(false);
   const searchParams = useSearchParams();
@@ -58,7 +59,7 @@ export default function InvestmentOverviewPage() {
   const handleRequestLiquidation = () => {
     setLiquidationRequested(true);
   };
-
+  
   return (
     <div className="space-y-6">
       {/* Back Button */}
@@ -224,5 +225,14 @@ export default function InvestmentOverviewPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main page component with suspense
+export default function InvestmentOverviewPage() {
+  return (
+    <Suspense fallback={<div>Loading investment details...</div>}>
+      <InvestmentOverviewContent />
+    </Suspense>
   );
 }
