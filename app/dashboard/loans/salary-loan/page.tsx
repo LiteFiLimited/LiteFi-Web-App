@@ -98,7 +98,7 @@ export default function SalaryLoanPage() {
                 <Input
                   id="amount"
                   type="text"
-                  placeholder="Enter amount in naira"
+                  placeholder="Enter amount in naira (up to ₦10,000,000)"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="h-12 rounded-none"
@@ -115,7 +115,6 @@ export default function SalaryLoanPage() {
                     <SelectItem value="3">3 months</SelectItem>
                     <SelectItem value="6">6 months</SelectItem>
                     <SelectItem value="12">12 months</SelectItem>
-                    <SelectItem value="24">24 months</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
