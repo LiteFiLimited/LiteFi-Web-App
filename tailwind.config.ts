@@ -43,16 +43,21 @@ const config: Config = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
-  			red: {
-  				DEFAULT: '#D81324',
-  				500: '#D81324',
-  				600: '#D81324'
-  			 },
-  			 green: {
-  			 	400: '#00D09C',
-  			 	500: '#089600',
-  			 	600: '#089600'
-  			 },
+  						red: {
+				DEFAULT: '#D81324',
+				500: '#D81324',
+				600: '#D81324'
+			 },
+			 orange: {
+			 	DEFAULT: '#EF4E22',
+			 	500: '#EF4E22',
+			 	600: '#EF4E22'
+			 },
+			 green: {
+			 	400: '#00D09C',
+			 	500: '#089600',
+			 	600: '#089600'
+			 },
   			muted: {
   				DEFAULT: 'hsl(var(--muted))',
   				foreground: 'hsl(var(--muted-foreground))'
