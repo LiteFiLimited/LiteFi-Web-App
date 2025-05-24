@@ -21,7 +21,9 @@ import {
 } from "@/components/ui/pagination";
 import { Button } from "@/components/ui/button";
 import CreateNewInvestmentModal from "@/app/components/CreateNewInvestmentModal";
+import CopyButton from "@/app/components/CopyButton";
 import { InvestmentType } from "@/types/investments";
+import { useToastContext } from "@/app/components/ToastProvider";
 
 export default function DashboardPage() {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
@@ -30,6 +32,7 @@ export default function DashboardPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
   const router = useRouter();
+  const { success, error, info } = useToastContext();
 
   // Demo Profile Status Toggle - in real app this would come from backend
   const [isProfileComplete, setIsProfileComplete] = useState(false);
@@ -126,14 +129,17 @@ export default function DashboardPage() {
 
   // Navigation handlers
   const handleCompleteProfile = () => {
+    info("Redirecting to profile setup", "Complete your profile to unlock all features");
     router.push('/dashboard/profile');
   };
   
   const handleHistoryClick = () => {
+    info("Viewing transaction history", "Redirecting to wallet page");
     router.push('/dashboard/wallet');
   };
 
   const handleRepaymentsClick = () => {
+    info("Viewing loan repayments", "Redirecting to loans page");
     router.push('/dashboard/loans');
   };
 
@@ -191,10 +197,16 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="flex space-x-2">
-              <button className="flex-1 bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors">
+              <button 
+                onClick={() => success("Funding initiated", "Redirecting to Mono for secure payment")}
+                className="flex-1 bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
+              >
                 Fund with Mono
               </button>
-              <button className="flex-1 bg-white text-gray-800 px-4 py-3 rounded-none text-sm font-medium border border-gray-300 hover:bg-gray-100 transition-colors">
+              <button 
+                onClick={() => info("Withdrawal request", "Processing your withdrawal request")}
+                className="flex-1 bg-white text-gray-800 px-4 py-3 rounded-none text-sm font-medium border border-gray-300 hover:bg-gray-100 transition-colors"
+              >
                 Withdraw
               </button>
             </div>
@@ -208,14 +220,12 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center">
                   <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
-                  <button className="ml-2 hover:opacity-70 transition-opacity">
-                    <Image
-                      src="/assets/svgs/copy.svg"
-                      alt="Copy"
-                      width={16}
-                      height={16}
-                    />
-                  </button>
+                  <CopyButton
+                    textToCopy="3588020135"
+                    onCopySuccess={() => success("Account number copied to clipboard")}
+                    onCopyError={() => error("Failed to copy account number")}
+                    className="ml-2"
+                  />
                 </div>
                 <div>
                   <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
@@ -256,7 +266,10 @@ export default function DashboardPage() {
             </div>
             <div className="flex space-x-2">
               <button 
-                onClick={() => setShowCreateInvestmentModal(true)}
+                onClick={() => {
+                  info("Opening investment options", "Choose your preferred investment type");
+                  setShowCreateInvestmentModal(true);
+                }}
                 className="bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
               >
                 Create New Investment
@@ -340,7 +353,10 @@ export default function DashboardPage() {
                 </button>
               ) : (
                 <button 
-                  onClick={() => router.push('/dashboard/loans')}
+                  onClick={() => {
+                    info("Redirecting to loan application", "Choose from our available loan options");
+                    router.push('/dashboard/loans');
+                  }}
                   className="bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
                 >
                   Apply For Loan
