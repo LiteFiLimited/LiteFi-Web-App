@@ -7,12 +7,15 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useToastContext } from "@/app/components/ToastProvider";
 
 // Import images directly
 import heroImage from "@/public/assets/images/image.png";
 import logoImage from "@/public/assets/images/logo.png";
 
 export default function Login() {
+  const { success, error } = useToastContext();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -28,9 +31,16 @@ export default function Login() {
     if (isFormValid) {
       // Handle login
       console.log("Logging in with:", email, password);
+      success("Login successful!", "Welcome back to LiteFi");
+      
+      // Simulate login process and redirect
+      setTimeout(() => {
+        window.location.href = "/dashboard";
+      }, 1500);
     } else {
       setEmailTouched(true);
       setPasswordTouched(true);
+      error("Login failed", "Please check your email and password");
     }
   };
 

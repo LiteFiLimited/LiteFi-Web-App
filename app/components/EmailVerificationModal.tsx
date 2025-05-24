@@ -45,7 +45,7 @@ export default function EmailVerificationModal({
         </h2>
         
         <div className="flex justify-center mb-6">
-          <div className="rounded-full bg-red-500 p-4 flex items-center justify-center">
+          <div className="rounded-full bg-orange-500 p-4 flex items-center justify-center">
             <Image 
               src={mailAnimation} 
               alt="Email verification" 

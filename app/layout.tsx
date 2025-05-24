@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
+import ClientWrapper from "@/app/components/ClientWrapper";
 
 // Initialize the Outfit font
 const outfit = Outfit({
@@ -32,7 +33,11 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body suppressHydrationWarning className={`min-h-screen bg-background ${outfit.className}`}>{children}</body>
+      <body suppressHydrationWarning className={`min-h-screen bg-background ${outfit.className}`}>
+        <ClientWrapper>
+          {children}
+        </ClientWrapper>
+      </body>
     </html>
   );
 } 

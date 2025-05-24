@@ -17,6 +17,8 @@ import { RxEyeClosed } from "react-icons/rx";
 import { VscEye } from "react-icons/vsc";
 import { CHART_COLORS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import CopyButton from "@/app/components/CopyButton";
+import { useToastContext } from "@/app/components/ToastProvider";
 import {
   Select,
   SelectContent,
@@ -130,6 +132,7 @@ export default function WalletPage() {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState("this-month");
+  const { success, error, info } = useToastContext();
   
   // Current month and total values for the chart summary
   const currentMonth = "April 2025";
@@ -175,10 +178,16 @@ export default function WalletPage() {
               </button>
             </div>
             <div className="flex space-x-2">
-              <button className="flex-1 bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors">
+              <button 
+                onClick={() => success("Funding initiated", "Redirecting to Mono for secure payment")}
+                className="flex-1 bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
+              >
                 Fund with Mono
               </button>
-              <button className="flex-1 bg-white text-gray-800 px-4 py-3 rounded-none text-sm font-medium border border-gray-300 hover:bg-gray-100 transition-colors">
+              <button 
+                onClick={() => info("Withdrawal request", "Processing your withdrawal request")}
+                className="flex-1 bg-white text-gray-800 px-4 py-3 rounded-none text-sm font-medium border border-gray-300 hover:bg-gray-100 transition-colors"
+              >
                 Withdraw
               </button>
             </div>
@@ -192,14 +201,12 @@ export default function WalletPage() {
                 </div>
                 <div className="flex items-center">
                   <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
-                  <button className="ml-2 hover:opacity-70 transition-opacity">
-                    <Image
-                      src="/assets/svgs/copy.svg"
-                      alt="Copy"
-                      width={16}
-                      height={16}
-                    />
-                  </button>
+                  <CopyButton
+                    textToCopy="3588020135"
+                    onCopySuccess={() => success("Account number copied to clipboard")}
+                    onCopyError={() => error("Failed to copy account number")}
+                    className="ml-2"
+                  />
                 </div>
                 <div>
                   <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
