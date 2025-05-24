@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation";
 import { HiOutlineUpload } from "react-icons/hi";
 import { useDropzone } from "react-dropzone";
 import InvestmentPendingModal from "@/app/components/InvestmentPendingModal";
+import CopyButton from "@/app/components/CopyButton";
+import { useToastContext } from "@/app/components/ToastProvider";
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -40,11 +42,15 @@ export default function ForeignInvestmentPage() {
   const [showPendingModal, setShowPendingModal] = useState(false);
   
   const router = useRouter();
+  const { success, error, info } = useToastContext();
 
   // Handle form submission
   const handlePreviewTerms = () => {
     if (wealthPlanName && amount && tenure && currency) {
+      success("Investment details saved", "Reviewing terms and conditions");
       setShowTerms(true);
+    } else {
+      error("Please fill all required fields", "All fields are required to proceed");
     }
   };
 
@@ -52,9 +58,11 @@ export default function ForeignInvestmentPage() {
   const handleProceedToPayment = () => {
     // For bank transfer, check if proof is uploaded
     if (!paymentProof) {
+      error("Payment proof required", "Please upload proof of payment to proceed");
       return;
     }
     
+    success("Investment created successfully!", "Your investment is now under review");
     setShowPendingModal(true);
   };
 
@@ -65,8 +73,9 @@ export default function ForeignInvestmentPage() {
         preview: URL.createObjectURL(acceptedFiles[0])
       });
       setPaymentProof(file);
+      success("Payment proof uploaded", `${file.name} has been uploaded successfully`);
     }
-  }, []);
+  }, [success]);
 
   // Remove payment proof
   const removePaymentProof = () => {
@@ -74,6 +83,7 @@ export default function ForeignInvestmentPage() {
       URL.revokeObjectURL(paymentProof.preview);
     }
     setPaymentProof(null);
+    info("Payment proof removed", "You can upload a new file");
   };
 
   // Set up dropzone
@@ -258,28 +268,24 @@ export default function ForeignInvestmentPage() {
                   <span className="text-gray-600">Account Number</span>
                   <div className="flex items-center space-x-2">
                     <span className="font-bold">003920432342</span>
-                    <button className="text-gray-500">
-                      <Image
-                        src="/assets/svgs/copy.svg"
-                        alt="Copy"
-                        width={16}
-                        height={16}
-                      />
-                    </button>
+                    <CopyButton
+                      textToCopy="003920432342"
+                      onCopySuccess={() => success("Account number copied to clipboard")}
+                      onCopyError={() => error("Failed to copy account number")}
+                      className="text-gray-500"
+                    />
                   </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Sort Code</span>
                   <div className="flex items-center space-x-2">
                     <span className="font-bold">0923</span>
-                    <button className="text-gray-500">
-                      <Image
-                        src="/assets/svgs/copy.svg"
-                        alt="Copy"
-                        width={16}
-                        height={16}
-                      />
-                    </button>
+                    <CopyButton
+                      textToCopy="0923"
+                      onCopySuccess={() => success("Sort code copied to clipboard")}
+                      onCopyError={() => error("Failed to copy sort code")}
+                      className="text-gray-500"
+                    />
                   </div>
                 </div>
                 <div className="flex justify-between">
