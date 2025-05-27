@@ -33,6 +33,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     middleName: "",
     phoneNumber: "",
     email: "",
+    dateOfBirth: "",
     bvn: "",
     nin: "",
     maritalStatus: "",
@@ -62,6 +63,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     middleName: () => true,
     phoneNumber: validationRules.phone,
     email: validationRules.email,
+    dateOfBirth: (value: string) => value !== "",
     bvn: (value: string) => /^\d{11}$/.test(value) && bvnValidationState === "success",
     nin: (value: string) => value === "" || (/^\d{16}$/.test(value) && ninValidationState === "success"),
     maritalStatus: () => true,
@@ -261,6 +263,25 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => handleChange("dateOfBirth", e.target.value)}
+                onBlur={() => handleBlur("dateOfBirth")}
+                className={`h-12 rounded-none ${showErrors.dateOfBirth ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                readOnly={isReadOnly}
+                disabled={isReadOnly}
+              />
+              {showErrors.dateOfBirth && (
+                <p className="text-xs text-red-500">Date of birth is required</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="bvn">BVN</Label>
                 <div className="flex items-center gap-2">
@@ -315,9 +336,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
                 <p className="text-xs text-gray-500">BVN must be exactly 11 digits</p>
               )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="nin">NIN (Optional)</Label>
@@ -373,7 +392,9 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
                 <p className="text-xs text-gray-500">NIN must be exactly 16 digits</p>
               )}
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="maritalStatus">Marital Status</Label>
               <Select 
@@ -391,9 +412,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="highestEducation">Highest Level of Education</Label>
               <Select 
@@ -412,7 +431,9 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="employmentType">Employment Type</Label>
               <Select 
