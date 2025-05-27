@@ -14,8 +14,11 @@ import ProfileSavedModal from "@/app/components/ProfileSavedModal";
 import { useRouter } from "next/navigation";
 import { useFormValidator, validationRules } from "@/lib/formValidator";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, CalendarIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 interface PersonalInfoFormProps {
   onSave?: (data: any) => void;
@@ -56,6 +59,8 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
   const [bvnReadOnly, setBvnReadOnly] = useState(isReadOnly);
   const [ninReadOnly, setNinReadOnly] = useState(isReadOnly);
   const [testSuccess, setTestSuccess] = useState(true);
+  const [date, setDate] = React.useState<Date | undefined>(undefined);
+  const [dateInputValue, setDateInputValue] = useState("");
 
   const rules = {
     firstName: validationRules.minLength(2),
@@ -87,6 +92,70 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     touchAllFields,
     isFormValid
   } = useFormValidator(initialFormData, rules);
+
+  // Handle manual date input with auto-formatting
+  const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Get only numbers from input
+    const inputVal = e.target.value.replace(/\D/g, '');
+    
+    // Format with slashes
+    let formattedDate = '';
+    
+    if (inputVal.length > 0) {
+      // Add first part (day)
+      formattedDate = inputVal.substring(0, Math.min(2, inputVal.length));
+      
+      // Add second part (month) with slash
+      if (inputVal.length > 2) {
+        formattedDate += '/' + inputVal.substring(2, Math.min(4, inputVal.length));
+        
+        // Add third part (year) with slash
+        if (inputVal.length > 4) {
+          formattedDate += '/' + inputVal.substring(4, Math.min(8, inputVal.length));
+        }
+      }
+    }
+    
+    // Update the input value with formatted date
+    setDateInputValue(formattedDate);
+    
+    // Try to parse the date if it has 8 digits (full date)
+    if (inputVal.length === 8) {
+      try {
+        const day = inputVal.substring(0, 2);
+        const month = inputVal.substring(2, 4);
+        const year = inputVal.substring(4, 8);
+        
+        const parsedDate = new Date(`${year}-${month}-${day}`);
+        
+        if (!isNaN(parsedDate.getTime())) {
+          setDate(parsedDate);
+          handleChange("dateOfBirth", format(parsedDate, "yyyy-MM-dd"));
+        }
+      } catch (error) {
+        // Invalid date format, just update the input value
+      }
+    } else {
+      handleChange("dateOfBirth", "");
+    }
+  };
+
+  // Update the date state when the date is selected in the calendar
+  React.useEffect(() => {
+    if (date) {
+      const formattedDate = format(date, "dd/MM/yyyy");
+      setDateInputValue(formattedDate);
+      handleChange("dateOfBirth", format(date, "yyyy-MM-dd"));
+    }
+  }, [date]);
+
+  // Initialize date from formData if it exists
+  React.useEffect(() => {
+    if (formData.dateOfBirth) {
+      setDate(new Date(formData.dateOfBirth));
+      setDateInputValue(format(new Date(formData.dateOfBirth), "dd/MM/yyyy"));
+    }
+  }, []);
 
   const validateBVN = async () => {
     if (!/^\d{11}$/.test(formData.bvn)) return;
@@ -264,18 +333,50 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
 
             <div className="space-y-2">
               <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <Input
-                id="dateOfBirth"
-                type="date"
-                value={formData.dateOfBirth}
-                onChange={(e) => handleChange("dateOfBirth", e.target.value)}
-                onBlur={() => handleBlur("dateOfBirth")}
-                className={`h-12 rounded-none ${showErrors.dateOfBirth ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                readOnly={isReadOnly}
-                disabled={isReadOnly}
-              />
+              <div className="relative">
+                <Input
+                  id="dateOfBirth"
+                  value={dateInputValue}
+                  onChange={handleDateInput}
+                  onBlur={() => handleBlur("dateOfBirth")}
+                  placeholder="DD/MM/YYYY"
+                  className={`h-12 rounded-none pr-10 ${
+                    showErrors.dateOfBirth ? 'border-red-500 focus-visible:ring-red-500' : ''
+                  }`}
+                  readOnly={isReadOnly}
+                  disabled={isReadOnly}
+                />
+                <div className="absolute right-3 top-3">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0"
+                        disabled={isReadOnly}
+                      >
+                        <CalendarIcon className="h-4 w-4" />
+                        <span className="sr-only">Open calendar</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        disabled={isReadOnly}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
               {showErrors.dateOfBirth && (
                 <p className="text-xs text-red-500">Date of birth is required</p>
+              )}
+              {dateInputValue && dateInputValue.length > 0 && dateInputValue.length < 10 && (
+                <p className="text-xs text-gray-500">Complete date format: DD/MM/YYYY</p>
               )}
             </div>
           </div>
@@ -292,7 +393,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
                         <Switch 
                           checked={testSuccess}
                           onCheckedChange={setTestSuccess}
-                          className="scale-75" // Replace 'size="sm"' with a class to scale down the switch
+                          className="scale-75"
                         />
                       </div>
                       <Button 
@@ -348,7 +449,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
                         <Switch 
                           checked={testSuccess}
                           onCheckedChange={setTestSuccess}
-                          className="scale-75" // Replace 'size="sm"' with a class to scale down the switch
+                          className="scale-75"
                         />
                       </div>
                       <Button 
