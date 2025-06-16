@@ -7,9 +7,10 @@ import { Checkbox } from "@/app/components/ui/checkbox";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Button } from "@/app/components/ui/button";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
 import EmailVerificationModal from "@/app/components/EmailVerificationModal";
 import { useToastContext } from "@/app/components/ToastProvider";
+import { authApi } from "@/lib/api";
+import { useRedirectIfAuthenticated } from "@/lib/auth";
 
 // Import images directly
 import heroImage from "@/public/assets/images/image.png";
@@ -22,8 +23,7 @@ export default function SignUp() {
     firstName: "",
     lastName: "",
     email: "",
-    password: "",
-    confirmPassword: "",
+    country: "NG",
     referralCode: "",
     agreeToTerms: false
   });
@@ -31,15 +31,37 @@ export default function SignUp() {
   const [fieldTouched, setFieldTouched] = React.useState({
     firstName: false,
     lastName: false,
-    email: false,
-    password: false,
-    confirmPassword: false
+    email: false
   });
 
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
-
+  const [isLoading, setIsLoading] = React.useState(false);
   const [showVerificationModal, setShowVerificationModal] = React.useState(false);
+  const [userId, setUserId] = React.useState("");
+  const [isRegistering, setIsRegistering] = React.useState(false);
+
+  // Clear any existing tokens when sign-up page loads (unless we're in registration process)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && !isRegistering) {
+      const existingToken = localStorage.getItem('token');
+      if (existingToken) {
+        console.log('Sign-up page: clearing existing token to allow new registration');
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+      }
+    }
+  }, []);
+
+  // Only redirect if already authenticated and not in the middle of registration
+  React.useEffect(() => {
+    console.log('Sign-up page: checking auth state', { isRegistering, hasToken: !!localStorage.getItem('token') });
+    if (!isRegistering && typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        console.log('Sign-up page: redirecting to dashboard because user is already authenticated');
+        window.location.href = '/dashboard';
+      }
+    }
+  }, [isRegistering]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -63,79 +85,134 @@ export default function SignUp() {
     }));
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
-  };
-
   // Field validations
   const isNameValid = (name: string) => name.trim().length > 1;
   const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  const isPasswordValid = (password: string) => password.length >= 8;
-  const isConfirmPasswordValid = (confirmPassword: string) => confirmPassword === formData.password && confirmPassword.length > 0;
 
   const validations = {
     firstName: isNameValid(formData.firstName),
     lastName: isNameValid(formData.lastName),
-    email: isEmailValid(formData.email),
-    password: isPasswordValid(formData.password),
-    confirmPassword: isConfirmPasswordValid(formData.confirmPassword)
+    email: isEmailValid(formData.email)
   };
 
   const showErrors = {
     firstName: fieldTouched.firstName && !validations.firstName,
     lastName: fieldTouched.lastName && !validations.lastName,
-    email: fieldTouched.email && !validations.email,
-    password: fieldTouched.password && !validations.password,
-    confirmPassword: fieldTouched.confirmPassword && !validations.confirmPassword
+    email: fieldTouched.email && !validations.email
   };
 
   const isFormValid = () => {
-    return validations.firstName && validations.lastName && validations.email && validations.password && validations.confirmPassword && formData.agreeToTerms;
+    return validations.firstName && validations.lastName && validations.email && formData.agreeToTerms;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Touch all fields to display errors
     setFieldTouched({
       firstName: true,
       lastName: true,
-      email: true,
-      password: true,
-      confirmPassword: true
+      email: true
     });
 
     if (isFormValid()) {
-      success("Account created successfully!", "Please verify your email to continue");
-      setShowVerificationModal(true);
+      setIsLoading(true);
+      setIsRegistering(true);
+      try {
+        const userData = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          country: formData.country,
+          referralCode: formData.referralCode || undefined
+        };
+        
+        console.log("Registration data:", userData);
+        
+        const response = await authApi.register(userData);
+        
+        console.log("Registration response:", response);
+
+        if (response.success) {
+          success("Registration successful!", "Please verify your email to continue");
+          
+          // Store user data for verification flow
+          setUserId(response.data?.user?.id || "");
+          setShowVerificationModal(true);
+        } else {
+          error("Registration failed", response.message || "Please try again");
+          setIsRegistering(false);
+        }
+      } catch (err) {
+        console.error("Registration error details:", err);
+        error("Registration failed", "An unexpected error occurred");
+        setIsRegistering(false);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       error("Please fix the errors in the form", "All required fields must be filled correctly");
     }
   };
 
-  const handleVerifyEmail = (otp: string) => {
-    // Handle OTP verification here
-    console.log("Verifying OTP:", otp);
-    success("Email verified successfully!", "Welcome to LiteFi! Redirecting to dashboard...");
-    // If verification is successful, redirect to dashboard or next step
-    setTimeout(() => {
-      window.location.href = "/dashboard";
-    }, 2000);
+  const handleVerifyEmail = async (otp: string) => {
+    setIsLoading(true);
+    try {
+      const response = await authApi.verifyEmail({
+        email: formData.email,
+        code: otp
+      });
+
+      if (response.success) {
+        success("Email verified successfully!", "Now let's verify your phone number");
+        setShowVerificationModal(false);
+        
+        // Store email for subsequent steps
+        sessionStorage.setItem('registrationEmail', formData.email);
+        
+        // Continue registration flow - redirect to phone verification
+        setTimeout(() => {
+          window.location.href = "/auth/verify-phone";
+        }, 1500);
+      } else {
+        error("Verification failed", response.message || "Please try again");
+      }
+    } catch (err) {
+      error("Verification failed", "An unexpected error occurred");
+      console.error("Verification error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResendOtp = () => {
-    // Handle resending OTP here
-    console.log("Resending OTP to:", formData.email);
-    info("Verification code sent", `A new code has been sent to ${formData.email}`);
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    try {
+      const response = await authApi.resendOtp({
+        email: formData.email,
+        type: 'email'
+      });
+      
+      if (response.success) {
+        info("Verification code sent", `A new code has been sent to ${formData.email}`);
+      } else {
+        error("Failed to resend code", response.message || "Please try again");
+      }
+    } catch (err) {
+      error("Failed to resend code", "An unexpected error occurred");
+      console.error("Resend OTP error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChangeEmail = () => {
     // Close modal and let user change email
     setShowVerificationModal(false);
+    setIsRegistering(false);
+    // Clear the stored token since user wants to change email
+    localStorage.removeItem('token');
+    localStorage.removeItem('userId');
   };
 
   return (
@@ -180,6 +257,7 @@ export default function SignUp() {
                 onChange={handleInputChange}
                 onBlur={() => handleInputBlur('firstName')}
                 required
+                disabled={isLoading}
               />
               {showErrors.firstName && (
                 <p className="text-xs text-red-500">First name must be at least 2 characters</p>
@@ -196,6 +274,7 @@ export default function SignUp() {
                 onChange={handleInputChange}
                 onBlur={() => handleInputBlur('lastName')}
                 required
+                disabled={isLoading}
               />
               {showErrors.lastName && (
                 <p className="text-xs text-red-500">Last name must be at least 2 characters</p>
@@ -213,81 +292,10 @@ export default function SignUp() {
                 onChange={handleInputChange}
                 onBlur={() => handleInputBlur('email')}
                 required
+                disabled={isLoading}
               />
               {showErrors.email && (
                 <p className="text-xs text-red-500">Please enter a valid email address</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  className="text-gray-400 hover:text-gray-500 flex items-center text-sm"
-                >
-                  {showPassword ? (
-                    <>
-                      <EyeOffIcon className="h-4 w-4 mr-1" />
-                      Hide
-                    </>
-                  ) : (
-                    <>
-                      <EyeIcon className="h-4 w-4 mr-1" />
-                      Show
-                    </>
-                  )}
-                </button>
-              </div>
-              <Input 
-                id="password" 
-                type={showPassword ? "text" : "password"} 
-                placeholder="Enter your password"
-                className={`bg-gray-50 ${showErrors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                value={formData.password}
-                onChange={handleInputChange}
-                onBlur={() => handleInputBlur('password')}
-                required
-              />
-              {showErrors.password && (
-                <p className="text-xs text-red-500">Password must be at least 8 characters</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <button
-                  type="button"
-                  onClick={toggleConfirmPasswordVisibility}
-                  className="text-gray-400 hover:text-gray-500 flex items-center text-sm"
-                >
-                  {showConfirmPassword ? (
-                    <>
-                      <EyeOffIcon className="h-4 w-4 mr-1" />
-                      Hide
-                    </>
-                  ) : (
-                    <>
-                      <EyeIcon className="h-4 w-4 mr-1" />
-                      Show
-                    </>
-                  )}
-                </button>
-              </div>
-              <Input 
-                id="confirmPassword" 
-                type={showConfirmPassword ? "text" : "password"} 
-                placeholder="Confirm your password"
-                className={`bg-gray-50 ${showErrors.confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                onBlur={() => handleInputBlur('confirmPassword')}
-                required
-              />
-              {showErrors.confirmPassword && (
-                <p className="text-xs text-red-500">Passwords must match</p>
               )}
             </div>
 
@@ -299,6 +307,7 @@ export default function SignUp() {
                 className="bg-gray-50"
                 value={formData.referralCode}
                 onChange={handleInputChange}
+                disabled={isLoading}
               />
             </div>
 
@@ -308,6 +317,7 @@ export default function SignUp() {
                 checked={formData.agreeToTerms}
                 onCheckedChange={handleCheckboxChange}
                 required
+                disabled={isLoading}
               />
               <Label htmlFor="terms" className="text-xs text-gray-500">
                 By creating an account, I agree to your{" "}
@@ -324,14 +334,14 @@ export default function SignUp() {
             <Button 
               type="submit" 
               className="w-full bg-red-600 hover:bg-red-700"
-              disabled={!isFormValid()}
+              disabled={!isFormValid() || isLoading}
             >
-              Create Account
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
 
             <p className="text-center text-sm text-gray-500 mt-4">
               Already have an account?{" "}
-              <Link href="/login" className="text-red-600 hover:underline">
+              <Link href="/auth/login" className="text-red-600 hover:underline">
                 Log In
               </Link>
             </p>
@@ -343,10 +353,11 @@ export default function SignUp() {
       {showVerificationModal && (
         <EmailVerificationModal
           email={formData.email}
-          onClose={() => setShowVerificationModal(false)}
-          onVerify={handleVerifyEmail}
-          onResendOtp={handleResendOtp}
-          onChangeEmail={handleChangeEmail}
+          onCloseAction={() => setShowVerificationModal(false)}
+          onVerifyAction={handleVerifyEmail}
+          onResendOtpAction={handleResendOtp}
+          onChangeEmailAction={handleChangeEmail}
+          isLoading={isLoading}
         />
       )}
     </div>

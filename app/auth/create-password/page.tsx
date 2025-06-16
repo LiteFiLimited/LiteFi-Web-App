@@ -1,40 +1,126 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import { Label } from "@/app/components/ui/label";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useToastContext } from "@/app/components/ToastProvider";
+import { authApi } from "@/lib/api";
+import { validatePassword } from "@/lib/passwordValidator";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 
 import logoImage from "@/public/assets/images/logo.png";
 
 export default function CreatePasswordPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { success, error } = useToastContext();
+  
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Get email from URL params or session storage
+  useEffect(() => {
+    const emailParam = searchParams.get("email");
+    const sessionEmail = sessionStorage.getItem("registrationEmail");
+    
+    if (emailParam) {
+      setEmail(emailParam);
+    } else if (sessionEmail) {
+      setEmail(sessionEmail);
+    } else {
+      // If no email found, redirect to sign-up
+      error("Session expired", "Please start the registration process again");
+      router.push("/auth/sign-up");
+    }
+  }, [searchParams, router, error]);
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    
+    // Validate password in real-time
+    const validation = validatePassword(newPassword);
+    setPasswordErrors(validation.errors);
+  };
+
+  const handlePasswordBlur = () => {
+    setPasswordTouched(true);
+    const validation = validatePassword(password);
+    setPasswordErrors(validation.errors);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordTouched(true);
     setConfirmPasswordTouched(true);
     
-    if (isPasswordValid) {
-      // Navigate to dashboard or home page after password creation
-      router.push("/dashboard");
+    if (!email) {
+      error("Missing email", "Please start the registration process again");
+      router.push("/auth/sign-up");
+      return;
+    }
+
+    if (isPasswordValid && doPasswordsMatch) {
+      setIsLoading(true);
+      try {
+        const response = await authApi.createPassword({
+          email: email,
+          password: password
+        });
+
+        if (response.success && response.data) {
+          // Store the authentication tokens
+          const { setAuthToken } = await import('@/lib/auth');
+          
+          if (response.data.token) {
+            setAuthToken(response.data.token, response.data.user.id);
+          }
+          
+          success("Account created successfully!", "Welcome to LiteFi");
+          
+          // Clear registration data
+          sessionStorage.removeItem("registrationEmail");
+          
+          // Redirect to dashboard
+          setTimeout(() => {
+            window.location.href = "/dashboard";
+          }, 1500);
+        } else {
+          error("Password creation failed", response.message || "Please try again");
+        }
+      } catch (err) {
+        console.error("Password creation error:", err);
+        error("Password creation failed", "An unexpected error occurred");
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      if (!isPasswordValid) {
+        error("Invalid password", "Please ensure your password meets all requirements");
+      } else if (!doPasswordsMatch) {
+        error("Passwords don't match", "Please make sure both passwords are identical");
+      }
     }
   };
 
-  const isPasswordLongEnough = password.length >= 8;
+  // Validation
+  const validation = validatePassword(password);
+  const isPasswordValid = validation.isValid;
   const doPasswordsMatch = password === confirmPassword && confirmPassword !== "";
-  const isPasswordValid = isPasswordLongEnough && doPasswordsMatch;
+  const isFormValid = isPasswordValid && doPasswordsMatch;
 
-  const showPasswordError = passwordTouched && !isPasswordLongEnough;
+  const showPasswordError = passwordTouched && !isPasswordValid;
   const showConfirmPasswordError = confirmPasswordTouched && !doPasswordsMatch && confirmPassword !== "";
 
   return (
@@ -51,17 +137,30 @@ export default function CreatePasswordPage() {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Create a password</h1>
-          <p className="text-gray-500">Create a secure password to protect your account</p>
+          <h1 className="text-3xl font-bold mb-2">You are almost there</h1>
+          <p className="text-gray-500">Create a secure password to complete your account setup</p>
         </div>
 
-        {showPasswordError && (
-          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded mb-6">
-            <p className="text-sm">Password must be at least 8 characters</p>
+        <div className="flex justify-center mb-8">
+          <div className="flex items-center space-x-12">
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center mb-2">
+                ✓
+              </div>
+              <span className="text-sm font-medium">Verify Phone</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center mb-2">
+                2
+              </div>
+              <span className="text-sm font-medium">Create Password</span>
+            </div>
           </div>
-        )}
+        </div>
 
         <div className="bg-white p-8 shadow-sm mb-6">
+          <h2 className="text-xl font-bold mb-6">Create a password</h2>
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -86,17 +185,26 @@ export default function CreatePasswordPage() {
               <Input 
                 id="password" 
                 type={showPassword ? "text" : "password"} 
-                placeholder="Create a password" 
+                placeholder="Create a secure password" 
                 className={`bg-gray-50 h-12 ${showPasswordError ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onBlur={() => setPasswordTouched(true)}
+                onChange={handlePasswordChange}
+                onBlur={handlePasswordBlur}
                 required
-                minLength={8}
+                disabled={isLoading}
               />
-              <p className={`text-xs ${showPasswordError ? 'text-red-500' : 'text-gray-500'} mt-1`}>
-                Must be at least 8 characters
-              </p>
+              
+              {/* Password strength meter */}
+              {password && <PasswordStrengthMeter password={password} />}
+              
+              {/* Password requirements */}
+              {passwordTouched && passwordErrors.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {passwordErrors.map((error, index) => (
+                    <p key={index} className="text-xs text-red-500">{error}</p>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -128,6 +236,7 @@ export default function CreatePasswordPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onBlur={() => setConfirmPasswordTouched(true)}
                 required
+                disabled={isLoading}
               />
               {showConfirmPasswordError && (
                 <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
@@ -137,11 +246,18 @@ export default function CreatePasswordPage() {
             <Button 
               type="submit" 
               className="w-full bg-red-600 hover:bg-red-700 h-12 mt-6"
+              disabled={!isFormValid || isLoading}
             >
-              Create Account
+              {isLoading ? "Creating Account..." : "Complete Registration"}
             </Button>
           </form>
         </div>
+
+        {email && (
+          <div className="text-center text-sm text-gray-500">
+            Creating account for: <strong>{email}</strong>
+          </div>
+        )}
       </div>
     </div>
   );

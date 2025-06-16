@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import NotificationDropdown from "@/app/components/NotificationDropdown";
 import { useToastContext } from "@/app/components/ToastProvider";
+import { useAuth, logout } from "@/lib/auth";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -15,6 +16,9 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const { success, info } = useToastContext();
+  
+  // Use the authentication hook to protect dashboard routes
+  const { isAuthenticated, isLoading } = useAuth();
   
   // Track unread count separately to avoid state update conflicts
   const [unreadCount, setUnreadCount] = useState(2);
@@ -28,17 +32,34 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   };
 
   const handleLogout = () => {
-    // Clear any stored authentication data (localStorage, sessionStorage, cookies, etc.)
-    localStorage.clear();
-    sessionStorage.clear();
-    
+    // Use the logout function from auth utilities
+    logout();
     success("Logged out successfully", "Thank you for using LiteFi");
-    
-    // Redirect to login page after a short delay
-    setTimeout(() => {
-      router.push("/auth/login");
-    }, 1500);
   };
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated, the useAuth hook will handle the redirect
+  // This is just a fallback in case the redirect doesn't work
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   const title = getPageTitle();
 
