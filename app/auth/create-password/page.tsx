@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/app/components/ui/input";
@@ -14,7 +14,7 @@ import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 
 import logoImage from "@/public/assets/images/logo.png";
 
-export default function CreatePasswordPage() {
+function CreatePasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { success, error } = useToastContext();
@@ -260,5 +260,20 @@ export default function CreatePasswordPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CreatePasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CreatePasswordContent />
+    </Suspense>
   );
 } 

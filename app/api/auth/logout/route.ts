@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest } from 'next/server';
 import { createSuccessResponse, createErrorResponse } from '@/lib/api-config';
 

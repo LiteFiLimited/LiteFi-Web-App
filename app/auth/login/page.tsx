@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Input } from "@/app/components/ui/input";
@@ -16,7 +16,7 @@ import { useRedirectIfAuthenticated } from "@/lib/auth";
 import heroImage from "@/public/assets/images/image.png";
 import logoImage from "@/public/assets/images/logo.png";
 
-export default function Login() {
+function LoginContent() {
   const { success, error } = useToastContext();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -201,5 +201,20 @@ export default function Login() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={
+      <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
