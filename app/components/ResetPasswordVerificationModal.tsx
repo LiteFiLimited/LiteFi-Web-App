@@ -14,6 +14,7 @@ interface ResetPasswordVerificationModalProps {
   onVerify: (otp: string) => void;
   onResendOtp: () => void;
   onChangeEmail: () => void;
+  isLoading?: boolean;
 }
 
 export default function ResetPasswordVerificationModal({
@@ -22,12 +23,44 @@ export default function ResetPasswordVerificationModal({
   onVerify,
   onResendOtp,
   onChangeEmail,
+  isLoading = false,
 }: ResetPasswordVerificationModalProps) {
   const [otp, setOtp] = React.useState("");
+  const [resendCountdown, setResendCountdown] = React.useState(0);
+
+  // Start countdown when component mounts (initial OTP sent)
+  React.useEffect(() => {
+    setResendCountdown(60);
+  }, []);
+
+  // Countdown timer effect
+  React.useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => {
+        setResendCountdown(resendCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
-    onVerify(otp);
+    if (otp.length === 6) {
+      onVerify(otp);
+    }
+  };
+
+  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numbers and limit to 6 digits
+    if (/^\d*$/.test(value) && value.length <= 6) {
+      setOtp(value);
+    }
+  };
+
+  const handleResendOtp = () => {
+    onResendOtp();
+    setResendCountdown(60); // Reset countdown after resend
   };
 
   return (
@@ -42,7 +75,7 @@ export default function ResetPasswordVerificationModal({
         </h2>
         
         <div className="flex justify-center mb-6">
-          <div className="rounded-full bg-red-500 p-4 flex items-center justify-center">
+          <div className="rounded-full bg-orange-500 p-4 flex items-center justify-center">
             <Image 
               src={mailAnimation} 
               alt="Email verification" 
@@ -70,31 +103,43 @@ export default function ResetPasswordVerificationModal({
             <Input 
               id="otp" 
               value={otp} 
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter OTP" 
-              className="bg-gray-50 h-12" 
+              onChange={handleOtpChange}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              placeholder="Enter 6-digit OTP" 
+              className="bg-gray-50 h-12 text-center text-lg tracking-wider" 
               required
+              disabled={isLoading}
             />
           </div>
           
           <Button 
             type="submit" 
             className="w-full bg-red-600 hover:bg-red-700 h-12 mt-4"
-            disabled={!otp}
+            disabled={otp.length !== 6 || isLoading}
           >
-            Verify OTP
+            {isLoading ? "Verifying..." : "Verify OTP"}
           </Button>
         </form>
         
         <div className="flex justify-between mt-6 text-sm">
           <div>
             <span className="text-gray-500">Resend OTP? </span>
-            <button 
-              onClick={onResendOtp} 
-              className="text-red-600 hover:underline font-medium"
-            >
-              Resend OTP
-            </button>
+            {resendCountdown > 0 ? (
+              <span className="text-gray-400">
+                Resend in {resendCountdown}s
+              </span>
+            ) : (
+              <button 
+                onClick={handleResendOtp} 
+                className="text-red-600 hover:underline font-medium"
+                disabled={isLoading}
+              >
+                Resend OTP
+              </button>
+            )}
           </div>
           
           <div>
@@ -102,6 +147,7 @@ export default function ResetPasswordVerificationModal({
             <button 
               onClick={onChangeEmail} 
               className="text-red-600 hover:underline font-medium"
+              disabled={isLoading}
             >
               Change email
             </button>

@@ -194,7 +194,7 @@ export const authApi = {
   sendPhoneOtp: (data: { phone: string }) =>
     apiRequest<BackendPhoneResponse>('post', '/auth/send-phone-otp', data),
 
-  // Resend phone OTP (for cleaner typing)
+  // Send phone OTP (for cleaner typing)
   resendPhoneOtp: (data: { phone: string }) =>
     apiRequest<BackendPhoneResponse>('post', '/auth/resend-otp', { phone: data.phone, type: 'phone' }),
 
@@ -216,6 +216,18 @@ export const authApi = {
   // Refresh token
   refreshToken: (data: { token: string }) =>
     apiRequest<BackendLoginResponse>('post', '/auth/refresh-token', data),
+
+  // Request password reset
+  requestPasswordReset: (data: { email: string }) =>
+    apiRequest<BackendVerificationResponse>('post', '/auth/reset-password', data),
+
+  // Verify reset password OTP
+  verifyResetPasswordOtp: (data: { email: string; code: string }) =>
+    apiRequest<BackendVerificationResponse>('post', '/auth/verify-reset-password', data),
+
+  // Confirm password reset with code
+  confirmPasswordReset: (data: { email: string; code: string; newPassword: string }) =>
+    apiRequest<BackendVerificationResponse>('post', '/auth/confirm-reset', data),
 };
 
 // Test backend connection
