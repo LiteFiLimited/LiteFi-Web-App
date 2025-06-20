@@ -1,46 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { format, parseISO, addMonths } from 'date-fns';
 import { loanApi } from '@/lib/api';
 import { useToastContext } from '@/app/components/ToastProvider';
-
-interface LoanProduct {
-  id: string;
-  name: string;
-  description: string;
-  interestRate: number;
-  minAmount: number;
-  maxAmount: number;
-  minDuration: number;
-  maxDuration: number;
-  type: 'SALARY' | 'WORKING_CAPITAL' | 'AUTO' | 'TRAVEL';
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Loan {
-  id: string;
-  amount: number;
-  interestRate: number;
-  duration: number; // in months
-  startDate?: string;
-  dueDate?: string;
-  purpose: string;
-  status: string;
-  product: LoanProduct;
-  repayments?: LoanRepayment[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface LoanRepayment {
-  id: string;
-  amount: number;
-  dueDate: string;
-  paidDate?: string;
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'PARTIALLY_PAID';
-  createdAt: string;
-  updatedAt: string;
-}
+import { 
+  Loan, 
+  LoanProduct, 
+  LoanRepayment, 
+  LoanType, 
+  ActiveLoan,
+  UpcomingRepayment,
+  PendingApproval,
+  CompletedLoan
+} from '@/types/loans';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -230,6 +201,129 @@ export function useLoans() {
     }
   };
 
+  // Helper function to format currency
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  // Format date to human-readable format
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      return format(parseISO(dateString), 'dd-MM-yyyy');
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  // Format date to more user-friendly format (e.g., "May 24, 2025")
+  const formatDateFriendly = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      return format(parseISO(dateString), 'MMM dd, yyyy');
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  // Convert loan products to LoanType for UI display
+  const loanTypesForUI = useMemo(() => {
+    if (!loanProducts.length) return [];
+    
+    return loanProducts.map(product => ({
+      title: product.name,
+      amount: formatCurrency(product.maxAmount).replace('NGN', ''),
+      description: product.description,
+      route: product.type.toLowerCase().replace('_', '-') + '-loan'
+    })) as LoanType[];
+  }, [loanProducts]);
+
+  // Convert active loans to ActiveLoan for UI display
+  const activeLoansForUI = useMemo(() => {
+    if (!loans.length) return [];
+
+    return loans
+      .filter(loan => loan.status === 'ACTIVE')
+      .map(loan => {
+        const nextRepayment = loan.repayments?.find(rep => rep.status === 'PENDING');
+        return {
+          type: loan.product?.name || 'Loan',
+          dueDate: formatDateFriendly(nextRepayment?.dueDate || loan.dueDate),
+          dueAmount: formatCurrency(nextRepayment?.amount || 0),
+          totalAmount: formatCurrency(loan.amount),
+          route: loan.product?.type.toLowerCase().replace('_', '-') + '-loan' || 'loan-details'
+        };
+      }) as ActiveLoan[];
+  }, [loans]);
+
+  // Get upcoming repayments for table display
+  const upcomingRepayments = useMemo(() => {
+    if (!loans.length) return [];
+
+    const result: UpcomingRepayment[] = [];
+
+    loans.forEach(loan => {
+      if (loan.status === 'ACTIVE' && loan.repayments) {
+        const pendingRepayments = loan.repayments.filter(rep => rep.status === 'PENDING');
+        
+        pendingRepayments.forEach(repayment => {
+          result.push({
+            applicationId: loan.id.slice(0, 7).toUpperCase(),
+            loanId: loan.id.slice(-5).toUpperCase(),
+            type: loan.product?.name || 'Loan',
+            outstandingBalance: formatCurrency(loan.amount),
+            dueDate: formatDate(repayment.dueDate),
+            amountDue: formatCurrency(repayment.amount),
+          });
+        });
+      }
+    });
+
+    return result;
+  }, [loans]);
+
+  // Get pending approval loans for table display
+  const pendingApprovals = useMemo(() => {
+    if (!loans.length) return [];
+
+    return loans
+      .filter(loan => ['PENDING', 'APPROVED'].includes(loan.status))
+      .map(loan => ({
+        applicationId: loan.id.slice(0, 7).toUpperCase(),
+        loanId: loan.id.slice(-5).toUpperCase(),
+        type: loan.product?.name || 'Loan',
+        amount: formatCurrency(loan.amount),
+        submittedDate: formatDate(loan.createdAt),
+        status: loan.status === 'PENDING' ? 'Application in review' : 'Pending Disbursement'
+      })) as PendingApproval[];
+  }, [loans]);
+
+  // Get completed loans for table display
+  const completedLoans = useMemo(() => {
+    if (!loans.length) return [];
+
+    return loans
+      .filter(loan => ['COMPLETED', 'REJECTED'].includes(loan.status))
+      .map(loan => ({
+        applicationId: loan.id.slice(0, 7).toUpperCase(),
+        loanId: loan.id.slice(-5).toUpperCase(),
+        type: loan.product?.name || 'Loan',
+        amount: formatCurrency(loan.amount),
+        closedDate: formatDate(loan.updatedAt),
+        status: loan.status === 'COMPLETED' ? 'Fully Paid' : 'Rejected'
+      })) as CompletedLoan[];
+  }, [loans]);
+
+  // Check if user has any active loans
+  const hasActiveLoans = useMemo(() => {
+    return loans.some(loan => loan.status === 'ACTIVE');
+  }, [loans]);
+
   useEffect(() => {
     fetchLoans();
     fetchLoanProducts();
@@ -238,6 +332,12 @@ export function useLoans() {
   return {
     loans,
     loanProducts,
+    loanTypesForUI,
+    activeLoansForUI,
+    upcomingRepayments,
+    pendingApprovals,
+    completedLoans,
+    hasActiveLoans,
     isLoading,
     error,
     fetchLoans,

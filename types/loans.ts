@@ -57,3 +57,47 @@ export interface LoanApplication {
   purpose: string;
   documents?: string[];
 }
+
+// Types for UI components
+export interface LoanType {
+  title: string;
+  amount: string;
+  description: string;
+  route: string;
+}
+
+export interface ActiveLoan {
+  type: string;
+  dueDate: string;
+  dueAmount: string;
+  totalAmount: string;
+  route: string;
+}
+
+// Types for table data
+export interface UpcomingRepayment {
+  applicationId: string;
+  loanId: string;
+  type: string;
+  outstandingBalance: string;
+  dueDate: string;
+  amountDue: string;
+}
+
+export interface PendingApproval {
+  applicationId: string;
+  loanId: string;
+  type: string;
+  amount: string;
+  submittedDate: string;
+  status: string;
+}
+
+export interface CompletedLoan {
+  applicationId: string;
+  loanId: string;
+  type: string;
+  amount: string;
+  closedDate: string;
+  status: string;
+}
