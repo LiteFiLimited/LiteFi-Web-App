@@ -54,10 +54,15 @@ function LoginContent() {
           password
         });
 
-        if (response.success && response.data) {
+        console.log("Login response:", response);
+
+        // Check for the actual backend response structure
+        // Backend returns: {message, user, accessToken, refreshToken}
+        // Not: {success: true, data: {user, token}}
+        if (response.user && response.accessToken) {
           // Store the token and user ID using the new auth function
           const { setAuthToken, handleAuthSuccess } = await import('@/lib/auth');
-          setAuthToken(response.data.token, response.data.user.id);
+          setAuthToken(response.accessToken, response.user.id);
           
           success("Login successful!", "Welcome back to LiteFi");
           
@@ -66,11 +71,48 @@ function LoginContent() {
             window.location.href = redirectPath;
           }, 1500);
         } else {
-          error("Login failed", response.message || "Invalid email or password");
+          // Check if this is an incomplete registration flow
+          if (response.message?.toLowerCase().includes('password not set') || 
+              response.message?.toLowerCase().includes('complete registration') ||
+              response.message?.toLowerCase().includes('create password')) {
+            error("Registration incomplete", "Please complete your registration by setting a password");
+            
+            // Store email for password creation flow
+            sessionStorage.setItem('registrationEmail', email);
+            
+            // Redirect to password creation after a short delay
+            setTimeout(() => {
+              window.location.href = `/auth/create-password?email=${encodeURIComponent(email)}`;
+            }, 2000);
+          } else if (response.message?.toLowerCase().includes('verify') && 
+                     response.message?.toLowerCase().includes('email')) {
+            error("Email not verified", "Please verify your email first");
+            
+            // Optionally redirect to sign-up for email verification
+            setTimeout(() => {
+              window.location.href = `/auth/sign-up`;
+            }, 2000);
+          } else {
+            error("Login failed", response.message || "Invalid email or password");
+          }
         }
-      } catch (err) {
-        error("Login failed", "An unexpected error occurred");
+      } catch (err: any) {
         console.error("Login error:", err);
+        
+        // Extract the actual error message from the server response
+        let errorMessage = "An unexpected error occurred";
+        
+        if (err?.message) {
+          errorMessage = err.message;
+        } else if (err?.error && typeof err.error === 'string') {
+          errorMessage = err.error;
+        } else if (err?.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (typeof err === 'string') {
+          errorMessage = err;
+        }
+        
+        error("Login failed", errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -113,7 +155,6 @@ function LoginContent() {
               alt="LiteFi Logo" 
               width={80}
               height={24}
-              style={{ width: 'auto', height: 'auto' }}
             />
           </div>
 

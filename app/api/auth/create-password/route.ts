@@ -1,17 +1,23 @@
 export const dynamic = 'force-static';
 
 import { NextRequest } from 'next/server';
-import { createErrorResponse, createSuccessResponse } from '@/lib/api-config';
+import { createErrorResponse, createSuccessResponse, handleOptionsRequest } from '@/lib/api-config';
 
 /**
- * Frontend Create Password Proxy Endpoint
+ * Handle CORS preflight requests for create password endpoint
+ */
+export async function OPTIONS(request: NextRequest) {
+  return handleOptionsRequest();
+}
+
+/**
+ * Create Password Endpoint
  * 
- * This endpoint serves as a proxy to the backend authentication system.
- * It forwards password creation requests to the backend and handles the hybrid authentication response.
- * Sets both localStorage tokens (via JSON response) and HTTP cookies for server-side middleware.
+ * Forwards password creation requests to the backend API.
+ * Completes user registration by setting a password for verified users.
  * 
  * @param request - HTTP request containing email and password
- * @returns JSON response with user data and authentication token + HTTP cookies
+ * @returns JSON response with authentication tokens and user data
  */
 export async function POST(request: NextRequest) {
   try {
@@ -19,13 +25,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password } = body;
 
-    // Validate that both email and password are provided
+    // Validate required fields
     if (!email || !password) {
       return createErrorResponse('Email and password are required');
     }
 
-    // Forward password creation request to backend API
-    const backendResponse = await fetch(`${process.env.BACKEND_API_URL}/auth/create-password`, {
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return createErrorResponse('Invalid email format');
+    }
+
+    // Validate password strength (basic validation)
+    if (password.length < 8) {
+      return createErrorResponse('Password must be at least 8 characters long');
+    }
+
+    // Forward request to backend API
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+    
+    console.log('Forwarding create password to backend:', { email, passwordLength: password.length });
+    
+    const backendResponse = await fetch(`${backendUrl}/auth/create-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -33,57 +54,27 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ email, password }),
     });
 
-    const responseData = await backendResponse.json();
+    const backendData = await backendResponse.json();
+    
+    console.log('Backend create password response:', {
+      status: backendResponse.status,
+      success: backendData.success
+    });
 
-    if (!backendResponse.ok) {
-      // Forward backend error response
+    // Return the backend response
+    if (backendResponse.ok) {
+      return createSuccessResponse(
+        backendData.message || 'Password created successfully',
+        backendData.data
+      );
+    } else {
       return createErrorResponse(
-        responseData.message || 'Password creation failed',
+        backendData.message || 'Failed to create password',
         backendResponse.status
       );
     }
-
-    // Successful password creation - backend returns accessToken and user data
-    const { accessToken, refreshToken, user } = responseData;
-
-    // Create success response with user data and token
-    const response = createSuccessResponse(
-      'Password created successfully. You can now access your account.',
-      { user, token: accessToken }
-    );
-
-    // Set authentication cookies for server-side middleware access
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    // Set access token cookie
-    response.cookies.set('auth-token', accessToken, {
-      httpOnly: false, // Allow client-side access for localStorage sync
-      secure: isProduction,
-      sameSite: 'strict',
-      maxAge: 86400, // 24 hours
-      path: '/'
-    });
-
-    // Set refresh token cookie (httpOnly for security)
-    if (refreshToken) {
-      response.cookies.set('refresh-token', refreshToken, {
-        httpOnly: true, // More secure for refresh tokens
-        secure: isProduction,
-        sameSite: 'strict',
-        maxAge: 604800, // 7 days
-        path: '/'
-      });
-    }
-
-    return response;
   } catch (error) {
-    console.error('Create password proxy error:', error);
-    
-    // Handle network errors or backend unavailability
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      return createErrorResponse('Backend service unavailable. Please try again later.', 503);
-    }
-    
+    console.error('Create password error:', error);
     return createErrorResponse('Internal server error', 500);
   }
 } 

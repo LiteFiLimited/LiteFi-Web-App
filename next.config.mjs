@@ -13,7 +13,6 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
   trailingSlash: true,
   distDir: 'out',
   skipTrailingSlashRedirect: true,

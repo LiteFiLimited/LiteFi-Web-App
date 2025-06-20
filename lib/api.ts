@@ -24,254 +24,203 @@ export interface AuthResponse {
   token: string;
 }
 
-// Base API URL - for Next.js API routes, use relative URLs or same origin
-// In development, Next.js runs on port 3000 by default
-const API_URL = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
-
-// Create axios instance
-const axiosInstance = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  // Set timeout to prevent hanging requests
-  timeout: 10000,
-  // Enable credentials for cookie support
-  withCredentials: true,
-});
-
-// Add request interceptor for debugging
-axiosInstance.interceptors.request.use(
-  (config) => {
-    console.log('Request:', {
-      method: config.method,
-      url: (config.baseURL || '') + (config.url || ''),
-      headers: config.headers,
-      data: config.data,
-    });
-    return config;
-  },
-  (error) => {
-    console.error('Request error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor for debugging
-axiosInstance.interceptors.response.use(
-  (response) => {
-    console.log('Response:', {
-      status: response.status,
-      data: response.data,
-    });
-    return response;
-  },
-  (error) => {
-    if (error.code === 'ERR_NETWORK') {
-      console.error('Network Error Details:', {
-        message: error.message,
-        code: error.code,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          baseURL: error.config?.baseURL,
-        }
-      });
-    } else {
-      console.error('Response error:', error.response || error);
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Helper function to handle API errors
-const handleApiError = (error: any): ApiResponse => {
-  console.error('API Error:', error);
-  
-  if (error.response) {
-    // The request was made and the server responded with a status code
-    // that falls out of the range of 2xx
-    return {
-      success: false,
-      message: error.response.data.message || 'An error occurred',
-      statusCode: error.response.status,
-      error: error.response.data.error
-    };
-  } else if (error.request) {
-    // The request was made but no response was received
-    return {
-      success: false,
-      message: 'No response from server. Please check if the server is running.',
-      error: 'Network error'
-    };
-  } else if (error.code === 'ERR_NETWORK') {
-    // Specific handling for network errors
-    return {
-      success: false,
-      message: 'Cannot connect to server. Please check your network connection and server status.',
-      error: 'Network error'
-    };
-  } else if (error.code === 'ECONNABORTED') {
-    // Timeout error
-    return {
-      success: false,
-      message: 'Request timed out. Please try again later.',
-      error: 'Timeout error'
-    };
-  } else {
-    // Something happened in setting up the request that triggered an Error
-    return {
-      success: false,
-      message: error.message || 'An error occurred',
-      error: 'Request error'
-    };
-  }
-};
-
-// Generic API request function
-async function apiRequest<T>(
-  endpoint: string,
-  method: string = 'GET',
-  data?: any,
-  headers: Record<string, string> = {},
-  requiresAuth: boolean = true
-): Promise<ApiResponse<T>> {
-  try {
-    // Get token from localStorage if available
-    let token = '';
-    if (typeof window !== 'undefined' && requiresAuth) {
-      token = localStorage.getItem('accessToken') || '';
-    }
-
-    // Add authorization header if token exists and auth is required
-    const requestHeaders = { ...headers };
-    if (token && requiresAuth) {
-      requestHeaders['Authorization'] = `Bearer ${token}`;
-    }
-
-    // Make the request using axios
-    const config = {
-      method,
-      url: endpoint,
-      headers: requestHeaders,
-      data: method !== 'GET' ? data : undefined,
-      params: method === 'GET' ? data : undefined,
-    };
-
-    const response = await axiosInstance(config);
-
-    return {
-      success: true,
-      message: response.data.message || '',
-      data: response.data.data || response.data,
-      statusCode: response.status
-    };
-  } catch (error) {
-    return handleApiError(error);
-  }
+// Backend response types (actual structure returned by backend)
+export interface BackendLoginResponse {
+  message: string;
+  user: UserData;
+  accessToken: string;
+  refreshToken: string;
 }
 
-// Auth API functions
-export const authApi = {
-  register: (userData: {
-    email: string;
-    firstName: string;
-    lastName: string;
-    phone?: string;
-    country?: string;
-    referralCode?: string;
-  }): Promise<ApiResponse<{
-    user: UserData;
-    verificationCode?: string;
-  }>> => {
-    return apiRequest('/api/auth/register', 'POST', userData, {}, false);
-  },
+export interface BackendVerificationResponse {
+  message: string;
+  success?: boolean;
+  data?: any;
+}
 
-  login: (credentials: {
-    email: string;
-    password: string;
-  }): Promise<ApiResponse<AuthResponse>> => {
-    return apiRequest<AuthResponse>('/api/auth/login', 'POST', credentials, {}, false);
-  },
-
-  logout: (): Promise<ApiResponse> => {
-    return apiRequest('/api/auth/logout', 'POST', {}, {}, false);
-  },
-
-  verifyEmail: (data: {
-    email: string;
-    code: string;
-  }): Promise<ApiResponse> => {
-    return apiRequest('/api/auth/verify-email', 'POST', data, {}, false);
-  },
-
-  sendPhoneOtp: (data: {
-    phone: string;
-  }): Promise<ApiResponse<{
+export interface BackendPhoneResponse {
+  message: string;
+  success?: boolean;
+  data?: {
     isNigerianNumber: boolean;
     requiresOtp: boolean;
     verificationId?: string;
     phone: string;
     verified?: boolean;
-  }>> => {
-    return apiRequest('/api/auth/send-phone-otp', 'POST', data, {}, false);
-  },
+  };
+}
 
-  verifyPhoneOtp: (data: {
-    phone: string;
-    verificationId: string;
-    otp: string;
-  }): Promise<ApiResponse<{
-    phone: string;
-    verified: boolean;
-  }>> => {
-    return apiRequest('/api/auth/verify-phone-otp', 'POST', data, {}, false);
-  },
+// Base API URL - Direct connection to backend server
+// Force localhost:3000 - override any environment variables that might be set to 3001
+const API_URL = 'http://localhost:3000';
 
-  // Keep the old verifyPhone for backward compatibility (now deprecated)
-  verifyPhone: (data: {
-    phone: string;
-    code?: string;
-  }): Promise<ApiResponse> => {
-    return apiRequest('/api/auth/verify-phone', 'POST', data, {}, false);
-  },
+// Clear any browser cache by logging the forced URL
+console.warn('🔧 FORCED API URL:', API_URL, '- If you see port 3001, clear browser cache!');
 
-  resendOtp: (data: {
-    email?: string;
-    phone?: string;
-    type: 'email' | 'phone';
-  }): Promise<ApiResponse<{
-    isNigerianNumber?: boolean;
-    requiresOtp?: boolean;
-    verificationId?: string;
-    phone?: string;
-  }>> => {
-    return apiRequest('/api/auth/resend-otp', 'POST', data, {}, false);
-  },
+console.log('API Configuration:', {
+  baseURL: API_URL,
+  environment: process.env.NODE_ENV
+});
 
-  resendVerification: (data: {
+// Create axios instance
+const axiosInstance = axios.create({
+  baseURL: API_URL,
+  timeout: 30000, // Increased timeout for better backend communication
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+});
+
+// Request interceptor
+axiosInstance.interceptors.request.use(
+  (config) => {
+    console.log('Request:', {
+      method: config.method,
+      url: config.url,
+      headers: config.headers,
+      data: config.data
+    });
+
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    console.error('Request Error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor
+axiosInstance.interceptors.response.use(
+  (response) => {
+    console.log('Response:', {
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
+  (error) => {
+    console.error('Response error:', error);
+    
+    // Better error handling for connection issues
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      console.error('Connection timeout - backend may not be running on', API_URL);
+    } else if (error.code === 'ERR_NETWORK' || !error.response) {
+      console.error('Network error - cannot connect to backend at', API_URL);
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+// Generic API request function
+async function apiRequest<T = any>(
+  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  endpoint: string,
+  data?: any,
+  config?: any
+): Promise<T> {
+  try {
+    const response = await axiosInstance.request({
+      method,
+      url: endpoint,
+      data,
+      ...config,
+    });
+
+    // Return the backend response directly
+    return response.data;
+  } catch (error: any) {
+    console.error('API Error:', error);
+    
+    // Handle different types of errors
+    if (error.code === 'ECONNABORTED') {
+      throw {
+        success: false,
+        message: `Connection timeout. Please check if the backend server is running on ${API_URL}`,
+        error: 'Timeout',
+        statusCode: 408
+      };
+    } else if (!error.response) {
+      throw {
+        success: false,
+        message: `Cannot connect to server at ${API_URL}. Please check if the backend is running.`,
+        error: 'Network error',
+        statusCode: 503
+      };
+    } else {
+      throw error.response?.data || {
+        success: false,
+        message: error.message || 'An unexpected error occurred',
+        error: 'Unknown error',
+        statusCode: error.response?.status || 500
+      };
+    }
+  }
+}
+
+// Authentication API functions
+export const authApi = {
+  // Register new user
+  register: (userData: {
+    firstName: string;
+    lastName: string;
     email: string;
-  }): Promise<ApiResponse> => {
-    return apiRequest('/api/auth/resend-verification', 'POST', data, {}, false);
-  },
+    country?: string;
+    referralCode?: string;
+  }) => apiRequest<BackendVerificationResponse>('post', '/auth/register', userData),
 
-  resetPassword: async (email: string): Promise<ApiResponse> => {
-    return apiRequest('/auth/reset-password', 'POST', { email }, {}, false);
-  },
+  // Verify email with OTP
+  verifyEmail: (data: { email: string; code: string }) =>
+    apiRequest<BackendVerificationResponse>('post', '/auth/verify-email', data),
 
-  createNewPassword: async (data: {
-    token: string;
-    password: string;
-  }): Promise<ApiResponse> => {
-    return apiRequest('/auth/create-new-password', 'POST', data, {}, false);
-  },
+  // Resend OTP - supports both email and phone
+  resendOtp: (data: { email?: string; phone?: string; type?: string }) =>
+    apiRequest<BackendVerificationResponse>('post', '/auth/resend-otp', data),
 
-  createPassword: (data: {
-    email: string;
-    password: string;
-  }): Promise<ApiResponse<AuthResponse>> => {
-    return apiRequest<AuthResponse>('/api/auth/create-password', 'POST', data, {}, false);
+  // Send phone OTP
+  sendPhoneOtp: (data: { phone: string }) =>
+    apiRequest<BackendPhoneResponse>('post', '/auth/send-phone-otp', data),
+
+  // Resend phone OTP (for cleaner typing)
+  resendPhoneOtp: (data: { phone: string }) =>
+    apiRequest<BackendPhoneResponse>('post', '/auth/resend-otp', { phone: data.phone, type: 'phone' }),
+
+  // Verify phone OTP
+  verifyPhoneOtp: (data: { phone: string; verificationId: string; otp: string }) =>
+    apiRequest<BackendVerificationResponse>('post', '/auth/verify-phone-otp', data),
+
+  // Create password
+  createPassword: (data: { email: string; password: string }) =>
+    apiRequest<BackendLoginResponse>('post', '/auth/create-password', data),
+
+  // Login - returns backend response directly
+  login: (credentials: { email: string; password: string }) =>
+    apiRequest<BackendLoginResponse>('post', '/auth/login', credentials),
+
+  // Logout
+  logout: () => apiRequest<BackendVerificationResponse>('post', '/auth/logout'),
+
+  // Refresh token
+  refreshToken: (data: { token: string }) =>
+    apiRequest<BackendLoginResponse>('post', '/auth/refresh-token', data),
+};
+
+// Test backend connection
+export const testConnection = async (): Promise<boolean> => {
+  try {
+    const response = await apiRequest<any>('get', '/');
+    console.log('Backend connection test successful:', response);
+    return true;
+  } catch (error) {
+    console.error('Backend connection test failed:', error);
+    return false;
   }
 };
 
-export default apiRequest; 
+export default axiosInstance; 

@@ -13,10 +13,10 @@ export async function OPTIONS(request: NextRequest) {
 /**
  * Verify Phone OTP Endpoint
  * 
- * Verifies SMS OTP for Nigerian phone numbers using verification ID.
- * This endpoint is only used for Nigerian numbers that received SMS OTP.
+ * Forwards phone OTP verification requests to the backend API.
+ * Verifies SMS OTP codes sent to Nigerian phone numbers.
  * 
- * @param request - HTTP request containing phone, verification ID, and OTP
+ * @param request - HTTP request containing phone, verificationId, and OTP
  * @returns JSON response confirming phone verification status
  */
 export async function POST(request: NextRequest) {
@@ -25,40 +25,51 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { phone, verificationId, otp } = body;
 
-    // Validate that all required fields are provided
+    // Validate required fields
     if (!phone || !verificationId || !otp) {
       return createErrorResponse('Phone number, verification ID, and OTP are required');
     }
 
-    // Validate OTP format
+    // Validate OTP format (6-digit code)
     if (!/^\d{6}$/.test(otp)) {
       return createErrorResponse('Invalid OTP format. Must be a 6-digit code.');
     }
 
-    // Validate verification ID format
-    if (!verificationId.startsWith('VER')) {
-      return createErrorResponse('Invalid verification ID format');
-    }
-
-    // Verify the OTP using KudiSMS service and verification ID
-    // Database operations would include:
-    // 1. Validate verification ID exists and is not expired
-    // 2. Verify OTP matches the one sent via KudiSMS
-    // 3. Mark phone number as verified in user account
-    // 4. Clean up temporary verification data
+    // Forward request to backend API
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
     
-    // Accept test OTP "123456" for development
-    if (otp === '123456') {
+    console.log('Forwarding verify phone OTP to backend:', { 
+      phone, 
+      verificationId, 
+      otp 
+    });
+    
+    const backendResponse = await fetch(`${backendUrl}/auth/verify-phone-otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ phone, verificationId, otp }),
+    });
+
+    const backendData = await backendResponse.json();
+    
+    console.log('Backend verify phone OTP response:', {
+      status: backendResponse.status,
+      data: backendData
+    });
+
+    // Return the backend response
+    if (backendResponse.ok) {
       return createSuccessResponse(
-        'Phone number verified successfully',
-        {
-          phone,
-          verified: true
-        }
+        backendData.message || 'Phone number verified successfully',
+        backendData.data
       );
     } else {
-      // Return error for invalid OTP
-      return createErrorResponse('Invalid OTP code');
+      return createErrorResponse(
+        backendData.message || 'Phone verification failed',
+        backendResponse.status
+      );
     }
   } catch (error) {
     console.error('Verify phone OTP error:', error);

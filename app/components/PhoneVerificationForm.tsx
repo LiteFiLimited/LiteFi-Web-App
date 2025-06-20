@@ -41,6 +41,8 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
         phone: phoneNumber
       });
 
+      console.log("Send phone OTP response:", response);
+
       if (response.success && response.data) {
         if (response.data.requiresOtp) {
           // Nigerian number - show verification modal for OTP
@@ -59,7 +61,24 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
           }
         }
       } else {
-        error("Verification failed", response.message || "Please try again");
+        // Check if this is an "already verified" response
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
+          // Store email for password creation and redirect
+          const registrationEmail = sessionStorage.getItem('registrationEmail');
+          
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1500);
+        } else {
+          error("Verification failed", response.message || "Please try again");
+        }
       }
     } catch (err) {
       error("Verification failed", "An unexpected error occurred");
@@ -84,6 +103,8 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
         otp: otp
       });
 
+      console.log("Phone OTP verification response:", response);
+
       if (response.success) {
         success("Phone verified successfully!", "Your phone number has been verified");
         setShowVerificationModal(false);
@@ -95,7 +116,25 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
           router.push("/auth/create-password");
         }
       } else {
-        error("Verification failed", response.message || "Invalid verification code");
+        // Check if this is an "already verified" response
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
+          setShowVerificationModal(false);
+          // Store email for password creation and redirect
+          const registrationEmail = sessionStorage.getItem('registrationEmail');
+          
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1500);
+        } else {
+          error("Verification failed", response.message || "Invalid verification code");
+        }
       }
     } catch (err) {
       error("Verification failed", "An unexpected error occurred");
@@ -109,11 +148,12 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
     setIsLoading(true);
     
     try {
-      // Use the resend-otp endpoint which now returns verification ID for phone OTP
-      const response = await authApi.resendOtp({
-        phone: phoneNumber,
-        type: 'phone'
+      // Use the resend phone OTP endpoint
+      const response = await authApi.resendPhoneOtp({
+        phone: phoneNumber
       });
+      
+      console.log("Resend phone OTP response:", response);
       
       if (response.success && response.data) {
         // Update verification ID from the resend response
@@ -122,7 +162,25 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
         }
         info("OTP sent", "A new verification code has been sent to your phone");
       } else {
-        error("Failed to resend OTP", response.message || "Please try again");
+        // Check if this is an "already verified" response
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
+          setShowVerificationModal(false);
+          // Store email for password creation and redirect
+          const registrationEmail = sessionStorage.getItem('registrationEmail');
+          
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1500);
+        } else {
+          error("Failed to resend OTP", response.message || "Please try again");
+        }
       }
     } catch (err) {
       error("Failed to resend OTP", "An unexpected error occurred");
@@ -215,25 +273,6 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
             >
               {isLoading ? "Processing..." : phoneInfo?.requiresVerification ? "Send OTP" : "Save Phone Number"}
             </Button>
-
-            <div className="text-center mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  // Skip phone verification and go to password creation
-                  const registrationEmail = sessionStorage.getItem('registrationEmail');
-                  if (registrationEmail) {
-                    router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
-                  } else {
-                    router.push("/auth/create-password");
-                  }
-                }}
-                className="text-gray-500 hover:text-gray-700 text-sm underline"
-                disabled={isLoading}
-              >
-                Skip for now
-              </button>
-            </div>
           </form>
         </div>
       </div>

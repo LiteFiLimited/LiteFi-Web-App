@@ -75,14 +75,22 @@ export async function POST(request: NextRequest) {
       // Resend email verification OTP
       // Database operations would include:
       // 1. Get user info from email
-      // 2. Generate a new email OTP
-      // 3. Send the verification email
-      // 4. Update the database with the new OTP
+      // 2. Check if email is already verified
+      // 3. If already verified, return success with appropriate message
+      // 4. If not verified, generate a new email OTP
+      // 5. Send the verification email
+      // 6. Update the database with the new OTP
 
       return createSuccessResponse('Verification email sent successfully');
     } else if (otpType === 'phone') {
       if (!phone) {
         return createErrorResponse('Phone number is required for phone OTP');
+      }
+
+      // In real implementation, check if phone is already verified
+      // For demo purposes, simulate already verified phone for specific case
+      if (phone === '+2348012345678' || phone === '08012345678') {
+        return createSuccessResponse('Phone already verified', { alreadyVerified: true });
       }
 
       // Check if phone number is Nigerian for SMS OTP eligibility
@@ -94,9 +102,11 @@ export async function POST(request: NextRequest) {
         const verificationId = `VER${Date.now()}${Math.random().toString(36).substr(2, 9)}`;
         
         // Database operations would include:
-        // 1. Generate a new SMS OTP and verification ID
-        // 2. Send the OTP via KudiSMS API
-        // 3. Update the database with the new OTP and verification ID
+        // 1. Check if phone is already verified
+        // 2. If already verified, return success with appropriate message
+        // 3. If not verified, generate a new SMS OTP and verification ID
+        // 4. Send the OTP via KudiSMS API
+        // 5. Update the database with the new OTP and verification ID
 
         return createSuccessResponse(
           'SMS OTP sent successfully',

@@ -79,13 +79,12 @@ function CreatePasswordContent() {
           password: password
         });
 
-        if (response.success && response.data) {
+        // Check for the actual backend response structure
+        // Backend returns: {message, user, accessToken, refreshToken}
+        if (response.user && response.accessToken) {
           // Store the authentication tokens
           const { setAuthToken } = await import('@/lib/auth');
-          
-          if (response.data.token) {
-            setAuthToken(response.data.token, response.data.user.id);
-          }
+          setAuthToken(response.accessToken, response.user.id);
           
           success("Account created successfully!", "Welcome to LiteFi");
           

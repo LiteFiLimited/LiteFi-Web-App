@@ -163,8 +163,40 @@ export default function SignUp() {
         code: otp
       });
 
-      if (response.success) {
-        success("Email verified successfully!", "Now let's verify your phone number");
+      console.log("Email verification response:", response);
+
+      // Check for the actual backend response structure
+      // Backend likely returns: {message, data} or just {message}
+      // Check if verification was successful by examining the response
+      if (response && (response.success === true || response.message?.toLowerCase().includes('verified successfully') || response.message?.toLowerCase().includes('email verified'))) {
+        // Handle both successful verification and already verified cases
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Email already verified", "Your email is already verified. Proceeding to next step...");
+        } else {
+          success("Email verified successfully!", "Now let's verify your phone number");
+        }
+        
+        setShowVerificationModal(false);
+        
+        // Store email for subsequent steps
+        sessionStorage.setItem('registrationEmail', formData.email);
+        
+        // Continue registration flow - redirect to phone verification
+        setTimeout(() => {
+          window.location.href = "/auth/verify-phone";
+        }, 1500);
+      } else if (response.success) {
+        // Legacy handling for expected API structure
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Email already verified", "Your email is already verified. Proceeding to next step...");
+        } else {
+          success("Email verified successfully!", "Now let's verify your phone number");
+        }
+        
         setShowVerificationModal(false);
         
         // Store email for subsequent steps
@@ -175,7 +207,23 @@ export default function SignUp() {
           window.location.href = "/auth/verify-phone";
         }, 1500);
       } else {
-        error("Verification failed", response.message || "Please try again");
+        // Check if this is an "already verified" response with success: false
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Email already verified", "Your email is already verified. Proceeding to next step...");
+          setShowVerificationModal(false);
+          
+          // Store email for subsequent steps
+          sessionStorage.setItem('registrationEmail', formData.email);
+          
+          // Continue registration flow - redirect to phone verification
+          setTimeout(() => {
+            window.location.href = "/auth/verify-phone";
+          }, 1500);
+        } else {
+          error("Verification failed", response.message || "Please try again");
+        }
       }
     } catch (err) {
       error("Verification failed", "An unexpected error occurred");
@@ -193,10 +241,28 @@ export default function SignUp() {
         type: 'email'
       });
       
+      console.log("Resend OTP response:", response);
+      
       if (response.success) {
         info("Verification code sent", `A new code has been sent to ${formData.email}`);
       } else {
-        error("Failed to resend code", response.message || "Please try again");
+        // Check if this is an "already verified" response
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Email already verified", "Your email is already verified. Proceeding to next step...");
+          setShowVerificationModal(false);
+          
+          // Store email for subsequent steps
+          sessionStorage.setItem('registrationEmail', formData.email);
+          
+          // Continue registration flow - redirect to phone verification
+          setTimeout(() => {
+            window.location.href = "/auth/verify-phone";
+          }, 1500);
+        } else {
+          error("Failed to resend code", response.message || "Please try again");
+        }
       }
     } catch (err) {
       error("Failed to resend code", "An unexpected error occurred");
@@ -239,7 +305,6 @@ export default function SignUp() {
               alt="LiteFi Logo" 
               width={80}
               height={24}
-              style={{ width: 'auto', height: 'auto' }}
             />
           </div>
 
