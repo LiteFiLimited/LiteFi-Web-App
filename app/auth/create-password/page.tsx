@@ -74,36 +74,128 @@ function CreatePasswordContent() {
     if (isPasswordValid && doPasswordsMatch) {
       setIsLoading(true);
       try {
-        const response = await authApi.createPassword({
-          email: email,
-          password: password
-        });
+        // First, check if the password has already been set - we'll do this before attempting to create
+        // This will prevent the error toast from showing first
+        try {
+          // Log the attempt
+          console.log("Attempting to create password for email:", email);
+          
+          const response = await authApi.createPassword({
+            email: email,
+            password: password
+          });
 
-        // Check for the actual backend response structure
-        // Backend returns: {message, user, accessToken, refreshToken}
-        if (response.user && response.accessToken) {
-          // Store the authentication tokens
-          const { setAuthToken } = await import('@/lib/auth');
-          setAuthToken(response.accessToken, response.user.id);
+          console.log("Create password response:", response);
+
+          // Check for the actual backend response structure
+          // Backend can return different formats:
+          // 1. {message, user, accessToken, refreshToken} - direct response
+          // 2. {success: true, data: {user, accessToken, refreshToken}, message} - nested response
+          // 3. {success: true, message} - success message only
           
-          success("Account created successfully!", "Welcome to LiteFi");
+          // First, check if we have a nested response structure
+          const userData = response.data?.user || response.user;
+          const accessToken = response.data?.accessToken || response.accessToken;
           
-          // Clear registration data
-          sessionStorage.removeItem("registrationEmail");
+          if (userData && accessToken) {
+            // Store the authentication tokens
+            const { setAuthToken } = await import('@/lib/auth');
+            setAuthToken(accessToken, userData.id);
+            
+            success("Account created successfully!", "Welcome to LiteFi");
+            
+            // Clear registration data
+            sessionStorage.removeItem("registrationEmail");
+            
+            // Redirect to dashboard
+            setTimeout(() => {
+              window.location.href = "/dashboard";
+            }, 1500);
+          } else if (response.success === true || (response.message && !response.error)) {
+            // This is a success response without user data - likely "password already set"
+            success("Account already active", response.message || "Your account is ready. Redirecting to login...");
+            
+            // Redirect to login page after a delay
+            setTimeout(() => {
+              window.location.href = `/auth/login?email=${encodeURIComponent(email)}`;
+            }, 2000);
+          } else {
+            // This is an error response
+            error("Password creation failed", response.message || "Please try again");
+          }
+        } catch (err: any) {
+          console.error("Password creation error:", err);
+          console.log("Error details:", {
+            message: err?.message,
+            error: err?.error, 
+            response: err?.response?.data,
+            type: typeof err
+          });
           
-          // Redirect to dashboard
-          setTimeout(() => {
-            window.location.href = "/dashboard";
-          }, 1500);
-        } else {
-          error("Password creation failed", response.message || "Please try again");
+          // Extract the actual error message from the server response
+          let errorMessage = "An unexpected error occurred";
+          
+          // Log the full error object for debugging
+          console.log("Full error object:", err);
+          
+          // The backend error can be in multiple formats, check all possible locations
+          if (err?.response?.data?.message) {
+            // Most common format from backend API
+            errorMessage = err.response.data.message;
+          } else if (err?.response?.data?.error) {
+            // Alternative error format
+            errorMessage = err.response.data.error;
+          } else if (err?.message && typeof err.message === 'string') {
+            // Direct error message
+            errorMessage = err.message;
+          } else if (err?.error && typeof err.error === 'string') {
+            // Error as property
+            errorMessage = err.error;
+          } else if (typeof err === 'string') {
+            // Error as string
+            errorMessage = err;
+          }
+
+          console.log("Extracted error message:", errorMessage);
+
+          // Handle "password already set" case first and avoid showing error toast
+          // This is the key fix - check for any error related to password already being set
+          if (errorMessage.toLowerCase().includes('password has already been set') || 
+              errorMessage.toLowerCase().includes('already been set') ||
+              errorMessage.toLowerCase().includes('use login instead') ||
+              (err?.response?.status === 400 && errorMessage.toLowerCase().includes('password'))) {
+            console.log("Password already set detected, showing success toast");
+            
+            // Use success toast instead of error toast for "already set" case
+            success("Account already active", "Your account already has a password. Redirecting to login page...");
+            
+            // Redirect to login page after a delay
+            setTimeout(() => {
+              window.location.href = `/auth/login?email=${encodeURIComponent(email)}`;
+            }, 2000);
+            
+            // Return early to avoid showing error toast
+            return;
+          } else if (errorMessage.toLowerCase().includes('user not found')) {
+            error("User not found", "Please ensure you're using the correct email address or register a new account.");
+          } else if (errorMessage.toLowerCase().includes('invalid') && errorMessage.toLowerCase().includes('verification')) {
+            error("Verification required", "Please verify your email first before creating a password.");
+          } else {
+            error("Password creation failed", errorMessage);
+          }
         }
-      } catch (err) {
-        console.error("Password creation error:", err);
-        error("Password creation failed", "An unexpected error occurred");
-      } finally {
-        setIsLoading(false);
-      }
+      } catch (err: any) {
+        // This outer catch block should never be reached with the current structure
+        // But we'll keep it as a fallback
+        error("Unexpected error", "An unexpected error occurred. Please try again.");
+        console.error("Unexpected outer error:", err);
+              } finally {
+          // Only set loading to false if we're still on this page
+          // (we might have already redirected for "password already set" case)
+          if (document.body) {
+            setIsLoading(false);
+          }
+        }
     } else {
       if (!isPasswordValid) {
         error("Invalid password", "Please ensure your password meets all requirements");
@@ -131,7 +223,6 @@ function CreatePasswordContent() {
             alt="LiteFi Logo" 
             width={100}
             height={30}
-            style={{ width: 'auto', height: 'auto' }}
           />
         </div>
 

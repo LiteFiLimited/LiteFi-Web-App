@@ -225,9 +225,33 @@ export default function SignUp() {
           error("Verification failed", response.message || "Please try again");
         }
       }
-    } catch (err) {
-      error("Verification failed", "An unexpected error occurred");
+    } catch (err: any) {
       console.error("Verification error:", err);
+      console.log("Error details:", {
+        message: err?.message,
+        error: err?.error, 
+        response: err?.response?.data,
+        type: typeof err
+      });
+      
+      // Extract the actual error message from the server response
+      let errorMessage = "An unexpected error occurred";
+      
+      // The backend error is thrown directly as {message, error, statusCode}
+      if (err?.message && typeof err.message === 'string') {
+        errorMessage = err.message;
+      } else if (err?.error && typeof err.error === 'string') {
+        errorMessage = err.error;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+
+      console.log("Extracted error message:", errorMessage);
+      error("Verification failed", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -264,9 +288,33 @@ export default function SignUp() {
           error("Failed to resend code", response.message || "Please try again");
         }
       }
-    } catch (err) {
-      error("Failed to resend code", "An unexpected error occurred");
+    } catch (err: any) {
       console.error("Resend OTP error:", err);
+      console.log("Error details:", {
+        message: err?.message,
+        error: err?.error, 
+        response: err?.response?.data,
+        type: typeof err
+      });
+      
+      // Extract the actual error message from the server response
+      let errorMessage = "An unexpected error occurred";
+      
+      // The backend error is thrown directly as {message, error, statusCode}
+      if (err?.message && typeof err.message === 'string') {
+        errorMessage = err.message;
+      } else if (err?.error && typeof err.error === 'string') {
+        errorMessage = err.error;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      } else if (err?.response?.data?.error) {
+        errorMessage = err.response.data.error;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+
+      console.log("Extracted error message:", errorMessage);
+      error("Failed to resend code", errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -428,3 +476,4 @@ export default function SignUp() {
     </div>
   );
 }
+

@@ -43,22 +43,30 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
 
       console.log("Send phone OTP response:", response);
 
-      if (response.success && response.data) {
-        if (response.data.requiresOtp) {
+      if (response.success || (response.data && response.data.verified)) {
+        if (response.data?.requiresOtp) {
           // Nigerian number - show verification modal for OTP
           setVerificationId(response.data.verificationId || "");
           info("OTP Sent", "We've sent a verification code to your phone number");
           setShowVerificationModal(true);
         } else {
           // International number - automatically verified
-          success("Phone number saved!", "International numbers are verified manually by our team");
+          success("Phone number saved!", "International numbers are verified automatically");
+          
+          // Log the successful verification
+          console.log("Phone verified automatically:", phoneNumber);
+          
           // Store email for password creation and redirect
           const registrationEmail = sessionStorage.getItem('registrationEmail');
-          if (registrationEmail) {
-            router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
-          } else {
-            router.push("/auth/create-password");
-          }
+          
+          // Add a slight delay before redirect to ensure backend processes the phone number
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1000);
         }
       } else {
         // Check if this is an "already verified" response
@@ -207,7 +215,6 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
             alt="LiteFi Logo" 
             width={100}
             height={30}
-            style={{ width: 'auto', height: 'auto' }}
           />
         </div>
 

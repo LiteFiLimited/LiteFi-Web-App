@@ -27,9 +27,16 @@ export interface AuthResponse {
 // Backend response types (actual structure returned by backend)
 export interface BackendLoginResponse {
   message: string;
-  user: UserData;
-  accessToken: string;
-  refreshToken: string;
+  user?: UserData;
+  accessToken?: string;
+  refreshToken?: string;
+  success?: boolean;
+  error?: string;
+  data?: {
+    user: UserData;
+    accessToken: string;
+    refreshToken: string;
+  };
 }
 
 export interface BackendVerificationResponse {

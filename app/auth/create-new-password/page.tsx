@@ -47,7 +47,6 @@ export default function CreateNewPasswordPage() {
             alt="LiteFi Logo" 
             width={100}
             height={30}
-            style={{ width: 'auto', height: 'auto' }}
           />
         </div>
 
