@@ -1,5 +1,6 @@
 // API response types
 import axios from 'axios';
+import { UserData, BankAccount, Document } from '@/types/user';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -7,16 +8,6 @@ export interface ApiResponse<T = any> {
   data?: T;
   statusCode?: number;
   error?: string;
-}
-
-export interface UserData {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  isEmailVerified: boolean;
-  isPhoneVerified: boolean;
-  createdAt: string;
 }
 
 export interface AuthResponse {
@@ -242,4 +233,319 @@ export const testConnection = async (): Promise<boolean> => {
   }
 };
 
-export default axiosInstance; 
+// User Profile Management
+export const userApi = {
+  // Get user profile
+  getProfile: async () => {
+    return await apiRequest<ApiResponse<UserData>>('get', '/users/profile');
+  },
+
+  // Update user profile
+  updateProfile: async (profileData: {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    dateOfBirth?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER';
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    bvn?: string;
+    nin?: string;
+  }) => {
+    return await apiRequest<ApiResponse<UserData>>('patch', '/users/profile', profileData);
+  },
+
+  // Update employment information
+  updateEmployment: async (employmentData: {
+    employmentStatus: 'EMPLOYED' | 'SELF_EMPLOYED' | 'UNEMPLOYED' | 'STUDENT' | 'RETIRED';
+    employerName?: string;
+    jobTitle?: string;
+    workAddress?: string;
+    monthlyIncome?: number;
+    employmentStartDate?: string;
+    workEmail?: string;
+    workPhone?: string;
+  }) => {
+    return await apiRequest<ApiResponse<UserData>>('patch', '/users/employment', employmentData);
+  },
+
+  // Update business information
+  updateBusiness: async (businessData: {
+    businessName: string;
+    businessType: string;
+    businessAddress: string;
+    businessRegistrationNumber?: string;
+    businessPhone?: string;
+    businessEmail?: string;
+    monthlyRevenue: number;
+    businessStartDate: string;
+  }) => {
+    return await apiRequest<ApiResponse<UserData>>('patch', '/users/business', businessData);
+  },
+
+  // Update next of kin information
+  updateNextOfKin: async (nextOfKinData: {
+    firstName: string;
+    lastName: string;
+    relationship: string;
+    phone: string;
+    email: string;
+    address: string;
+  }) => {
+    return await apiRequest<ApiResponse<UserData>>('patch', '/users/next-of-kin', nextOfKinData);
+  },
+
+  // Bank account management
+  getBankAccounts: async () => {
+    return await apiRequest<ApiResponse<BankAccount[]>>('get', '/users/bank-accounts');
+  },
+
+  addBankAccount: async (bankAccountData: {
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+    bankCode: string;
+  }) => {
+    return await apiRequest<ApiResponse<BankAccount>>('post', '/users/bank-accounts', bankAccountData);
+  },
+
+  setDefaultBankAccount: async (accountId: string) => {
+    return await apiRequest<ApiResponse<BankAccount>>('patch', `/users/bank-accounts/${accountId}/default`);
+  },
+
+  deleteBankAccount: async (accountId: string) => {
+    return await apiRequest<ApiResponse<{success: boolean}>>('delete', `/users/bank-accounts/${accountId}`);
+  },
+
+  // Document management
+  getDocuments: async () => {
+    return await apiRequest<ApiResponse<Document[]>>('get', '/users/documents');
+  },
+
+  uploadDocument: async (formData: FormData) => {
+    return await apiRequest<ApiResponse<Document>>(
+      'post',
+      '/users/documents',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+  },
+
+  deleteDocument: async (documentId: string) => {
+    return await apiRequest<ApiResponse<{success: boolean}>>('delete', `/users/documents/${documentId}`);
+  },
+
+  // Profile completion status
+  getInvestmentProfileStatus: async () => {
+    return await apiRequest<ApiResponse<{isComplete: boolean; missingFields?: string[]}>>('get', '/users/profile-status/investment');
+  },
+
+  getLoanProfileStatus: async () => {
+    return await apiRequest<ApiResponse<{isComplete: boolean; missingFields?: string[]}>>('get', '/users/profile-status/loan');
+  },
+
+  // Security
+  changePassword: async (passwordData: {
+    currentPassword: string;
+    newPassword: string;
+  }) => {
+    return await apiRequest<ApiResponse<{success: boolean}>>('post', '/users/change-password', passwordData);
+  },
+
+  setupTransactionPin: async (pinData: {
+    pin: string;
+  }) => {
+    return await apiRequest<ApiResponse<{success: boolean}>>('post', '/users/setup-transaction-pin', pinData);
+  },
+
+  verifyTransactionPin: async (pinData: {
+    pin: string;
+  }) => {
+    return await apiRequest<ApiResponse<{verified: boolean}>>('post', '/users/verify-transaction-pin', pinData);
+  }
+};
+
+// Wallet API functions
+export const walletApi = {
+  // Get all wallets
+  getAll: async () => {
+    return await apiRequest<ApiResponse<any>>('get', '/wallet');
+  },
+
+  // Get wallet by ID
+  getById: async (id: string) => {
+    return await apiRequest<ApiResponse<any>>('get', `/wallet/${id}`);
+  },
+
+  // Get authenticated user wallet
+  getUserWallet: async () => {
+    return await apiRequest<ApiResponse<any>>('get', '/wallet/user/me');
+  },
+
+  // Create virtual account for authenticated user
+  createVirtualAccount: async () => {
+    return await apiRequest<ApiResponse<any>>('post', '/wallet/virtual-account/create');
+  },
+
+  // Get virtual account details for authenticated user
+  getVirtualAccountDetails: async () => {
+    return await apiRequest<ApiResponse<any>>('get', '/wallet/virtual-account/details');
+  },
+
+  // Create direct payment link using Mono
+  createDirectPayment: async (data: {
+    amount: number;
+    description?: string;
+    redirectUrl?: string;
+    customerName?: string;
+    customerEmail?: string;
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', '/wallet/direct-payment/create', data);
+  },
+
+  // Get Mono public key for client-side integration
+  getMonoPublicKey: async () => {
+    return await apiRequest<ApiResponse<string>>('get', '/wallet/mono/public-key');
+  },
+
+  // Verify Mono transaction status
+  verifyTransaction: async (reference: string) => {
+    return await apiRequest<ApiResponse<any>>('get', `/wallet/transaction/verify/${reference}`);
+  }
+};
+
+// Investment API functions
+export const investmentApi = {
+  // Get all investments for authenticated user
+  getAllInvestments: async () => {
+    return await apiRequest<ApiResponse<any>>('get', '/investments');
+  },
+
+  // Get all available investment plans
+  getInvestmentPlans: async () => {
+    return await apiRequest<ApiResponse<any>>('get', '/investments/plans');
+  },
+
+  // Get investment details by ID
+  getInvestmentById: async (id: string) => {
+    return await apiRequest<ApiResponse<any>>('get', `/investments/${id}`);
+  },
+
+  // Calculate investment returns
+  calculateReturns: async (data: {
+    planId: string;
+    amount: number;
+    duration: number;
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', '/investments/calculate', data);
+  },
+
+  // Create a new investment
+  createInvestment: async (data: {
+    planId: string;
+    amount: number;
+    upfrontInterestPayment?: boolean;
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', '/investments', data);
+  },
+
+  // Create a foreign currency investment
+  createForeignInvestment: async (formData: FormData) => {
+    return await apiRequest<ApiResponse<any>>(
+      'post',
+      '/investments/foreign',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+  },
+
+  // Request investment withdrawal
+  requestWithdrawal: async (id: string, data: {
+    amount?: number;
+    reason?: string;
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', `/investments/${id}/withdraw`, data);
+  }
+};
+
+// Loan API functions
+export const loanApi = {
+  // Get all loans for authenticated user
+  getAllLoans: async () => {
+    return await apiRequest<ApiResponse<any>>('get', '/loans');
+  },
+
+  // Get all available loan products
+  getLoanProducts: async () => {
+    return await apiRequest<ApiResponse<any>>('get', '/loans/products');
+  },
+
+  // Get loan details by ID
+  getLoanById: async (id: string) => {
+    return await apiRequest<ApiResponse<any>>('get', `/loans/${id}`);
+  },
+
+  // Create a salary loan application
+  createSalaryLoan: async (data: {
+    productId: string;
+    amount: number;
+    duration: number;
+    purpose: string;
+    documents?: string[];
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', '/loans/salary', data);
+  },
+
+  // Create a working capital loan application
+  createWorkingCapitalLoan: async (data: {
+    productId: string;
+    amount: number;
+    duration: number;
+    purpose: string;
+    documents?: string[];
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', '/loans/working-capital', data);
+  },
+
+  // Create an auto loan application
+  createAutoLoan: async (data: {
+    productId: string;
+    amount: number;
+    duration: number;
+    purpose: string;
+    documents?: string[];
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', '/loans/auto', data);
+  },
+
+  // Create a travel loan application
+  createTravelLoan: async (data: {
+    productId: string;
+    amount: number;
+    duration: number;
+    purpose: string;
+    documents?: string[];
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', '/loans/travel', data);
+  },
+
+  // Make a loan repayment
+  makeLoanRepayment: async (id: string, data: {
+    amount: number;
+    reference: string;
+  }) => {
+    return await apiRequest<ApiResponse<any>>('post', `/loans/${id}/repayment`, data);
+  }
+};
+
+export default axiosInstance;

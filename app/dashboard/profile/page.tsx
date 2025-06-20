@@ -14,6 +14,8 @@ import BankAccountForm from "./components/BankAccountForm";
 import BankStatementForm from "./components/BankStatementForm";
 import DocumentsForm from "./components/DocumentsForm";
 import SecuritySettings from "./components/SecuritySettings";
+import BusinessInfoForm from "./components/BusinessInfoForm";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -23,11 +25,13 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [profileImage, setProfileImage] = useState<FileWithPreview | undefined>(undefined);
   const router = useRouter();
+  const { profile } = useUserProfile();
 
   // Track form completion status
   const [formCompletionStatus, setFormCompletionStatus] = useState({
     personal: false,
     employment: false,
+    business: false,
     kin: false,
     guarantor: false,
     bankAccount: false,
@@ -38,6 +42,7 @@ export default function ProfilePage() {
   // Track if basic personal info and employment info have been saved
   const [personalInfoSaved, setPersonalInfoSaved] = useState(false);
   const [employmentInfoSaved, setEmploymentInfoSaved] = useState(false);
+  const [businessInfoSaved, setBusinessInfoSaved] = useState(false);
   
   // Track if user is a business owner or employee for employment form
   const [isBusinessOwner, setIsBusinessOwner] = useState(false);
@@ -127,6 +132,12 @@ export default function ProfilePage() {
     setEmploymentInfoSaved(true);
     setIsBusinessOwner(data.employmentType === "self-employed");
     // Here you would typically send this data to your backend
+  };
+
+  const handleSaveBusinessInfo = (data: any) => {
+    console.log("Saving business info:", data);
+    updateFormCompletionStatus('business', true);
+    setBusinessInfoSaved(true);
   };
 
   const handleSaveNextOfKinInfo = (data: any) => {
@@ -289,18 +300,30 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {/* Employment Info Content */}
+                  {/* Employment/Business Info Content */}
                   {activeTab === "employment" && (
                     <div>
                       <h2 className="text-lg font-bold mb-6">
-                        {isBusinessOwner ? "Business Information" : "Employment Information"}
+                        {profile?.employment?.employmentStatus === 'SELF_EMPLOYED' 
+                          ? "Business Information" 
+                          : "Employment Information"
+                        }
                       </h2>
-                      <EmploymentInfoForm 
-                        onSave={handleSaveEmploymentInfo} 
-                        allFormsCompleted={allFormsCompleted}
-                        onGetLoan={handleGetLoan}
-                        isReadOnly={employmentInfoSaved}
-                      />
+                      {profile?.employment?.employmentStatus === 'SELF_EMPLOYED' ? (
+                        <BusinessInfoForm 
+                          onSave={handleSaveBusinessInfo} 
+                          allFormsCompleted={allFormsCompleted}
+                          onGetLoan={handleGetLoan}
+                          isReadOnly={businessInfoSaved}
+                        />
+                      ) : (
+                        <EmploymentInfoForm 
+                          onSave={handleSaveEmploymentInfo} 
+                          allFormsCompleted={allFormsCompleted}
+                          onGetLoan={handleGetLoan}
+                          isReadOnly={employmentInfoSaved}
+                        />
+                      )}
                     </div>
                   )}
 

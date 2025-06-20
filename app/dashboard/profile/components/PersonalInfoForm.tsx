@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface PersonalInfoFormProps {
   onSave?: (data: any) => void;
@@ -30,22 +31,24 @@ interface PersonalInfoFormProps {
 type ValidationState = "idle" | "loading" | "success" | "error";
 
 export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false }: PersonalInfoFormProps) {
+  const { profile, isLoading, updateProfile } = useUserProfile();
+
   const initialFormData = {
-    firstName: "",
-    lastName: "",
+    firstName: profile?.firstName || "",
+    lastName: profile?.lastName || "",
     middleName: "",
-    phoneNumber: "",
-    email: "",
-    dateOfBirth: "",
-    bvn: "",
-    nin: "",
+    phoneNumber: profile?.phone || "",
+    email: profile?.email || "",
+    dateOfBirth: profile?.dateOfBirth || "",
+    bvn: profile?.bvn || "",
+    nin: profile?.nin || "",
     maritalStatus: "",
     highestEducation: "",
     employmentType: "",
-    streetNo: "",
-    streetName: "",
+    streetNo: profile?.address?.split(' ')[0] || "",
+    streetName: profile?.address?.split(' ').slice(1).join(' ') || "",
     nearestBusStop: "",
-    state: "",
+    state: profile?.state || "",
     localGovernment: "",
     homeOwnership: "",
     yearsInCurrentAddress: ""
@@ -54,11 +57,8 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
   const [showSavedModal, setShowSavedModal] = React.useState(false);
   const router = useRouter();
   
-  const [bvnValidationState, setBvnValidationState] = useState<ValidationState>("idle");
   const [ninValidationState, setNinValidationState] = useState<ValidationState>("idle");
-  const [bvnReadOnly, setBvnReadOnly] = useState(isReadOnly);
   const [ninReadOnly, setNinReadOnly] = useState(isReadOnly);
-  const [testSuccess, setTestSuccess] = useState(true);
   const [date, setDate] = React.useState<Date | undefined>(undefined);
   const [dateInputValue, setDateInputValue] = useState("");
 
@@ -69,8 +69,8 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     phoneNumber: validationRules.phone,
     email: validationRules.email,
     dateOfBirth: (value: string) => value !== "",
-    bvn: (value: string) => /^\d{11}$/.test(value) && bvnValidationState === "success",
-    nin: (value: string) => value === "" || (/^\d{16}$/.test(value) && ninValidationState === "success"),
+    bvn: (value: string) => value === "" || /^\d{11}$/.test(value),
+    nin: (value: string) => value === "" || /^\d{11}$/.test(value),
     maritalStatus: () => true,
     highestEducation: () => true,
     employmentType: () => true,
@@ -157,32 +157,13 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     }
   }, []);
 
-  const validateBVN = async () => {
-    if (!/^\d{11}$/.test(formData.bvn)) return;
-    
-    setBvnValidationState("loading");
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const isValid = testSuccess;
-      
-      if (isValid) {
-        setBvnValidationState("success");
-        setBvnReadOnly(true);
-      } else {
-        setBvnValidationState("error");
-      }
-    } catch (error) {
-      setBvnValidationState("error");
-    }
-  };
-
   const validateNIN = async () => {
-    if (formData.nin === "" || !/^\d{16}$/.test(formData.nin)) return;
+    if (formData.nin === "" || !/^\d{11}$/.test(formData.nin)) return;
     
     setNinValidationState("loading");
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      const isValid = testSuccess;
+      const isValid = true; // Always validate successfully
       
       if (isValid) {
         setNinValidationState("success");
@@ -195,13 +176,32 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     touchAllFields();
 
-    if (isFormValid() && onSave) {
-      onSave(formData);
-      setShowSavedModal(true);
+    if (isFormValid()) {
+      // Format the data according to the API requirements
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phoneNumber,
+        dateOfBirth: formData.dateOfBirth,
+        address: `${formData.streetNo} ${formData.streetName}`.trim(),
+        city: formData.localGovernment,
+        state: formData.state,
+        country: "Nigeria",
+        bvn: formData.bvn,
+        nin: formData.nin
+      };
+
+      const success = await updateProfile(profileData);
+      if (success) {
+        setShowSavedModal(true);
+        if (onSave) {
+          onSave(profileData);
+        }
+      }
     }
   };
   
@@ -214,18 +214,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     router.push('/dashboard/profile');
   };
 
-  const renderBvnValidationIndicator = () => {
-    switch (bvnValidationState) {
-      case "loading":
-        return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />;
-      case "success":
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case "error":
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      default:
-        return null;
-    }
-  };
+  // BVN validation indicator removed
 
   const renderNinValidationIndicator = () => {
     switch (ninValidationState) {
@@ -239,6 +228,14 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
         return null;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -385,29 +382,6 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="bvn">BVN</Label>
-                <div className="flex items-center gap-2">
-                  {/^\d{11}$/.test(formData.bvn) && bvnValidationState !== "loading" && bvnValidationState !== "success" && !bvnReadOnly && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">{testSuccess ? "Success" : "Fail"}</span>
-                        <Switch 
-                          checked={testSuccess}
-                          onCheckedChange={setTestSuccess}
-                          className="scale-75"
-                        />
-                      </div>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={validateBVN}
-                        className="text-xs h-8"
-                      >
-                        Validate
-                      </Button>
-                    </div>
-                  )}
-                </div>
               </div>
               <div className="relative">
                 <Input
@@ -416,22 +390,15 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
                   onChange={(e) => handleChange("bvn", e.target.value.replace(/\D/g, '').slice(0, 11))}
                   onBlur={() => handleBlur("bvn")}
                   placeholder="Enter your BVN"
-                  className={`h-12 rounded-none pr-10 ${
-                    bvnValidationState === "error" || showErrors.bvn ? 'border-red-500 focus-visible:ring-red-500' : 
-                    bvnValidationState === "success" ? 'border-green-500 focus-visible:ring-green-500' : ''
+                  className={`h-12 rounded-none ${
+                    showErrors.bvn ? 'border-red-500 focus-visible:ring-red-500' : ''
                   }`}
-                  readOnly={bvnReadOnly}
-                  disabled={bvnValidationState === "loading" || bvnReadOnly}
+                  readOnly={isReadOnly}
+                  disabled={isReadOnly}
                 />
-                <div className="absolute right-3 top-3.5">
-                  {renderBvnValidationIndicator()}
-                </div>
               </div>
               {showErrors.bvn && (
-                <p className="text-xs text-red-500">BVN must be validated</p>
-              )}
-              {bvnValidationState === "error" && (
-                <p className="text-xs text-red-500">Invalid BVN. Please check and try again.</p>
+                <p className="text-xs text-red-500">BVN must be 11 digits</p>
               )}
               {!/^\d{11}$/.test(formData.bvn) && formData.bvn !== "" && (
                 <p className="text-xs text-gray-500">BVN must be exactly 11 digits</p>
@@ -441,56 +408,25 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="nin">NIN (Optional)</Label>
-                <div className="flex items-center gap-2">
-                  {/^\d{16}$/.test(formData.nin) && ninValidationState !== "loading" && ninValidationState !== "success" && !ninReadOnly && (
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">{testSuccess ? "Success" : "Fail"}</span>
-                        <Switch 
-                          checked={testSuccess}
-                          onCheckedChange={setTestSuccess}
-                          className="scale-75"
-                        />
-                      </div>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={validateNIN}
-                        className="text-xs h-8"
-                      >
-                        Validate
-                      </Button>
-                    </div>
-                  )}
-                </div>
               </div>
               <div className="relative">
                 <Input
                   id="nin"
                   value={formData.nin}
-                  onChange={(e) => handleChange("nin", e.target.value.replace(/\D/g, '').slice(0, 16))}
+                  onChange={(e) => handleChange("nin", e.target.value.replace(/\D/g, '').slice(0, 11))}
                   onBlur={() => handleBlur("nin")}
                   placeholder="Enter your NIN (optional)"
                   className={`h-12 rounded-none pr-10 ${
-                    ninValidationState === "error" || (showErrors.nin && formData.nin !== "") ? 'border-red-500 focus-visible:ring-red-500' : 
-                    ninValidationState === "success" ? 'border-green-500 focus-visible:ring-green-500' : ''
+                    showErrors.nin && formData.nin !== "" ? 'border-red-500 focus-visible:ring-red-500' : ''
                   }`}
-                  readOnly={ninReadOnly}
-                  disabled={ninValidationState === "loading" || ninReadOnly}
+                  readOnly={isReadOnly}
                 />
-                <div className="absolute right-3 top-3.5">
-                  {renderNinValidationIndicator()}
-                </div>
               </div>
               {showErrors.nin && formData.nin !== "" && (
-                <p className="text-xs text-red-500">NIN must be validated</p>
+                <p className="text-xs text-red-500">NIN must be exactly 11 digits</p>
               )}
-              {ninValidationState === "error" && (
-                <p className="text-xs text-red-500">Invalid NIN. Please check and try again.</p>
-              )}
-              {!/^\d{16}$/.test(formData.nin) && formData.nin !== "" && (
-                <p className="text-xs text-gray-500">NIN must be exactly 16 digits</p>
+              {!/^\d{11}$/.test(formData.nin) && formData.nin !== "" && (
+                <p className="text-xs text-gray-500">NIN must be exactly 11 digits</p>
               )}
             </div>
           </div>
