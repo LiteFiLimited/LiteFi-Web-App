@@ -14,203 +14,221 @@ import ProfileSavedModal from "@/app/components/ProfileSavedModal";
 import { useRouter } from "next/navigation";
 import { useFormValidator, validationRules } from "@/lib/formValidator";
 import { Button } from "@/components/ui/button";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { NextOfKinInfo } from "@/types/user";
 
 interface NextOfKinFormProps {
-  onSave?: (data: any) => void;
+  onSave?: (data: NextOfKinInfo) => void;
   allFormsCompleted?: boolean;
   onGetLoan?: () => void;
+  isReadOnly?: boolean;
 }
 
-export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan }: NextOfKinFormProps) {
-  const initialFormData = {
-    firstName: "",
-    lastName: "",
-    middleName: "",
-    relationship: "",
-    phoneNumber: "",
-    emailAddress: ""
-  };
+const RELATIONSHIPS = [
+  "SPOUSE",
+  "PARENT",
+  "CHILD",
+  "SIBLING",
+  "UNCLE",
+  "AUNT",
+  "COUSIN",
+  "FRIEND",
+  "OTHER"
+] as const;
 
-  const [showSavedModal, setShowSavedModal] = useState(false);
+export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false }: NextOfKinFormProps) {
+  const { profile, isLoading, updateNextOfKin } = useUserProfile();
   const router = useRouter();
 
-  // Define validation rules for the form fields
+  const initialFormData: NextOfKinInfo = {
+    firstName: profile?.nextOfKin?.firstName || "",
+    lastName: profile?.nextOfKin?.lastName || "",
+    relationship: profile?.nextOfKin?.relationship || "",
+    phone: profile?.nextOfKin?.phone || "",
+    email: profile?.nextOfKin?.email || "",
+    address: profile?.nextOfKin?.address || ""
+  };
+
   const rules = {
     firstName: validationRules.required,
     lastName: validationRules.required,
-    middleName: () => true, // Optional field
     relationship: validationRules.required,
-    phoneNumber: validationRules.phone,
-    emailAddress: validationRules.optionalEmail // Optional but must be valid if provided
+    phone: validationRules.phone,
+    email: validationRules.email,
+    address: validationRules.required
   };
 
-  // Use the form validator hook
   const {
     formData,
     showErrors,
-    validations,
     handleChange,
     handleBlur,
     touchAllFields,
     isFormValid
-  } = useFormValidator(initialFormData, rules);
+  } = useFormValidator<NextOfKinInfo>(initialFormData, rules);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [showSavedModal, setShowSavedModal] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Touch all fields to display errors
     touchAllFields();
 
-    if (isFormValid() && onSave) {
-      onSave(formData);
-      setShowSavedModal(true);
+    if (isFormValid()) {
+      const nextOfKinData: NextOfKinInfo = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        relationship: formData.relationship,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address
+      };
+
+      const success = await updateNextOfKin(nextOfKinData);
+      if (success) {
+        setShowSavedModal(true);
+        if (onSave) {
+          onSave(nextOfKinData);
+        }
+      }
     }
   };
-  
-  const handleCloseModal = () => {
-    setShowSavedModal(false);
-  };
-  
-  const handleViewProfile = () => {
-    setShowSavedModal(false);
-    router.push('/dashboard/profile');
-  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-10">
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">Next of Kin First Name</Label>
-              <Input
-                id="firstName"
-                value={formData.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
-                onBlur={() => handleBlur("firstName")}
-                placeholder="Enter first name"
-                className={`h-12 rounded-none ${showErrors.firstName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {showErrors.firstName && (
-                <p className="text-xs text-red-500">First name is required</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Next of Kin Last Name</Label>
-              <Input
-                id="lastName"
-                value={formData.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
-                onBlur={() => handleBlur("lastName")}
-                placeholder="Enter last name"
-                className={`h-12 rounded-none ${showErrors.lastName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {showErrors.lastName && (
-                <p className="text-xs text-red-500">Last name is required</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="middleName">Next of Kin Middle Name</Label>
-              <Input
-                id="middleName"
-                value={formData.middleName}
-                onChange={(e) => handleChange("middleName", e.target.value)}
-                placeholder="Enter middle name (optional)"
-                className="h-12 rounded-none"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="relationship">Relationship with Next of Kin</Label>
-              <Select 
-                value={formData.relationship} 
-                onValueChange={(value) => {
-                  handleChange("relationship", value);
-                  handleBlur("relationship");
-                }}
-              >
-                <SelectTrigger 
-                  id="relationship" 
-                  className={`h-12 rounded-none ${showErrors.relationship ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                >
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="spouse">Spouse</SelectItem>
-                  <SelectItem value="parent">Parent</SelectItem>
-                  <SelectItem value="child">Child</SelectItem>
-                  <SelectItem value="sibling">Sibling</SelectItem>
-                  <SelectItem value="friend">Friend</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              {showErrors.relationship && (
-                <p className="text-xs text-red-500">Relationship is required</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Next of Kin Phone Number</Label>
-              <Input
-                id="phoneNumber"
-                value={formData.phoneNumber}
-                onChange={(e) => handleChange("phoneNumber", e.target.value)}
-                onBlur={() => handleBlur("phoneNumber")}
-                placeholder="Enter phone number"
-                className={`h-12 rounded-none ${showErrors.phoneNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {showErrors.phoneNumber && (
-                <p className="text-xs text-red-500">Enter a valid phone number (10-11 digits)</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="emailAddress">Next of Kin Email Address</Label>
-              <Input
-                id="emailAddress"
-                type="email"
-                value={formData.emailAddress}
-                onChange={(e) => handleChange("emailAddress", e.target.value)}
-                onBlur={() => handleBlur("emailAddress")}
-                placeholder="Enter email address (optional)"
-                className={`h-12 rounded-none ${showErrors.emailAddress ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              />
-              {showErrors.emailAddress && (
-                <p className="text-xs text-red-500">Please enter a valid email address</p>
-              )}
-            </div>
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">First Name</Label>
+          <Input
+            id="firstName"
+            name="firstName"
+            value={formData.firstName}
+            onChange={(e) => handleChange('firstName', e.target.value)}
+            onBlur={() => handleBlur('firstName')}
+            disabled={isReadOnly}
+            className="h-12 rounded-none"
+          />
+          {showErrors.firstName && (
+            <span className="text-red-500 text-sm">First name is required</span>
+          )}
         </div>
 
-        <div className="pt-4">
-          <Button 
-            type="submit" 
-            className={`h-12 px-16 rounded-none ${
-              isFormValid() 
-                ? "bg-red-600 hover:bg-red-700 text-white" 
-                : "bg-red-300 cursor-not-allowed text-white"
-            }`}
-            disabled={!isFormValid()}
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name</Label>
+          <Input
+            id="lastName"
+            name="lastName"
+            value={formData.lastName}
+            onChange={(e) => handleChange('lastName', e.target.value)}
+            onBlur={() => handleBlur('lastName')}
+            disabled={isReadOnly}
+            className="h-12 rounded-none"
+          />
+          {showErrors.lastName && (
+            <span className="text-red-500 text-sm">Last name is required</span>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="relationship">Relationship</Label>
+          <Select
+            value={formData.relationship}
+            onValueChange={(value) => handleChange('relationship', value)}
+            disabled={isReadOnly}
           >
-            Save
-          </Button>
+            <SelectTrigger id="relationship" className="w-full h-12 rounded-none">
+              <SelectValue placeholder="Select relationship" />
+            </SelectTrigger>
+            <SelectContent>
+              {RELATIONSHIPS.map((rel) => (
+                <SelectItem key={rel} value={rel}>
+                  {rel.charAt(0) + rel.slice(1).toLowerCase()}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {showErrors.relationship && (
+            <span className="text-red-500 text-sm">Relationship is required</span>
+          )}
         </div>
-      </form>
-      
+
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone Number</Label>
+          <Input
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            onChange={(e) => handleChange('phone', e.target.value)}
+            onBlur={() => handleBlur('phone')}
+            disabled={isReadOnly}
+            className="h-12 rounded-none"
+          />
+          {showErrors.phone && (
+            <span className="text-red-500 text-sm">Please enter a valid phone number</span>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={(e) => handleChange('email', e.target.value)}
+            onBlur={() => handleBlur('email')}
+            disabled={isReadOnly}
+            className="h-12 rounded-none"
+          />
+          {showErrors.email && (
+            <span className="text-red-500 text-sm">Please enter a valid email address</span>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="address">Address</Label>
+          <Input
+            id="address"
+            name="address"
+            value={formData.address}
+            onChange={(e) => handleChange('address', e.target.value)}
+            onBlur={() => handleBlur('address')}
+            disabled={isReadOnly}
+            className="h-12 rounded-none"
+          />
+          {showErrors.address && (
+            <span className="text-red-500 text-sm">Address is required</span>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-4">
+        {!isReadOnly && (
+          <Button type="submit" className="bg-red-600 text-white">
+            Save Changes
+          </Button>
+        )}
+        {allFormsCompleted && onGetLoan && (
+          <Button type="button" onClick={onGetLoan} className="bg-green-600 text-white">
+            Get Loan
+          </Button>
+        )}
+      </div>
+
       {showSavedModal && (
-        <ProfileSavedModal 
-          onClose={handleCloseModal}
-          onStartInvesting={handleViewProfile}
+        <ProfileSavedModal
+          onClose={() => setShowSavedModal(false)}
           onGetLoan={onGetLoan}
-          type={allFormsCompleted ? "loan" : "investment"}
+          type="loan"
         />
       )}
-    </>
+    </form>
   );
 }

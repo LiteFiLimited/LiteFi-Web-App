@@ -1,30 +1,82 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
 import { Label } from "@/app/components/ui/label";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useToastContext } from "@/app/components/ToastProvider";
+import { authApi } from "@/lib/api";
 
 import logoImage from "@/public/assets/images/logo.png";
 
-export default function CreateNewPasswordPage() {
+function PasswordResetForm() {
+  const searchParams = useSearchParams();
+  const email = searchParams.get('email') || '';
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { success, error } = useToastContext();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Check if we have the necessary data
+    const resetPasswordEmail = sessionStorage.getItem('resetPasswordEmail');
+    const resetPasswordOtp = sessionStorage.getItem('resetPasswordOtp');
+
+    if (!resetPasswordEmail || !resetPasswordOtp) {
+      error("Invalid reset attempt", "Please start the password reset process again");
+      router.push('/auth/reset-password');
+    }
+  }, [router, error]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isPasswordValid) {
-      // Handle password reset success
-      console.log("Password reset successfully");
-      router.push("/login");
+      setIsLoading(true);
+      try {
+        const resetPasswordOtp = sessionStorage.getItem('resetPasswordOtp');
+        
+        if (!resetPasswordOtp) {
+          throw new Error("Reset code not found. Please try again.");
+        }
+
+        // Call the API to confirm password reset
+        await authApi.confirmPasswordReset({
+          email,
+          code: resetPasswordOtp,
+          newPassword: password
+        });
+
+        // Clear the stored reset data
+        sessionStorage.removeItem('resetPasswordEmail');
+        sessionStorage.removeItem('resetPasswordOtp');
+
+        // Show success message
+        success("Password reset successful", "You can now log in with your new password");
+
+        // Redirect to login page
+        setTimeout(() => {
+          router.push(`/auth/login?email=${encodeURIComponent(email)}`);
+        }, 1500);
+      } catch (err: any) {
+        // Extract error message
+        let errorMessage = "An unexpected error occurred";
+        if (err?.message) {
+          errorMessage = err.message;
+        } else if (err?.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        }
+        error("Password reset failed", errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
     } else {
       setPasswordTouched(true);
       setConfirmPasswordTouched(true);
@@ -47,13 +99,12 @@ export default function CreateNewPasswordPage() {
             alt="LiteFi Logo" 
             width={100}
             height={30}
-            style={{ width: 'auto', height: 'auto' }}
           />
         </div>
 
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Create new password</h1>
-          <p className="text-gray-500">Provide the following details to reset your password</p>
+          <p className="text-gray-500">Create a new password for your account</p>
         </div>
 
         <div className="bg-white p-8 shadow-sm mb-6">
@@ -88,6 +139,7 @@ export default function CreateNewPasswordPage() {
                 onBlur={() => setPasswordTouched(true)}
                 required
                 minLength={8}
+                disabled={isLoading}
               />
               {showPasswordError ? (
                 <p className="text-xs text-red-500 mt-1">Password must be at least 8 characters</p>
@@ -125,6 +177,7 @@ export default function CreateNewPasswordPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 onBlur={() => setConfirmPasswordTouched(true)}
                 required
+                disabled={isLoading}
               />
               {showConfirmPasswordError && (
                 <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
@@ -133,20 +186,28 @@ export default function CreateNewPasswordPage() {
             
             {passwordTouched && confirmPasswordTouched && !isPasswordValid && (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded">
-                <p className="text-sm">Password must be at least 8 characters</p>
+                <p className="text-sm">Please ensure your password is at least 8 characters and both passwords match</p>
               </div>
             )}
             
             <Button 
               type="submit" 
               className="w-full bg-red-600 hover:bg-red-700 h-12 mt-6"
-              disabled={!isPasswordValid}
+              disabled={!isPasswordValid || isLoading}
             >
-              Create New Password
+              {isLoading ? "Setting New Password..." : "Create New Password"}
             </Button>
           </form>
         </div>
       </div>
     </div>
   );
-} 
+}
+
+export default function CreateNewPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <PasswordResetForm />
+    </Suspense>
+  );
+}

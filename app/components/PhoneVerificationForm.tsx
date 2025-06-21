@@ -7,40 +7,204 @@ import { Button } from "@/app/components/ui/button";
 import { PhoneInput } from "@/app/components/ui/phone-input";
 import { Label } from "@/app/components/ui/label";
 import PhoneVerificationModal from "@/app/components/PhoneVerificationModal";
+import { useToastContext } from "@/app/components/ToastProvider";
+import { authApi } from "@/lib/api";
+import { isNigerianNumber, getPhoneNumberInfo } from "@/lib/phoneValidator";
 
 import logoImage from "@/public/assets/images/logo.png";
 
 interface PhoneVerificationFormProps {
-  onComplete: () => void;
+  onCompleteAction: () => void;
 }
 
-export default function PhoneVerificationForm({ onComplete }: PhoneVerificationFormProps) {
+export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerificationFormProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationId, setVerificationId] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { success, error, info } = useToastContext();
 
-  const handleSubmitPhone = (e: React.FormEvent) => {
+  const handleSubmitPhone = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Show verification modal
-    setShowVerificationModal(true);
+    
+    if (!phoneNumber) {
+      error("Phone number required", "Please enter a valid phone number");
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      // Call the send-phone-otp endpoint first
+      const response = await authApi.sendPhoneOtp({
+        phone: phoneNumber
+      });
+
+      console.log("Send phone OTP response:", response);
+
+      if (response.success || (response.data && response.data.verified)) {
+        if (response.data?.requiresOtp) {
+          // Nigerian number - show verification modal for OTP
+          setVerificationId(response.data.verificationId || "");
+          info("OTP Sent", "We've sent a verification code to your phone number");
+          setShowVerificationModal(true);
+        } else {
+          // International number - automatically verified
+          success("Phone number saved!", "International numbers are verified automatically");
+          
+          // Log the successful verification
+          console.log("Phone verified automatically:", phoneNumber);
+          
+          // Store email for password creation and redirect
+          const registrationEmail = sessionStorage.getItem('registrationEmail');
+          
+          // Add a slight delay before redirect to ensure backend processes the phone number
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1000);
+        }
+      } else {
+        // Check if this is an "already verified" response
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
+          // Store email for password creation and redirect
+          const registrationEmail = sessionStorage.getItem('registrationEmail');
+          
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1500);
+        } else {
+          error("Verification failed", response.message || "Please try again");
+        }
+      }
+    } catch (err) {
+      error("Verification failed", "An unexpected error occurred");
+      console.error("Phone verification error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyOtp = (otp: string) => {
-    console.log("Verifying OTP:", otp);
-    // Close modal and redirect to password creation page
-    setShowVerificationModal(false);
-    router.push("/create-password");
+  const handleVerifyOtp = async (otp: string) => {
+    if (!verificationId) {
+      error("Verification failed", "Missing verification ID. Please try again.");
+      return;
+    }
+
+    setIsLoading(true);
+    
+    try {
+      const response = await authApi.verifyPhoneOtp({
+        phone: phoneNumber,
+        verificationId: verificationId,
+        otp: otp
+      });
+
+      console.log("Phone OTP verification response:", response);
+
+      if (response.success) {
+        success("Phone verified successfully!", "Your phone number has been verified");
+        setShowVerificationModal(false);
+        // Store email for password creation and redirect
+        const registrationEmail = sessionStorage.getItem('registrationEmail');
+        if (registrationEmail) {
+          router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+        } else {
+          router.push("/auth/create-password");
+        }
+      } else {
+        // Check if this is an "already verified" response
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
+          setShowVerificationModal(false);
+          // Store email for password creation and redirect
+          const registrationEmail = sessionStorage.getItem('registrationEmail');
+          
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1500);
+        } else {
+          error("Verification failed", response.message || "Invalid verification code");
+        }
+      }
+    } catch (err) {
+      error("Verification failed", "An unexpected error occurred");
+      console.error("Phone OTP verification error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleResendOtp = () => {
-    console.log("Resending OTP to:", phoneNumber);
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Use the resend phone OTP endpoint
+      const response = await authApi.resendPhoneOtp({
+        phone: phoneNumber
+      });
+      
+      console.log("Resend phone OTP response:", response);
+      
+      if (response.success && response.data) {
+        // Update verification ID from the resend response
+        if (response.data.verificationId) {
+          setVerificationId(response.data.verificationId);
+        }
+        info("OTP sent", "A new verification code has been sent to your phone");
+      } else {
+        // Check if this is an "already verified" response
+        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
+        
+        if (isAlreadyVerified) {
+          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
+          setShowVerificationModal(false);
+          // Store email for password creation and redirect
+          const registrationEmail = sessionStorage.getItem('registrationEmail');
+          
+          setTimeout(() => {
+            if (registrationEmail) {
+              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
+            } else {
+              router.push("/auth/create-password");
+            }
+          }, 1500);
+        } else {
+          error("Failed to resend OTP", response.message || "Please try again");
+        }
+      }
+    } catch (err) {
+      error("Failed to resend OTP", "An unexpected error occurred");
+      console.error("Resend phone OTP error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChangePhone = () => {
     setShowVerificationModal(false);
+    setVerificationId("");
   };
 
   const isPhoneValid = phoneNumber && phoneNumber.length > 8;
+  const phoneInfo = phoneNumber ? getPhoneNumberInfo(phoneNumber) : null;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-50">
@@ -51,7 +215,6 @@ export default function PhoneVerificationForm({ onComplete }: PhoneVerificationF
             alt="LiteFi Logo" 
             width={100}
             height={30}
-            style={{ width: 'auto', height: 'auto' }}
           />
         </div>
 
@@ -92,15 +255,30 @@ export default function PhoneVerificationForm({ onComplete }: PhoneVerificationF
                 onChange={(value) => setPhoneNumber(value ? value.toString() : "")}
                 international
                 className="w-full"
+                disabled={isLoading}
               />
+              
+              {/* Phone number info - only show country */}
+              {phoneInfo && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                  <p className="text-sm text-gray-600">
+                    <strong>Country:</strong> {phoneInfo.country}
+                  </p>
+                  {!phoneInfo.requiresVerification && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      International numbers are automatically saved and verified manually by our team.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             
             <Button 
               type="submit" 
               className="w-full bg-red-600 hover:bg-red-700 h-12 mt-6"
-              disabled={!isPhoneValid}
+              disabled={!isPhoneValid || isLoading}
             >
-              Send OTP
+              {isLoading ? "Processing..." : phoneInfo?.requiresVerification ? "Send OTP" : "Save Phone Number"}
             </Button>
           </form>
         </div>
@@ -110,12 +288,13 @@ export default function PhoneVerificationForm({ onComplete }: PhoneVerificationF
       {showVerificationModal && (
         <PhoneVerificationModal
           phoneNumber={phoneNumber}
-          onClose={() => setShowVerificationModal(false)}
-          onVerify={handleVerifyOtp}
-          onResendOtp={handleResendOtp}
-          onChangePhone={handleChangePhone}
+          onCloseAction={() => setShowVerificationModal(false)}
+          onVerifyAction={handleVerifyOtp}
+          onResendOtpAction={handleResendOtp}
+          onChangePhoneAction={handleChangePhone}
+          isLoading={isLoading}
         />
       )}
     </div>
   );
-} 
+}

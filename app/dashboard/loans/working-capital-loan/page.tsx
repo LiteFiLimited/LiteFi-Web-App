@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ interface FileWithPreview extends File {
   preview?: string;
 }
 
-export default function WorkingCapitalLoanPage() {
+export default function TravelLoanPage() {
   const [amount, setAmount] = useState("");
   const [months, setMonths] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -69,11 +70,11 @@ export default function WorkingCapitalLoanPage() {
               height={8}
               className="mr-2"
             />
-            Create New Working Capital Loan
+            Create New Travel Loan
           </Link>
         </div>
 
-        <h2 className="text-[32px] font-semibold mb-8">Apply for a Working Capital Loan</h2>
+        <h2 className="text-[32px] font-semibold mb-8">Apply for a Travel Loan</h2>
 
         <div className="bg-white p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -83,7 +84,7 @@ export default function WorkingCapitalLoanPage() {
                 <Input
                   id="amount"
                   type="text"
-                  placeholder="Enter amount in naira (up to ₦10,000,000)"
+                  placeholder="Enter amount in naira (up to ₦100,000,000)"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="h-12 rounded-none"
@@ -100,6 +101,7 @@ export default function WorkingCapitalLoanPage() {
                     <SelectItem value="3">3 months</SelectItem>
                     <SelectItem value="6">6 months</SelectItem>
                     <SelectItem value="12">12 months</SelectItem>
+                    <SelectItem value="24">24 months</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -112,17 +114,17 @@ export default function WorkingCapitalLoanPage() {
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="expansion">Business Expansion</SelectItem>
-                  <SelectItem value="equipment">Equipment Purchase</SelectItem>
-                  <SelectItem value="staff">Staff Salaries</SelectItem>
-                  <SelectItem value="inventory">Inventory</SelectItem>
+                  <SelectItem value="vacation">Vacation</SelectItem>
+                  <SelectItem value="business">Business Trip</SelectItem>
+                  <SelectItem value="education">Education</SelectItem>
+                  <SelectItem value="medical">Medical Trip</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Invoice (Optional)</Label>
+              <Label>Travel Documents (Optional)</Label>
               {files.length === 0 ? (
                 <div 
                   {...getRootProps()} 

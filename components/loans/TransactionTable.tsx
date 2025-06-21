@@ -1,4 +1,5 @@
 import React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Transaction {
   date: string;
@@ -10,9 +11,10 @@ interface Transaction {
 
 interface TransactionTableProps {
   data: Transaction[];
+  isLoading?: boolean;
 }
 
-export function TransactionTable({ data }: TransactionTableProps) {
+export function TransactionTable({ data, isLoading = false }: TransactionTableProps) {
   return (
     <div className="bg-white border-4 border-white overflow-hidden">
       <div className="overflow-x-auto">
@@ -37,15 +39,38 @@ export function TransactionTable({ data }: TransactionTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {data.map((transaction, index) => (
-              <tr key={index}>
-                <td className="px-6 py-4 text-sm text-gray-900">{transaction.date}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{transaction.description}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{transaction.debit || "-"}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{transaction.credit || "-"}</td>
-                <td className="px-6 py-4 text-sm text-gray-900">{transaction.balance}</td>
-              </tr>
-            ))}
+            {isLoading ? (
+              // Skeleton loading state
+              Array(5).fill(0).map((_, index) => (
+                <tr key={`skeleton-${index}`}>
+                  <td className="px-6 py-4">
+                    <Skeleton className="h-5 w-24" />
+                  </td>
+                  <td className="px-6 py-4">
+                    <Skeleton className="h-5 w-32" />
+                  </td>
+                  <td className="px-6 py-4">
+                    <Skeleton className="h-5 w-16" />
+                  </td>
+                  <td className="px-6 py-4">
+                    <Skeleton className="h-5 w-16" />
+                  </td>
+                  <td className="px-6 py-4">
+                    <Skeleton className="h-5 w-20" />
+                  </td>
+                </tr>
+              ))
+            ) : (
+              data.map((transaction, index) => (
+                <tr key={index}>
+                  <td className="px-6 py-4 text-sm text-gray-900">{transaction.date}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{transaction.description}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{transaction.debit || "-"}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{transaction.credit || "-"}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900">{transaction.balance}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

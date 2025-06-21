@@ -13,19 +13,28 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  trailingSlash: true,
+  distDir: 'out',
+  skipTrailingSlashRedirect: true,
   eslint: {
     ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
   },
+  output: 'export', // Ensure static export
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
       },
     ],
+  },
+  env: {
+    NEXT_PUBLIC_API_URL: 'https://litefi-backend.onrender.com',
+    BACKEND_API_URL: 'https://litefi-backend.onrender.com'
   },
   experimental: {
     webpackBuildWorker: true,
