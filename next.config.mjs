@@ -22,6 +22,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  output: 'export', // Ensure static export
   images: {
     unoptimized: true,
     remotePatterns: [
@@ -30,6 +31,10 @@ const nextConfig = {
         hostname: '**',
       },
     ],
+  },
+  env: {
+    NEXT_PUBLIC_API_URL: 'https://litefi-backend.onrender.com',
+    BACKEND_API_URL: 'https://litefi-backend.onrender.com'
   },
   experimental: {
     webpackBuildWorker: true,

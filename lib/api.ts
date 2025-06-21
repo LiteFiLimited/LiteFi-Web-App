@@ -48,13 +48,14 @@ export interface BackendPhoneResponse {
   };
 }
 
-// Base API URL - Direct connection to backend server
-// Force localhost:3000 - override any environment variables that might be set to 3001
-const API_URL = 'http://localhost:3000';
+// Base API URL - For production deployment
+// Hardcoded to Render URL to ensure it's used in the cPanel deployment
+const API_URL = 'https://litefi-backend.onrender.com';
 
-// Clear any browser cache by logging the forced URL
-console.warn('🔧 FORCED API URL:', API_URL, '- If you see port 3001, clear browser cache!');
+// Ignore any environment variables to ensure we use the hardcoded URL
+// This is important for cPanel deployment
 
+// Log the API URL configuration
 console.log('API Configuration:', {
   baseURL: API_URL,
   environment: process.env.NODE_ENV

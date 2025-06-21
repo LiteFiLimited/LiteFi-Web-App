@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward request to backend API
-    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://litefi-backend.onrender.com';
     
     console.log('Forwarding send phone OTP to backend:', { phone });
     

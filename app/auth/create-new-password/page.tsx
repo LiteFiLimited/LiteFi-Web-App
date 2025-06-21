@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/app/components/ui/input";
@@ -12,7 +12,9 @@ import { authApi } from "@/lib/api";
 
 import logoImage from "@/public/assets/images/logo.png";
 
-export default function CreateNewPasswordPage() {
+function PasswordResetForm() {
+  const searchParams = useSearchParams();
+  const email = searchParams.get('email') || '';
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,11 +23,7 @@ export default function CreateNewPasswordPage() {
   const [confirmPasswordTouched, setConfirmPasswordTouched] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { success, error } = useToastContext();
-
-  // Get email from URL params
-  const email = searchParams.get('email') || '';
 
   useEffect(() => {
     // Check if we have the necessary data
@@ -204,4 +202,12 @@ export default function CreateNewPasswordPage() {
       </div>
     </div>
   );
-} 
+}
+
+export default function CreateNewPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <PasswordResetForm />
+    </Suspense>
+  );
+}
