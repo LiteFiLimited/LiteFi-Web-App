@@ -13,6 +13,7 @@ interface DocumentsFormProps {
   onSave?: (data: any) => void;
   allFormsCompleted?: boolean;
   onGetLoan?: () => void;
+  isReadOnly?: boolean;
   savedDocuments?: boolean; // Add this new prop
 }
 
@@ -30,7 +31,7 @@ interface DocumentsState {
   goodsImages?: FileWithPreview;
 }
 
-export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, savedDocuments = false }: DocumentsFormProps) {
+export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false, savedDocuments = false }: DocumentsFormProps) {
   const [documents, setDocuments] = useState<DocumentsState>({});
   const [showSavedModal, setShowSavedModal] = useState(false);
   const router = useRouter();
@@ -263,11 +264,12 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, sa
       </form>
       
       {showSavedModal && (
-        <ProfileSavedModal 
+        <ProfileSavedModal
+          open={showSavedModal}
           onClose={handleCloseModal}
-          onStartInvesting={handleViewProfile}
+          onViewProfile={handleViewProfile}
+          allFormsCompleted={allFormsCompleted}
           onGetLoan={onGetLoan}
-          type={allFormsCompleted ? "loan" : "investment"}
         />
       )}
     </>

@@ -201,28 +201,28 @@ export default function WalletPage() {
             </div>
           </div>
           {isProfileComplete ? (
-            <div className="bg-white p-6">
-              <div className="text-sm text-gray-500">
-                <p className="mb-1">You can also fund account using the details below</p>
-                <div className="grid grid-cols-1 gap-2">
-                  <div>
-                    <span className="text-gray-500">Acc name:</span> <span className="font-bold text-black">John Doe</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
-                    <CopyButton
-                      textToCopy="3588020135"
-                      onCopySuccess={() => success("Account number copied to clipboard")}
-                      onCopyError={() => error("Failed to copy account number")}
-                      className="ml-2"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
-                  </div>
+          <div className="bg-white p-6">
+            <div className="text-sm text-gray-500">
+              <p className="mb-1">You can also fund account using the details below</p>
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <span className="text-gray-500">Acc name:</span> <span className="font-bold text-black">John Doe</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
+                  <CopyButton
+                    textToCopy="3588020135"
+                    onCopySuccess={() => success("Account number copied to clipboard")}
+                    onCopyError={() => error("Failed to copy account number")}
+                    className="ml-2"
+                  />
+                </div>
+                <div>
+                  <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
                 </div>
               </div>
             </div>
+          </div>
           ) : (
             <div className="bg-white p-6 text-center">
               <p className="text-sm font-medium text-gray-700 mb-2">No data shown</p>

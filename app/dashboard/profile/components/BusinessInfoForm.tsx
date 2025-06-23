@@ -253,9 +253,11 @@ export default function BusinessInfoForm({ onSave, allFormsCompleted, onGetLoan,
 
       {showSavedModal && (
         <ProfileSavedModal
+          open={showSavedModal}
           onClose={() => setShowSavedModal(false)}
+          onViewProfile={() => router.push('/dashboard/profile')}
+          allFormsCompleted={allFormsCompleted}
           onGetLoan={onGetLoan}
-          type="loan"
         />
       )}
     </form>

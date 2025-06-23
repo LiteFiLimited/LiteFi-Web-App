@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -16,6 +16,7 @@ import { useFormValidator, validationRules } from "@/lib/formValidator";
 import { Button } from "@/components/ui/button";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { NextOfKinInfo } from "@/types/user";
+import { Loader2 } from "lucide-react";
 
 interface NextOfKinFormProps {
   onSave?: (data: NextOfKinInfo) => void;
@@ -24,29 +25,47 @@ interface NextOfKinFormProps {
   isReadOnly?: boolean;
 }
 
+// Updated relationship options from API documentation
 const RELATIONSHIPS = [
-  "SPOUSE",
-  "PARENT",
-  "CHILD",
-  "SIBLING",
-  "UNCLE",
-  "AUNT",
-  "COUSIN",
-  "FRIEND",
-  "OTHER"
+  "HUSBAND",
+  "WIFE",
+  "FATHER",
+  "MOTHER",
+  "BROTHER",
+  "SISTER",
+  "SON",
+  "DAUGHTER",
+  "OTHER_RELATIVE",
+  "FRIEND"
 ] as const;
 
+// Mapping for display labels
+const RELATIONSHIP_LABELS: Record<string, string> = {
+  HUSBAND: "Spouse (Husband)",
+  WIFE: "Spouse (Wife)",
+  FATHER: "Father",
+  MOTHER: "Mother",
+  BROTHER: "Brother",
+  SISTER: "Sister",
+  SON: "Son",
+  DAUGHTER: "Daughter",
+  OTHER_RELATIVE: "Other Relative",
+  FRIEND: "Friend"
+};
+
 export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false }: NextOfKinFormProps) {
-  const { profile, isLoading, updateNextOfKin } = useUserProfile();
+  const { profile, isLoading: profileLoading, updateNextOfKin, fetchProfile } = useUserProfile();
   const router = useRouter();
+  const [formReadOnly, setFormReadOnly] = useState(isReadOnly);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const initialFormData: NextOfKinInfo = {
-    firstName: profile?.nextOfKin?.firstName || "",
-    lastName: profile?.nextOfKin?.lastName || "",
-    relationship: profile?.nextOfKin?.relationship || "",
-    phone: profile?.nextOfKin?.phone || "",
-    email: profile?.nextOfKin?.email || "",
-    address: profile?.nextOfKin?.address || ""
+    firstName: "",
+    lastName: "",
+    relationship: "",
+    phone: "",
+    email: "",
+    address: ""
   };
 
   const rules = {
@@ -54,12 +73,13 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
     lastName: validationRules.required,
     relationship: validationRules.required,
     phone: validationRules.phone,
-    email: validationRules.email,
+    email: validationRules.optionalEmail, // Email is optional for next of kin
     address: validationRules.required
   };
 
   const {
     formData,
+    setFormData,
     showErrors,
     handleChange,
     handleBlur,
@@ -69,11 +89,37 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
 
   const [showSavedModal, setShowSavedModal] = useState(false);
 
+  // Fetch profile data on mount
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  // Update form data when profile is loaded
+  useEffect(() => {
+    if (profile?.nextOfKin) {
+      const nextOfKin = profile.nextOfKin;
+      setFormData({
+        firstName: nextOfKin.firstName || "",
+        lastName: nextOfKin.lastName || "",
+        relationship: nextOfKin.relationship || "",
+        phone: nextOfKin.phone || "",
+        email: nextOfKin.email || "",
+        address: nextOfKin.address || ""
+      });
+      
+      // If next of kin data exists and is complete, set form to read-only
+      if (nextOfKin.firstName && nextOfKin.lastName && nextOfKin.relationship) {
+        setFormReadOnly(true);
+      }
+    }
+  }, [profile, setFormData]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     touchAllFields();
 
     if (isFormValid()) {
+      setIsSubmitting(true);
       const nextOfKinData: NextOfKinInfo = {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -83,20 +129,35 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
         address: formData.address
       };
 
+      try {
       const success = await updateNextOfKin(nextOfKinData);
       if (success) {
         setShowSavedModal(true);
+          setFormReadOnly(true); // Set form to read-only after successful update
         if (onSave) {
           onSave(nextOfKinData);
+          }
+          // Fetch updated profile data
+          await fetchProfile();
         }
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
 
-  if (isLoading) {
+  const handleCloseModal = () => {
+    setShowSavedModal(false);
+  };
+
+  const handleViewProfile = () => {
+    // Implement the logic to view the profile
+  };
+
+  if (profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-red-500" />
       </div>
     );
   }
@@ -112,8 +173,9 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
             value={formData.firstName}
             onChange={(e) => handleChange('firstName', e.target.value)}
             onBlur={() => handleBlur('firstName')}
-            disabled={isReadOnly}
+            disabled={formReadOnly || isSubmitting}
             className="h-12 rounded-none"
+            placeholder="Enter first name"
           />
           {showErrors.firstName && (
             <span className="text-red-500 text-sm">First name is required</span>
@@ -128,8 +190,9 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
             value={formData.lastName}
             onChange={(e) => handleChange('lastName', e.target.value)}
             onBlur={() => handleBlur('lastName')}
-            disabled={isReadOnly}
+            disabled={formReadOnly || isSubmitting}
             className="h-12 rounded-none"
+            placeholder="Enter last name"
           />
           {showErrors.lastName && (
             <span className="text-red-500 text-sm">Last name is required</span>
@@ -141,7 +204,7 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
           <Select
             value={formData.relationship}
             onValueChange={(value) => handleChange('relationship', value)}
-            disabled={isReadOnly}
+            disabled={formReadOnly || isSubmitting}
           >
             <SelectTrigger id="relationship" className="w-full h-12 rounded-none">
               <SelectValue placeholder="Select relationship" />
@@ -149,7 +212,7 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
             <SelectContent>
               {RELATIONSHIPS.map((rel) => (
                 <SelectItem key={rel} value={rel}>
-                  {rel.charAt(0) + rel.slice(1).toLowerCase()}
+                  {RELATIONSHIP_LABELS[rel]}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -167,8 +230,9 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
             value={formData.phone}
             onChange={(e) => handleChange('phone', e.target.value)}
             onBlur={() => handleBlur('phone')}
-            disabled={isReadOnly}
+            disabled={formReadOnly || isSubmitting}
             className="h-12 rounded-none"
+            placeholder="Enter phone number (e.g. +234...)"
           />
           {showErrors.phone && (
             <span className="text-red-500 text-sm">Please enter a valid phone number</span>
@@ -176,7 +240,7 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Email (Optional)</Label>
           <Input
             id="email"
             name="email"
@@ -184,8 +248,9 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
             value={formData.email}
             onChange={(e) => handleChange('email', e.target.value)}
             onBlur={() => handleBlur('email')}
-            disabled={isReadOnly}
+            disabled={formReadOnly || isSubmitting}
             className="h-12 rounded-none"
+            placeholder="Enter email address"
           />
           {showErrors.email && (
             <span className="text-red-500 text-sm">Please enter a valid email address</span>
@@ -200,8 +265,9 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
             value={formData.address}
             onChange={(e) => handleChange('address', e.target.value)}
             onBlur={() => handleBlur('address')}
-            disabled={isReadOnly}
+            disabled={formReadOnly || isSubmitting}
             className="h-12 rounded-none"
+            placeholder="Enter full address"
           />
           {showErrors.address && (
             <span className="text-red-500 text-sm">Address is required</span>
@@ -209,24 +275,28 @@ export default function NextOfKinForm({ onSave, allFormsCompleted, onGetLoan, is
         </div>
       </div>
 
+      {!formReadOnly && (
       <div className="flex justify-end space-x-4">
-        {!isReadOnly && (
-          <Button type="submit" className="bg-red-600 text-white">
-            Save Changes
+          <Button type="submit" disabled={isSubmitting} className="bg-red-500 hover:bg-red-600 text-white">
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
+        </div>
         )}
-        {allFormsCompleted && onGetLoan && (
-          <Button type="button" onClick={onGetLoan} className="bg-green-600 text-white">
-            Get Loan
-          </Button>
-        )}
-      </div>
 
       {showSavedModal && (
         <ProfileSavedModal
-          onClose={() => setShowSavedModal(false)}
+          open={showSavedModal}
+          onClose={handleCloseModal}
+          onViewProfile={handleViewProfile}
+          allFormsCompleted={allFormsCompleted}
           onGetLoan={onGetLoan}
-          type="loan"
         />
       )}
     </form>

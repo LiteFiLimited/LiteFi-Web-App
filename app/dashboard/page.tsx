@@ -171,7 +171,7 @@ export default function DashboardPage() {
         }
 
         // Check if profile is complete
-        const profileStatusResponse = await userApi.getInvestmentProfileStatus();
+        const profileStatusResponse = await userApi.checkInvestmentProfileStatus();
         setIsProfileComplete(profileStatusResponse.data?.isComplete || false);
 
         // Get dashboard summary
@@ -293,9 +293,9 @@ export default function DashboardPage() {
           totalReturns={safeValue(dashboardData, 'investments.totalReturns', 0)}
           activeInvestments={safeValue(dashboardData, 'investments.activeInvestments', 0)}
           onCreateInvestmentClick={() => {
-            info("Opening investment options", "Choose your preferred investment type");
-            setShowCreateInvestmentModal(true);
-          }}
+                  info("Opening investment options", "Choose your preferred investment type");
+                  setShowCreateInvestmentModal(true);
+                }}
           onViewInvestmentsClick={() => router.push('/dashboard/investments')}
           onCompleteProfileClick={handleCompleteProfile}
         />
@@ -313,9 +313,9 @@ export default function DashboardPage() {
           onRepaymentsClick={handleRepaymentsClick}
           onRepayClick={() => router.push('/dashboard/loans')}
           onApplyForLoanClick={() => {
-            info("Redirecting to loan application", "Choose from our available loan options");
-            router.push('/dashboard/loans');
-          }}
+                    info("Redirecting to loan application", "Choose from our available loan options");
+                    router.push('/dashboard/loans');
+                  }}
           onCompleteProfileClick={handleCompleteProfile}
         />
       </div>
@@ -345,7 +345,7 @@ export default function DashboardPage() {
 
       {/* Create Investment Modal */}
       {showCreateInvestmentModal && (
-        <CreateNewInvestmentModal
+        <CreateNewInvestmentModal 
           investmentTypes={investmentTypes}
           onClose={() => setShowCreateInvestmentModal(false)}
         />
