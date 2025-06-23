@@ -1,32 +1,62 @@
-# Profile API Integration Documentation
+# Profile API Documentation
 
 ## Overview
 
-The LiteFi Profile API provides endpoints for managing user profiles, including personal information, employment details, next of kin, guarantor information, and bank accounts.
+This document outlines the API endpoints for managing user profiles in the LiteFi application.
 
-## Base URL
+## Available Options
 
-```
-https://api.litefi.ng
-```
+### Home Ownership Options
+- `RENTING`: User is renting their current residence
+- `OWNED`: User owns their current residence
+- `LIVING_WITH_FAMILY`: User lives with family
 
-## Authentication
+### Education Level Options
+- `BSC`: Bachelor's Degree
+- `MSC_PHD`: Master's Degree or PhD
+- `SECONDARY`: Secondary Education
+- `PRIMARY_NO_SCHOOL`: Primary Education or No Formal Education
 
-All endpoints require authentication via JWT token:
+### Employment Status Options
+- `EMPLOYED`: Currently employed
+- `SELF_EMPLOYED`: Self-employed/Business owner
+- `UNEMPLOYED`: Currently unemployed
+- `RETIRED`: Retired
+- `STUDENT`: Student
 
-```
-Authorization: Bearer {accessToken}
-```
+### Marital Status Options
+- `SINGLE`: Single/Never married
+- `MARRIED`: Married
+- `DIVORCED`: Divorced
+- `WIDOWED`: Widowed
+
+### Next of Kin Relationship Types
+- `HUSBAND`: Spouse (husband)
+- `WIFE`: Spouse (wife)
+- `FATHER`: Father
+- `MOTHER`: Mother
+- `BROTHER`: Brother
+- `SISTER`: Sister
+- `SON`: Son
+- `DAUGHTER`: Daughter
+- `OTHER_RELATIVE`: Other family relation
+- `FRIEND`: Friend
+
+### Identity Document Types
+- `NIN`: National Identity Number card
+- `PASSPORT`: International passport
+- `DRIVERS_LICENSE`: Driver's license
+- `VOTERS_CARD`: Voter's card
 
 ## Endpoints
 
 ### 1. Get User Profile
 
-Retrieves the profile information for the authenticated user.
+Retrieves the complete profile information for the authenticated user.
 
 **Endpoint:** `GET /users/profile`
 
-**Response (200 OK):**
+**Response:**
 ```json
 {
   "success": true,
@@ -41,69 +71,40 @@ Retrieves the profile information for the authenticated user.
     "profile": {
       "dateOfBirth": "01/01/1990",
       "gender": "MALE",
+      "middleName": "Michael",
       "address": "123 Main Street",
+      "streetName": "Main Street",
+      "nearestBusStop": "Central Station",
       "city": "Lagos",
       "state": "Lagos",
+      "localGovernment": "Ikeja",
       "country": "Nigeria",
+      "nationality": "Nigerian",
       "bvn": "12345678901",
       "nin": "98765432101",
-      "avatarUrl": "https://cdn.litefi.ng/uploads/profiles/user_123456.jpg"
-    },
-    "employment": {
-      "status": "EMPLOYED",
-      "employer": "Tech Company Ltd",
-      "jobTitle": "Software Engineer",
-      "monthlySalary": 350000,
-      "workEmail": "john@techcompany.com",
-      "startDate": "01/01/2020"
-    },
-    "nextOfKin": {
-      "firstName": "Jane",
-      "lastName": "Doe",
-      "relationship": "SPOUSE",
-      "phone": "+2348123456780",
-      "email": "jane.doe@example.com",
-      "address": "123 Main Street, Lagos"
-    },
-    "guarantor": {
-      "firstName": "James",
-      "lastName": "Smith",
-      "relationship": "COLLEAGUE",
-      "phone": "+2348123456781",
-      "email": "james.smith@example.com",
-      "address": "456 Park Avenue, Lagos"
-    },
-    "bankAccounts": [
-      {
-        "id": "bank_123",
-        "bankName": "First Bank",
-        "accountNumber": "0123456789",
-        "accountName": "John Doe",
-        "isDefault": true
-      }
-    ],
-    "documents": [
-      {
-        "id": "doc_123",
-        "type": "ID_DOCUMENT",
-        "url": "https://cdn.litefi.ng/uploads/documents/id/user_123_id.pdf",
-        "verified": true
-      },
-      {
-        "id": "doc_124",
-        "type": "PROOF_OF_ADDRESS",
-        "url": "https://cdn.litefi.ng/uploads/documents/address/user_123_address.pdf",
-        "verified": true
-      }
-    ]
+      "identityType": "PASSPORT",
+      "identityNumber": "A12345678",
+      "identityExpiry": "01/01/2025",
+      "avatarUrl": "https://cdn.litefi.ng/uploads/profiles/user_123456.jpg",
+      "bvnVerified": true,
+      "ninVerified": true,
+      "kycVerified": true,
+      "kycVerifiedAt": "2023-10-01T10:00:00.000Z",
+      "homeOwnership": "OWNED",
+      "yearsAtAddress": 5,
+      "maritalStatus": "MARRIED",
+      "educationLevel": "BSC",
+      "employmentStatus": "EMPLOYED",
+      "accountType": "INDIVIDUAL"
+    }
   },
   "message": "Profile retrieved successfully"
 }
 ```
 
-### 2. Update User Profile
+### 2. Update Profile
 
-Updates the profile information for the authenticated user.
+Updates the basic profile information for the authenticated user.
 
 **Endpoint:** `PATCH /users/profile`
 
@@ -112,109 +113,56 @@ Updates the profile information for the authenticated user.
 {
   "firstName": "John",
   "lastName": "Doe",
-  "phone": "+2348123456789",
-  "dateOfBirth": "1990-01-01",
+  "middleName": "Michael",
+  "phone": "08012345678",
+  "dateOfBirth": "01/01/1990",
   "gender": "MALE",
   "address": "123 Main Street",
+  "streetName": "Main Street",
+  "nearestBusStop": "Central Station",
   "city": "Lagos",
   "state": "Lagos",
+  "localGovernment": "Ikeja",
   "country": "Nigeria",
+  "nationality": "Nigerian",
+  "bvn": "12345678901",
+  "nin": "98765432101",
+  "identityType": "PASSPORT",
+  "identityNumber": "A12345678",
+  "identityExpiry": "01/01/2025",
+  "homeOwnership": "OWNED",
+  "yearsAtAddress": 5,
+  "maritalStatus": "MARRIED",
+  "educationLevel": "BSC",
+  "employmentStatus": "EMPLOYED",
   "accountType": "INDIVIDUAL"
 }
 ```
 
-**Response (200 OK):**
+### 3. Get Next of Kin Information
+
+Retrieves the next of kin information for the authenticated user.
+
+**Endpoint:** `GET /users/next-of-kin`
+
+**Response:**
 ```json
 {
   "success": true,
   "data": {
-    "userId": "user_123456",
-    "dateOfBirth": "01/01/1990",
-    "gender": "MALE",
-    "address": "123 Main Street",
-    "city": "Lagos",
-    "state": "Lagos",
-    "country": "Nigeria"
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "middleName": "Sarah",
+    "relationship": "WIFE",
+    "phone": "08012345678",
+    "email": "jane.doe@example.com",
+    "address": "123 Main Street"
   },
-  "message": "Profile updated successfully"
+  "message": "Next of kin information retrieved successfully"
 }
 ```
 
-### 3. Update Employment Information
-
-Updates the employment information for the authenticated user.
-
-**Endpoint:** `PATCH /users/employment`
-
-**Request Body:**
-```json
-{
-  "status": "EMPLOYED",
-  "employer": "Tech Company Ltd",
-  "jobTitle": "Senior Software Engineer",
-  "monthlySalary": 400000,
-  "workEmail": "john@techcompany.com",
-  "startDate": "2020-01-01"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "status": "EMPLOYED",
-    "employer": "Tech Company Ltd",
-    "jobTitle": "Senior Software Engineer",
-    "monthlySalary": 400000,
-    "workEmail": "john@techcompany.com",
-    "startDate": "01/01/2020"
-  },
-  "message": "Employment information updated successfully"
-}
-```
-
-### 4. Update Business Information
-
-Updates the business information for business owners.
-
-**Endpoint:** `PATCH /users/business`
-
-**Request Body:**
-```json
-{
-  "businessName": "Tech Solutions Ltd",
-  "businessType": "LLC",
-  "registrationNumber": "RC123456",
-  "businessAddress": "456 Business Avenue, Lagos",
-  "businessEmail": "info@techsolutions.com",
-  "businessPhone": "+2348123456789",
-  "industry": "TECHNOLOGY",
-  "yearEstablished": 2018,
-  "annualRevenue": 25000000
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "businessName": "Tech Solutions Ltd",
-    "businessType": "LLC",
-    "registrationNumber": "RC123456",
-    "businessAddress": "456 Business Avenue, Lagos",
-    "businessEmail": "info@techsolutions.com",
-    "businessPhone": "+2348123456789",
-    "industry": "TECHNOLOGY",
-    "yearEstablished": 2018,
-    "annualRevenue": 25000000
-  },
-  "message": "Business information updated successfully"
-}
-```
-
-### 5. Update Next of Kin
+### 4. Update Next of Kin
 
 Updates the next of kin information for the authenticated user.
 
@@ -225,26 +173,37 @@ Updates the next of kin information for the authenticated user.
 {
   "firstName": "Jane",
   "lastName": "Doe",
-  "relationship": "SPOUSE",
-  "phone": "+2348123456780",
+  "middleName": "Sarah",
+  "relationship": "WIFE",
+  "phone": "08012345678",
   "email": "jane.doe@example.com",
-  "address": "123 Main Street, Lagos"
+  "address": "123 Main Street"
 }
 ```
 
-**Response (200 OK):**
+### 5. Get Guarantor Information
+
+Retrieves the guarantor information for the authenticated user.
+
+**Endpoint:** `GET /users/guarantor`
+
+**Response:**
 ```json
 {
   "success": true,
   "data": {
-    "firstName": "Jane",
-    "lastName": "Doe",
-    "relationship": "SPOUSE",
-    "phone": "+2348123456780",
-    "email": "jane.doe@example.com",
-    "address": "123 Main Street, Lagos"
+    "firstName": "Michael",
+    "lastName": "Smith",
+    "middleName": "John",
+    "relationship": "FRIEND",
+    "email": "michael.smith@example.com",
+    "phone": "08012345678",
+    "address": "456 Second St, Lagos",
+    "occupation": "Doctor",
+    "bvn": "22222222222",
+    "idCardUrl": "https://cdn.litefi.ng/documents/guarantor_id.jpg"
   },
-  "message": "Next of kin information updated successfully"
+  "message": "Guarantor information retrieved successfully"
 }
 ```
 
@@ -252,171 +211,186 @@ Updates the next of kin information for the authenticated user.
 
 Updates the guarantor information for the authenticated user.
 
-**Endpoint:** `PATCH /users/guarantor`
-
-**Request Body:**
-```json
-{
-  "firstName": "James",
-  "lastName": "Smith",
-  "relationship": "COLLEAGUE",
-  "phone": "+2348123456781",
-  "email": "james.smith@example.com",
-  "address": "456 Park Avenue, Lagos"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "firstName": "James",
-    "lastName": "Smith",
-    "relationship": "COLLEAGUE",
-    "phone": "+2348123456781",
-    "email": "james.smith@example.com",
-    "address": "456 Park Avenue, Lagos"
-  },
-  "message": "Guarantor information updated successfully"
-}
-```
-
-### 7. Upload Document
-
-Uploads a document for the authenticated user.
-
-**Endpoint:** `POST /users/documents`
+**Endpoint:** `PUT /users/guarantor`
 
 **Request Body (multipart/form-data):**
-- `file`: The document file to upload
-- `type`: Document type (ID_DOCUMENT, PROOF_OF_ADDRESS, BANK_STATEMENT, etc.)
+```json
+{
+  "firstName": "Michael",
+  "lastName": "Smith",
+  "middleName": "John",
+  "relationship": "FRIEND",
+  "email": "michael.smith@example.com",
+  "phone": "08012345678",
+  "address": "456 Second St, Lagos",
+  "occupation": "Doctor",
+  "bvn": "22222222222",
+  "idCard": "(file upload - required for initial setup)"
+}
+```
 
-**Response (201 Created):**
+### 7. Get Employment Information
+
+Retrieves the employment information for the authenticated user.
+
+**Endpoint:** `GET /users/employment`
+
+**Response:**
 ```json
 {
   "success": true,
   "data": {
-    "id": "doc_125",
-    "type": "ID_DOCUMENT",
-    "fileName": "id_document.pdf",
-    "fileUrl": "https://cdn.litefi.ng/uploads/documents/id/user_123456_id_document.pdf",
-    "fileSize": 1024000,
-    "mimeType": "application/pdf",
-    "verified": false,
-    "createdAt": "2023-01-15T12:30:00Z"
+    "status": "EMPLOYED",
+    "employer": "Tech Company Ltd",
+    "jobTitle": "Software Engineer",
+    "monthlySalary": 350000,
+    "workEmail": "john@techcompany.com",
+    "workPhone": "08012345678",
+    "startDate": "01/01/2020",
+    "employerStreet": "456 Tech Street",
+    "employerCity": "Lagos",
+    "employerState": "Lagos",
+    "employerCountry": "Nigeria",
+    "employerPostalCode": "100001",
+    "salaryPaymentDate": 25
   },
-  "message": "Document uploaded successfully"
+  "message": "Employment information retrieved successfully"
 }
 ```
 
-### 8. Change Password
+### 8. Update Employment Information
 
-Changes the password for the authenticated user.
+Updates the employment information for the authenticated user.
 
-**Endpoint:** `POST /users/change-password`
+**Endpoint:** `PATCH /users/employment`
 
 **Request Body:**
 ```json
 {
-  "currentPassword": "OldPassword123!",
-  "newPassword": "NewPassword123!",
-  "confirmPassword": "NewPassword123!"
+  "status": "EMPLOYED",
+  "employer": "Tech Company Ltd",
+  "jobTitle": "Software Engineer",
+  "monthlySalary": 350000,
+  "workEmail": "john@techcompany.com",
+  "workPhone": "08012345678",
+  "startDate": "01/01/2020",
+  "employerStreet": "456 Tech Street",
+  "employerCity": "Lagos",
+  "employerState": "Lagos",
+  "employerCountry": "Nigeria",
+  "employerPostalCode": "100001",
+  "salaryPaymentDate": 25
 }
 ```
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "message": "Password changed successfully"
-}
-```
+### 9. Upload Profile Picture
 
-### 9. Check Profile Completion for Investment
+Uploads a profile picture for the authenticated user.
 
-Checks if the user's profile is complete enough to apply for investments.
+**Endpoint:** `POST /users/profile-picture`
 
-**Endpoint:** `GET /users/profile-status/investment`
+**Request Body (multipart/form-data):**
+- `file`: The image file to upload (jpg, jpeg, or png)
+- Maximum file size: 5MB
 
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "data": {
-    "isComplete": true,
-    "missingFields": []
-  },
-  "message": "Profile is complete for investment applications"
-}
-```
-
-### 10. Check Profile Completion for Loan
-
-Checks if the user's profile is complete enough to apply for loans.
-
-**Endpoint:** `GET /users/profile-status/loan`
-
-**Response (200 OK):**
+**Response:**
 ```json
 {
   "success": true,
   "data": {
-    "isComplete": false,
-    "missingFields": ["employment", "bankAccount"]
+    "avatarUrl": "https://cdn.litefi.ng/uploads/profiles/user_123456.jpg"
   },
-  "message": "Profile is incomplete for loan applications"
+  "message": "Profile picture uploaded successfully"
+}
+```
+
+### 10. Verify KYC
+
+Verifies the user's BVN and NIN for KYC compliance.
+
+**Endpoint:** `POST /users/verify-kyc`
+
+**Request Body:**
+```json
+{
+  "bvn": "12345678901",
+  "nin": "98765432101"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "bvnVerified": true,
+    "ninVerified": true,
+    "kycVerified": true,
+    "kycVerifiedAt": "2023-10-01T10:00:00.000Z",
+    "kycVerificationData": {
+      "bvn": {
+        "verified": true,
+        "data": {}
+      },
+      "nin": {
+        "verified": true,
+        "data": {}
+      }
+    }
+  },
+  "message": "KYC verification successful"
+}
+```
+
+### 11. Get KYC Status
+
+Retrieves the current KYC verification status for the authenticated user.
+
+**Endpoint:** `GET /users/kyc-status`
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "bvnVerified": true,
+    "ninVerified": true,
+    "kycVerified": true,
+    "kycVerifiedAt": "2023-10-01T10:00:00.000Z",
+    "kycVerificationData": {
+      "bvn": {
+        "verified": true,
+        "data": {}
+      },
+      "nin": {
+        "verified": true,
+        "data": {}
+      }
+    }
+  },
+  "message": "KYC status retrieved successfully"
 }
 ```
 
 ## Error Responses
 
-### Invalid Request (400 Bad Request)
+All endpoints return error responses in the following format:
+
 ```json
 {
   "success": false,
+  "message": "Error message describing what went wrong",
   "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid request parameters",
-    "details": [
-      {
-        "field": "firstName",
-        "message": "First name is required"
-      }
-    ]
+    "code": "ERROR_CODE",
+    "details": "Additional error details if available"
   }
 }
 ```
 
-### Unauthorized (401 Unauthorized)
-```json
-{
-  "success": false,
-  "error": {
-    "code": "UNAUTHORIZED",
-    "message": "Authentication required"
-  }
-}
-```
-
-### Not Found (404 Not Found)
-```json
-{
-  "success": false,
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "User not found"
-  }
-}
-```
-
-### Internal Server Error (500 Internal Server Error)
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INTERNAL_ERROR",
-    "message": "An unexpected error occurred"
-  }
-}
-``` 
+Common error codes:
+- `UNAUTHORIZED`: User is not authenticated
+- `VALIDATION_ERROR`: Invalid request data
+- `NOT_FOUND`: Requested resource not found
+- `FILE_TOO_LARGE`: Uploaded file exceeds size limit
+- `INVALID_FILE_TYPE`: Unsupported file type
+- `KYC_VERIFICATION_FAILED`: Failed to verify BVN or NIN 

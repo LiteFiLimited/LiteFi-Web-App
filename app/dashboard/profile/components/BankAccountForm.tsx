@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import ProfileSavedModal from "@/app/components/ProfileSavedModal";
 import { useRouter } from "next/navigation";
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useToastContext } from '@/app/components/ToastProvider';
 
 interface BankAccountFormProps {
   onSave?: (data: any) => void;
@@ -20,6 +22,7 @@ interface BankAccountFormProps {
   onGetLoan?: () => void;
   personalName?: string;
   businessName?: string;
+  isReadOnly?: boolean;
 }
 
 // Define proper types for our form data
@@ -41,16 +44,41 @@ interface ForeignBankFormData {
 // Union type for form data based on bank type
 type BankFormData = NairaBankFormData | ForeignBankFormData;
 
+const NIGERIAN_BANKS = [
+  { value: "access", label: "Access Bank" },
+  { value: "gtbank", label: "GT Bank" },
+  { value: "firstbank", label: "First Bank" },
+  { value: "zenith", label: "Zenith Bank" },
+  { value: "uba", label: "UBA" },
+  { value: "stanbic", label: "Stanbic IBTC" },
+  { value: "fcmb", label: "FCMB" },
+  { value: "sterling", label: "Sterling Bank" },
+  { value: "wema", label: "Wema Bank" },
+  { value: "polaris", label: "Polaris Bank" },
+  { value: "fidelity", label: "Fidelity Bank" },
+  { value: "union", label: "Union Bank" },
+  { value: "ecobank", label: "Ecobank" },
+  { value: "keystone", label: "Keystone Bank" },
+  { value: "heritage", label: "Heritage Bank" },
+  { value: "providus", label: "Providus Bank" },
+  { value: "globus", label: "Globus Bank" },
+  { value: "titan", label: "Titan Trust Bank" }
+];
+
 export default function BankAccountForm({ 
   onSave, 
   allFormsCompleted, 
   onGetLoan,
   personalName = "",
-  businessName = ""
+  businessName = "",
+  isReadOnly = false
 }: BankAccountFormProps) {
   const [bankType, setBankType] = useState<"naira" | "foreign">("naira");
   const [showSavedModal, setShowSavedModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const { addBankAccount } = useUserProfile();
+  const { error: showError } = useToastContext();
   
   const derivedAccountName = businessName || personalName || "";
 
@@ -106,6 +134,10 @@ export default function BankAccountForm({
 
   // Handle form field changes
   const handleChange = (field: string, value: string) => {
+    // Don't allow changing account name if it's derived from profile
+    if (field === 'accountName' && derivedAccountName) {
+      return;
+    }
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -158,21 +190,36 @@ export default function BankAccountForm({
   };
 
   // Update account name when personal or business name changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (derivedAccountName) {
       setFormData(prev => ({ ...prev, accountName: derivedAccountName } as BankFormData));
     }
   }, [derivedAccountName]);
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     touchAllFields();
 
-    if (isFormValid() && onSave) {
-      onSave(formData);
-      setShowSavedModal(true);
+    if (!isFormValid()) {
+      showError('Error', 'Please fill in all required fields correctly');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const success = await addBankAccount(formData);
+      if (success) {
+        setShowSavedModal(true);
+        if (onSave) {
+          onSave(formData);
+        }
+      }
+    } catch (error: any) {
+      showError('Error', error.message || 'Failed to add bank account');
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -203,6 +250,7 @@ export default function BankAccountForm({
             <Select 
               value={bankType} 
               onValueChange={(value) => handleBankTypeChange(value as "naira" | "foreign")}
+              disabled={isReadOnly}
             >
               <SelectTrigger 
                 id="bankType" 
@@ -229,6 +277,7 @@ export default function BankAccountForm({
                       handleChange("bankName", value);
                       handleBlur("bankName");
                     }}
+                    disabled={isReadOnly}
                   >
                     <SelectTrigger 
                       id="bankName" 
@@ -237,18 +286,15 @@ export default function BankAccountForm({
                       <SelectValue placeholder="Select bank" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="access">Access Bank</SelectItem>
-                      <SelectItem value="gtbank">GT Bank</SelectItem>
-                      <SelectItem value="firstbank">First Bank</SelectItem>
-                      <SelectItem value="zenith">Zenith Bank</SelectItem>
-                      <SelectItem value="uba">UBA</SelectItem>
-                      <SelectItem value="stanbic">Stanbic IBTC</SelectItem>
-                      <SelectItem value="fcmb">FCMB</SelectItem>
-                      <SelectItem value="sterling">Sterling Bank</SelectItem>
+                      {NIGERIAN_BANKS.map(bank => (
+                        <SelectItem key={bank.value} value={bank.value}>
+                          {bank.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {showErrors.bankName && (
-                    <p className="text-xs text-red-500">Bank name is required</p>
+                    <p className="text-sm text-red-500">Please select a bank</p>
                   )}
                 </div>
 
@@ -256,31 +302,39 @@ export default function BankAccountForm({
                   <Label htmlFor="accountNumber">Account Number</Label>
                   <Input
                     id="accountNumber"
+                    type="text"
                     value={formData.accountNumber}
                     onChange={(e) => handleChange("accountNumber", e.target.value)}
                     onBlur={() => handleBlur("accountNumber")}
-                    placeholder="Enter account number"
                     className={`h-12 rounded-none bg-gray-50 ${showErrors.accountNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                    placeholder="Enter 10-digit account number"
+                    maxLength={10}
+                    disabled={isReadOnly}
                   />
                   {showErrors.accountNumber && (
-                    <p className="text-xs text-red-500">Enter a valid 10-digit account number</p>
+                    <p className="text-sm text-red-500">Please enter a valid 10-digit account number</p>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="accountName">Account Name</Label>
-                  <Input
-                    id="accountName"
-                    value={formData.accountName}
-                    className="h-12 rounded-none bg-gray-100 text-gray-600"
-                    placeholder="Account name will be populated automatically"
-                    readOnly
-                    disabled
-                  />
-                  <p className="text-xs text-gray-500">This field is automatically populated based on your personal or business name</p>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="accountName">Account Name</Label>
+                <Input
+                  id="accountName"
+                  type="text"
+                  value={formData.accountName}
+                  onChange={(e) => handleChange("accountName", e.target.value)}
+                  onBlur={() => handleBlur("accountName")}
+                  className={`h-12 rounded-none ${derivedAccountName ? 'bg-gray-100' : 'bg-gray-50'} ${showErrors.accountName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                  placeholder="Enter account name"
+                  disabled={!!derivedAccountName}
+                />
+                {showErrors.accountName && (
+                  <p className="text-sm text-red-500">Please enter the account name</p>
+                )}
+                {derivedAccountName && (
+                  <p className="text-xs text-gray-500">Account name is automatically populated from your profile</p>
+                )}
               </div>
             </div>
           )}
@@ -290,70 +344,77 @@ export default function BankAccountForm({
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="accountName">Account Name</Label>
-                  <Input
-                    id="accountName"
-                    value={formData.accountName}
-                    onChange={(e) => handleChange("accountName", e.target.value)}
-                    onBlur={() => handleBlur("accountName")}
-                    className={`h-12 rounded-none bg-gray-50 ${showErrors.accountName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                    placeholder="Enter account name"
-                  />
-                  {showErrors.accountName && (
-                    <p className="text-xs text-red-500">Account name is required</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="accountNumber">Account Number / IBAN</Label>
-                  <Input
-                    id="accountNumber"
-                    value={formData.accountNumber}
-                    onChange={(e) => handleChange("accountNumber", e.target.value)}
-                    onBlur={() => handleBlur("accountNumber")}
-                    className={`h-12 rounded-none bg-gray-50 ${showErrors.accountNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                    placeholder="Enter account number"
-                  />
-                  {showErrors.accountNumber && (
-                    <p className="text-xs text-red-500">Account number is required</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="swiftCode">SWIFT/BIC Code</Label>
-                  <Input
-                    id="swiftCode"
-                    value={formData.swiftCode}
-                    onChange={(e) => handleChange("swiftCode", e.target.value)}
-                    onBlur={() => handleBlur("swiftCode")}
-                    className={`h-12 rounded-none bg-gray-50 ${showErrors.swiftCode ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                    placeholder="Enter code"
-                  />
-                  {showErrors.swiftCode && (
-                    <p className="text-xs text-red-500">SWIFT/BIC code is required</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
                   <Label htmlFor="bankName">Bank Name</Label>
                   <Input
                     id="bankName"
+                    type="text"
                     value={formData.bankName}
                     onChange={(e) => handleChange("bankName", e.target.value)}
                     onBlur={() => handleBlur("bankName")}
                     className={`h-12 rounded-none bg-gray-50 ${showErrors.bankName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                     placeholder="Enter bank name"
+                    disabled={isReadOnly}
                   />
                   {showErrors.bankName && (
-                    <p className="text-xs text-red-500">Bank name is required</p>
+                    <p className="text-sm text-red-500">Please enter the bank name</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="swiftCode">SWIFT/BIC Code</Label>
+                  <Input
+                    id="swiftCode"
+                    type="text"
+                    value={formData.swiftCode}
+                    onChange={(e) => handleChange("swiftCode", e.target.value)}
+                    onBlur={() => handleBlur("swiftCode")}
+                    className={`h-12 rounded-none bg-gray-50 ${showErrors.swiftCode ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                    placeholder="Enter SWIFT/BIC code"
+                    disabled={isReadOnly}
+                  />
+                  {showErrors.swiftCode && (
+                    <p className="text-sm text-red-500">Please enter the SWIFT/BIC code</p>
                   )}
                 </div>
               </div>
-              
-              <div className="text-xs text-gray-600">
-                Please ensure all international banking details are correct. Additional fees may apply for international transfers.
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="accountNumber">Account Number/IBAN</Label>
+                  <Input
+                    id="accountNumber"
+                    type="text"
+                    value={formData.accountNumber}
+                    onChange={(e) => handleChange("accountNumber", e.target.value)}
+                    onBlur={() => handleBlur("accountNumber")}
+                    className={`h-12 rounded-none bg-gray-50 ${showErrors.accountNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                    placeholder="Enter account number or IBAN"
+                    disabled={isReadOnly}
+                  />
+                  {showErrors.accountNumber && (
+                    <p className="text-sm text-red-500">Please enter the account number or IBAN</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="accountName">Account Name</Label>
+                  <Input
+                    id="accountName"
+                    type="text"
+                    value={formData.accountName}
+                    onChange={(e) => handleChange("accountName", e.target.value)}
+                    onBlur={() => handleBlur("accountName")}
+                    className={`h-12 rounded-none ${derivedAccountName ? 'bg-gray-100' : 'bg-gray-50'} ${showErrors.accountName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                    placeholder="Enter account name"
+                    disabled={!!derivedAccountName}
+                  />
+                  {showErrors.accountName && (
+                    <p className="text-sm text-red-500">Please enter the account name</p>
+                  )}
+                  {derivedAccountName && (
+                    <p className="text-xs text-gray-500">Account name is automatically populated from your profile</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -363,23 +424,24 @@ export default function BankAccountForm({
           <Button 
             type="submit" 
             className={`h-12 px-16 rounded-none ${
-              isFormValid() 
+              isFormValid() && !isSubmitting && !isReadOnly
                 ? "bg-red-600 hover:bg-red-700 text-white" 
                 : "bg-red-300 cursor-not-allowed text-white"
             }`}
-            disabled={!isFormValid()}
+            disabled={!isFormValid() || isSubmitting || isReadOnly}
           >
-            Save
+            {isSubmitting ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </form>
-      
+
       {showSavedModal && (
-        <ProfileSavedModal 
+        <ProfileSavedModal
+          open={showSavedModal}
           onClose={handleCloseModal}
-          onStartInvesting={handleViewProfile}
+          onViewProfile={handleViewProfile}
+          allFormsCompleted={allFormsCompleted}
           onGetLoan={onGetLoan}
-          type={allFormsCompleted ? "loan" : "investment"}
         />
       )}
     </>

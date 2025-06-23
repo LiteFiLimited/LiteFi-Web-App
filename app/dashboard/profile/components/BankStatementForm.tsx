@@ -8,23 +8,27 @@ import { Trash2 } from "lucide-react";
 import { HiOutlineUpload } from "react-icons/hi";
 import ProfileSavedModal from "@/app/components/ProfileSavedModal";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useToastContext } from '@/app/components/ToastProvider';
 
 interface BankStatementFormProps {
   onSave?: (data: any) => void;
   allFormsCompleted?: boolean;
   onGetLoan?: () => void;
+  isReadOnly?: boolean;
 }
 
 interface FileWithPreview extends File {
   preview?: string;
 }
 
-export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan }: BankStatementFormProps) {
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly }: BankStatementFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [showSavedModal, setShowSavedModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const { uploadBankStatement } = useUserProfile();
+  const { error: showError } = useToastContext();
 
   // Handle file drop for statements
   const handleDrop = useCallback((acceptedFiles: File[]) => {
@@ -34,8 +38,6 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
       })
     );
     setFiles(prev => [...prev, ...filesWithPreview]);
-    // Auto-select upload method when files are added
-    setSelectedMethod('upload');
   }, []);
 
   // Remove file
@@ -44,11 +46,6 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
       URL.revokeObjectURL(fileToRemove.preview);
     }
     setFiles(files.filter(file => file !== fileToRemove));
-    
-    // If no files remain, unselect the upload method
-    if (files.length <= 1 && selectedMethod === 'upload') {
-      setSelectedMethod(null);
-    }
   };
 
   // Set up dropzone with explicit click handling to ensure it opens the file dialog
@@ -62,25 +59,32 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
     noKeyboard: false // Allow keyboard navigation 
   });
 
-  const handleMethodSelect = (method: string) => {
-    setSelectedMethod(method);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (selectedMethod === 'upload' && files.length === 0) {
-      // Show validation error
+    if (files.length === 0) {
+      showError('Error', 'Please upload at least one bank statement');
       return;
     }
 
-    if (onSave) {
-      const data = {
-        method: selectedMethod,
-        files: selectedMethod === 'upload' ? files : []
-      };
-      onSave(data);
-      setShowSavedModal(true);
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`statement`, file);
+      });
+
+      const success = await uploadBankStatement(formData);
+      if (success) {
+        setShowSavedModal(true);
+        if (onSave) {
+          onSave({ files });
+        }
+      }
+    } catch (error: any) {
+      showError('Error', error.message || 'Failed to upload bank statement');
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -94,81 +98,15 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
   };
 
   const isFormValid = () => {
-    if (!selectedMethod) return false;
-    if (selectedMethod === 'upload' && files.length === 0) return false;
-    return true;
+    return files.length > 0;
   };
 
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-10">
         <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label className="block mb-4">Via Mono</Label>
-              <div 
-                className={`p-6 bg-accent-red border-2 ${selectedMethod === 'mono' ? 'border-red-500' : 'border-transparent'} cursor-pointer transition-all duration-200`}
-                onClick={() => handleMethodSelect('mono')}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="text-sm">Proceed using</span>
-                    <div className="ml-2">
-                      <Image 
-                        src="/assets/svgs/mono.svg" 
-                        alt="Mono" 
-                        width={80} 
-                        height={28} 
-                      />
-                    </div>
-                  </div>
-                  <Image 
-                    src="/assets/svgs/arrow-right.svg"
-                    alt="Proceed" 
-                    width={16} 
-                    height={16} 
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <Label className="block mb-4">Via Mybankstatement</Label>
-              <div 
-                className={`p-6 bg-accent-red border-2 ${selectedMethod === 'mybankstatement' ? 'border-red-500' : 'border-transparent'} cursor-pointer transition-all duration-200`}
-                onClick={() => handleMethodSelect('mybankstatement')}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <span className="text-sm">Proceed using</span>
-                    <div className="ml-2">
-                      <Image 
-                        src="/assets/svgs/bank-statement.svg" 
-                        alt="MyBankStatement" 
-                        width={120} 
-                        height={28} 
-                      />
-                    </div>
-                  </div>
-                  <Image 
-                    src="/assets/svgs/arrow-right.svg"
-                    alt="Proceed" 
-                    width={16} 
-                    height={16} 
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative flex py-5 items-center">
-            <div className="flex-grow border-t border-gray-200"></div>
-            <span className="flex-shrink mx-4 text-gray-600 text-sm font-bold">Or</span>
-            <div className="flex-grow border-t border-gray-200"></div>
-          </div>
-
           <div>
-            <Label className="block mb-4">Upload</Label>
+            <Label className="block mb-4">Upload Bank Statement</Label>
             
             {files.length === 0 ? (
               <div 
@@ -177,17 +115,17 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
                     ? 'border-gray-400 bg-gray-50' 
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
                   }`}
-                onClick={() => {
-                  setSelectedMethod('upload');
-                  open(); // Explicitly open the file dialog
-                }}
+                onClick={open}
                 {...getRootProps()}
               >
                 <input {...getInputProps()} />
                 <div className="flex flex-col items-center gap-2">
                   <HiOutlineUpload className="w-6 h-6 text-gray-400" />
                   <div className="text-sm text-gray-600">
-                    {isDragActive ? 'Drop files here' : 'Upload'}
+                    {isDragActive ? 'Drop files here' : 'Click to upload or drag and drop'}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Supported formats: PDF, PNG, JPG, JPEG
                   </div>
                 </div>
               </div>
@@ -219,7 +157,7 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
                 {/* Add more files option */}
                 <div 
                   className="cursor-pointer transition-all duration-200 p-6 text-center border-2 border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 mt-4"
-                  onClick={open} // Explicitly open file dialog on click
+                  onClick={open}
                   {...getRootProps()}
                 >
                   <input {...getInputProps()} />
@@ -237,23 +175,24 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
           <Button 
             type="submit" 
             className={`h-12 px-16 rounded-none ${
-              isFormValid() 
+              isFormValid() && !isSubmitting
                 ? "bg-red-600 hover:bg-red-700 text-white" 
                 : "bg-red-300 cursor-not-allowed text-white"
             }`}
-            disabled={!isFormValid()}
+            disabled={!isFormValid() || isSubmitting}
           >
-            Save
+            {isSubmitting ? 'Uploading...' : 'Save'}
           </Button>
         </div>
       </form>
-      
+
       {showSavedModal && (
-        <ProfileSavedModal 
+        <ProfileSavedModal
+          open={showSavedModal}
           onClose={handleCloseModal}
-          onStartInvesting={handleViewProfile}
+          onViewProfile={handleViewProfile}
+          allFormsCompleted={allFormsCompleted}
           onGetLoan={onGetLoan}
-          type={allFormsCompleted ? "loan" : "investment"}
         />
       )}
     </>

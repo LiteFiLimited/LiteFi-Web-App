@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useDropzone } from "react-dropzone";
@@ -27,7 +27,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { profile } = useUserProfile();
 
-  // Track form completion status
+  // Track form completion and read-only status
   const [formCompletionStatus, setFormCompletionStatus] = useState({
     personal: false,
     employment: false,
@@ -39,22 +39,47 @@ export default function ProfilePage() {
     documents: false
   });
 
-  // Track if basic personal info and employment info have been saved
-  const [personalInfoSaved, setPersonalInfoSaved] = useState(false);
-  const [employmentInfoSaved, setEmploymentInfoSaved] = useState(false);
-  const [businessInfoSaved, setBusinessInfoSaved] = useState(false);
-  
-  // Track if user is a business owner or employee for employment form
-  const [isBusinessOwner, setIsBusinessOwner] = useState(false);
-  
-  // Store form data for later use
-  const [personalFormData, setPersonalFormData] = useState<any>({
-    firstName: "",
-    lastName: ""
+  // Track read-only states
+  const [formReadOnlyStatus, setFormReadOnlyStatus] = useState({
+    personal: false,
+    employment: false,
+    business: false,
+    kin: false,
+    guarantor: false,
+    bankAccount: false,
+    bankStatement: false,
+    documents: false
   });
-  const [businessFormData, setBusinessFormData] = useState<any>({
-    businessName: ""
+
+  // Track form data for passing between components
+  const [formData, setFormData] = useState({
+    personal: {
+      firstName: "",
+      lastName: ""
+    },
+    business: {
+      businessName: ""
+    }
   });
+
+  // Initialize read-only states based on profile data
+  useEffect(() => {
+    if (profile) {
+      setFormReadOnlyStatus({
+        personal: !!profile.firstName || !!profile.lastName,
+        employment: !!profile.employment?.employmentStatus,
+        business: false,
+        kin: !!profile.nextOfKin?.firstName,
+        guarantor: !!profile.guarantor?.firstName,
+        bankAccount: !!profile.bankAccounts?.[0]?.accountNumber,
+        bankStatement: !!profile.bankStatement?.documentUrl,
+        documents: false // Documents can be updated
+      });
+    }
+  }, [profile]);
+
+  // Track if user is a business owner
+  const isBusinessOwner = profile?.employment?.employmentStatus === 'SELF_EMPLOYED';
 
   const allFormsCompleted = React.useMemo(() => {
     return Object.values(formCompletionStatus).every(Boolean);
@@ -66,6 +91,14 @@ export default function ProfilePage() {
       ...prev,
       [formName]: isComplete
     }));
+    
+    // Also set read-only status when form is completed
+    if (isComplete && formName !== 'documents') {
+      setFormReadOnlyStatus(prev => ({
+        ...prev,
+        [formName]: true
+      }));
+    }
   };
 
   const tabs = [
@@ -114,60 +147,39 @@ export default function ProfilePage() {
     multiple: false
   });
 
-  // Handle form submission
+  // Handle form submissions
   const handleSavePersonalInfo = (data: any) => {
-    console.log("Saving personal info:", data);
-    setPersonalFormData(data);
+    setFormData(prev => ({ ...prev, personal: data }));
     updateFormCompletionStatus('personal', true);
-    setPersonalInfoSaved(true);
-    // Here you would typically send this data to your backend
   };
 
   const handleSaveEmploymentInfo = (data: any) => {
-    console.log("Saving employment info:", data);
-    if (data.employmentType === "self-employed" && data.businessName) {
-      setBusinessFormData({ businessName: data.businessName });
-    }
     updateFormCompletionStatus('employment', true);
-    setEmploymentInfoSaved(true);
-    setIsBusinessOwner(data.employmentType === "self-employed");
-    // Here you would typically send this data to your backend
   };
 
   const handleSaveBusinessInfo = (data: any) => {
-    console.log("Saving business info:", data);
+    setFormData(prev => ({ ...prev, business: data }));
     updateFormCompletionStatus('business', true);
-    setBusinessInfoSaved(true);
   };
 
   const handleSaveNextOfKinInfo = (data: any) => {
-    console.log("Saving next of kin info:", data);
     updateFormCompletionStatus('kin', true);
-    // Here you would typically send this data to your backend
   };
 
   const handleSaveGuarantorInfo = (data: any) => {
-    console.log("Saving guarantor info:", data);
     updateFormCompletionStatus('guarantor', true);
-    // Here you would typically send this data to your backend
   };
 
   const handleSaveBankAccount = (data: any) => {
-    console.log("Saving bank account info:", data);
     updateFormCompletionStatus('bankAccount', true);
-    // Here you would typically send this data to your backend
   };
 
   const handleSaveBankStatement = (data: any) => {
-    console.log("Saving bank statement info:", data);
     updateFormCompletionStatus('bankStatement', true);
-    // Here you would typically send this data to your backend
   };
 
   const handleSaveDocuments = (data: any) => {
-    console.log("Saving documents:", data);
     updateFormCompletionStatus('documents', true);
-    // Here you would typically send this data to your backend
   };
 
   // Handle loan navigation
@@ -176,7 +188,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <h1 className="text-2xl font-bold mb-2">Profile</h1>
       <p className="text-muted-foreground mb-6">Manage your profile from this page</p>
 
@@ -295,7 +307,7 @@ export default function ProfilePage() {
                         onSave={handleSavePersonalInfo} 
                         allFormsCompleted={allFormsCompleted}
                         onGetLoan={handleGetLoan}
-                        isReadOnly={personalInfoSaved}
+                        isReadOnly={formReadOnlyStatus.personal}
                       />
                     </div>
                   )}
@@ -304,24 +316,21 @@ export default function ProfilePage() {
                   {activeTab === "employment" && (
                     <div>
                       <h2 className="text-lg font-bold mb-6">
-                        {profile?.employment?.employmentStatus === 'SELF_EMPLOYED' 
-                          ? "Business Information" 
-                          : "Employment Information"
-                        }
+                        {isBusinessOwner ? "Business Information" : "Employment Information"}
                       </h2>
-                      {profile?.employment?.employmentStatus === 'SELF_EMPLOYED' ? (
+                      {isBusinessOwner ? (
                         <BusinessInfoForm 
                           onSave={handleSaveBusinessInfo} 
                           allFormsCompleted={allFormsCompleted}
                           onGetLoan={handleGetLoan}
-                          isReadOnly={businessInfoSaved}
+                          isReadOnly={formReadOnlyStatus.business}
                         />
                       ) : (
                         <EmploymentInfoForm 
                           onSave={handleSaveEmploymentInfo} 
                           allFormsCompleted={allFormsCompleted}
                           onGetLoan={handleGetLoan}
-                          isReadOnly={employmentInfoSaved}
+                          isReadOnly={formReadOnlyStatus.employment}
                         />
                       )}
                     </div>
@@ -335,6 +344,7 @@ export default function ProfilePage() {
                         onSave={handleSaveNextOfKinInfo} 
                         allFormsCompleted={allFormsCompleted}
                         onGetLoan={handleGetLoan}
+                        isReadOnly={formReadOnlyStatus.kin}
                       />
                     </div>
                   )}
@@ -347,6 +357,7 @@ export default function ProfilePage() {
                         onSave={handleSaveGuarantorInfo} 
                         allFormsCompleted={allFormsCompleted}
                         onGetLoan={handleGetLoan}
+                        isReadOnly={formReadOnlyStatus.guarantor}
                       />
                     </div>
                   )}
@@ -359,8 +370,9 @@ export default function ProfilePage() {
                         onSave={handleSaveBankAccount} 
                         allFormsCompleted={allFormsCompleted}
                         onGetLoan={handleGetLoan}
-                        personalName={personalInfoSaved ? `${personalFormData.firstName} ${personalFormData.lastName}` : ""}
-                        businessName={isBusinessOwner && employmentInfoSaved ? businessFormData.businessName : ""}
+                        isReadOnly={formReadOnlyStatus.bankAccount}
+                        personalName={formData.personal.firstName ? `${formData.personal.firstName} ${formData.personal.lastName}` : ""}
+                        businessName={isBusinessOwner ? formData.business.businessName : ""}
                       />
                     </div>
                   )}
@@ -373,6 +385,7 @@ export default function ProfilePage() {
                         onSave={handleSaveBankStatement} 
                         allFormsCompleted={allFormsCompleted}
                         onGetLoan={handleGetLoan}
+                        isReadOnly={formReadOnlyStatus.bankStatement}
                       />
                     </div>
                   )}
@@ -385,7 +398,7 @@ export default function ProfilePage() {
                         onSave={handleSaveDocuments} 
                         allFormsCompleted={allFormsCompleted}
                         onGetLoan={handleGetLoan}
-                        savedDocuments={formCompletionStatus.documents}
+                        isReadOnly={false} // Documents can always be updated
                       />
                     </div>
                   )}

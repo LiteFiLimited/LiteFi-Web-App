@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { userApi } from '@/lib/api';
 import { UserData, BankAccount, Document } from '@/types/user';
 import { useToastContext } from '@/app/components/ToastProvider';
+import { getToken } from '@/lib/auth';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -57,7 +58,12 @@ export function useUserProfile() {
       success('Success', 'Employment information updated successfully');
       return true;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to update employment information');
+      // Handle array of error messages from backend
+      if (Array.isArray(err.message)) {
+        throw err; // Pass array of error messages to component
+      }
+      const errorMessage = err.message || err.error || 'Failed to update employment information';
+      showError('Error', errorMessage);
       return false;
     } finally {
       setIsLoading(false);
@@ -91,6 +97,27 @@ export function useUserProfile() {
       return false;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateGuarantor = async (data: FormData) => {
+    try {
+      const token = getToken();
+      const response = await fetch('/api/users/guarantor', {
+        method: 'PUT',
+        body: data,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update guarantor information');
+      }
+
+      await fetchProfile();
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -202,9 +229,10 @@ export function useUserProfile() {
   // Profile completion status
   const checkInvestmentProfileStatus = async () => {
     try {
-      const response = await userApi.getInvestmentProfileStatus() as ApiResponse<{isComplete: boolean; missingFields?: string[]}>;
-      setInvestmentProfileComplete(response.data.isComplete);
-      return response.data;
+      const response = await userApi.checkInvestmentProfileStatus();
+      const isComplete = response.data?.isComplete || false;
+      setInvestmentProfileComplete(isComplete);
+      return { isComplete, missingFields: response.data?.missingFields || [] };
     } catch (err: any) {
       showError('Error', err.message || 'Failed to check investment profile status');
       return { isComplete: false, missingFields: [] };
@@ -213,9 +241,10 @@ export function useUserProfile() {
 
   const checkLoanProfileStatus = async () => {
     try {
-      const response = await userApi.getLoanProfileStatus() as ApiResponse<{isComplete: boolean; missingFields?: string[]}>;
-      setLoanProfileComplete(response.data.isComplete);
-      return response.data;
+      const response = await userApi.checkLoanProfileStatus();
+      const isComplete = response.data?.isComplete || false;
+      setLoanProfileComplete(isComplete);
+      return { isComplete, missingFields: response.data?.missingFields || [] };
     } catch (err: any) {
       showError('Error', err.message || 'Failed to check loan profile status');
       return { isComplete: false, missingFields: [] };
@@ -254,15 +283,41 @@ export function useUserProfile() {
   const verifyTransactionPin = async (pin: string) => {
     try {
       setIsLoading(true);
-      const response = await userApi.verifyTransactionPin({ pin }) as ApiResponse<{verified: boolean}>;
-      if (response.data.verified) {
+      const response = await userApi.verifyTransactionPin({ pin });
+      if (response.success) {
         success('Success', 'Transaction PIN verified successfully');
-      } else {
-        showError('Error', 'Invalid transaction PIN');
       }
-      return response.data.verified;
+      return response.success;
     } catch (err: any) {
       showError('Error', err.message || 'Failed to verify transaction PIN');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const uploadBankStatement = async (formData: FormData) => {
+    try {
+      setIsLoading(true);
+      const token = getToken();
+      const response = await fetch('/api/users/bank-statement', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to upload bank statement');
+      }
+
+      const data = await response.json();
+      success('Success', 'Bank statement uploaded successfully');
+      return true;
+    } catch (err: any) {
+      showError('Error', err.message || 'Failed to upload bank statement');
       return false;
     } finally {
       setIsLoading(false);
@@ -281,26 +336,28 @@ export function useUserProfile() {
     profile,
     isLoading,
     error,
+    bankAccounts,
+    documents,
+    investmentProfileComplete,
+    loanProfileComplete,
     fetchProfile,
     updateProfile,
     updateEmployment,
     updateBusiness,
     updateNextOfKin,
-    bankAccounts,
+    updateGuarantor,
     fetchBankAccounts,
     addBankAccount,
     setDefaultBankAccount,
     deleteBankAccount,
-    documents,
     fetchDocuments,
     uploadDocument,
     deleteDocument,
-    investmentProfileComplete,
-    loanProfileComplete,
     checkInvestmentProfileStatus,
     checkLoanProfileStatus,
     changePassword,
     setupTransactionPin,
     verifyTransactionPin,
+    uploadBankStatement
   };
 }

@@ -6,38 +6,45 @@ import { Button } from "@/app/components/ui/button";
 import { useRouter } from "next/navigation";
 
 interface ProfileSavedModalProps {
+  open: boolean;
   onClose: () => void;
-  onStartInvesting?: () => void;
+  onViewProfile: () => void;
+  allFormsCompleted?: boolean;
   onGetLoan?: () => void;
-  type?: "investment" | "loan";
 }
 
 export default function ProfileSavedModal({
+  open,
   onClose,
-  onStartInvesting,
-  onGetLoan,
-  type = "investment"
+  onViewProfile,
+  allFormsCompleted,
+  onGetLoan
 }: ProfileSavedModalProps) {
   const router = useRouter();
 
-  // Text based on modal type
-  const content = {
-    investment: {
-      title: "Congratulations, you can start investing",
-      body: "Thank you for updating your personal information. We're pleased to inform you that you can now start investing with us and enjoy great value for your money.",
-      primaryButton: "Start Investing",
-      primaryAction: onStartInvesting,
-    },
-    loan: {
-      title: "Congratulations! Your Profile is Updated.",
-      subtitle: "You Can Now Access a Loan!",
-      body: "Thank you for updating all your profile details. You are now eligible to take a loan and access the financial support you need.",
-      primaryButton: "Get a Loan",
-      primaryAction: onGetLoan || (() => router.push('/dashboard/loans')),
-    },
+  if (!open) return null;
+
+  const handleLoanAction = () => {
+    onClose(); // Close modal first
+    if (onGetLoan) {
+      onGetLoan();
+    } else {
+      router.push('/dashboard/loans');
+    }
   };
 
-  const activeContent = content[type];
+  const content = allFormsCompleted ? {
+    title: "Congratulations! Your Profile is Updated.",
+    subtitle: "You Can Now Access a Loan!",
+    body: "Thank you for updating all your profile details. You are now eligible to take a loan and access the financial support you need.",
+    primaryButton: "Get a Loan",
+    primaryAction: handleLoanAction,
+  } : {
+    title: "Profile Section Updated",
+    body: "Your profile section has been successfully updated. Continue updating other sections to complete your profile.",
+    primaryButton: "View Profile",
+    primaryAction: onViewProfile,
+  };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
@@ -45,7 +52,7 @@ export default function ProfileSavedModal({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       
       {/* Modal */}
-      <div className="bg-white w-full max-w-md p-8 z-10 relative mx-4">
+      <div className="bg-white w-full max-w-md p-8 z-10 relative mx-4 rounded-lg">
         <div className="flex flex-col items-center text-center">
           {/* Success Icon */}
           <div className="rounded-full bg-green-400 p-4 flex items-center justify-center mb-6">
@@ -53,25 +60,25 @@ export default function ProfileSavedModal({
           </div>
           
           <h2 className="text-2xl font-medium mb-1">
-            {activeContent.title}
+            {content.title}
           </h2>
           
-          {type === "loan" && (
+          {allFormsCompleted && (
             <h3 className="text-xl font-medium mb-4 text-center">
-              {content.loan.subtitle}
+              {content.subtitle}
             </h3>
           )}
           
           <p className="text-gray-600 mb-8">
-            {activeContent.body}
+            {content.body}
           </p>
           
           <div className="flex flex-col md:flex-row-reverse w-full gap-4">
             <Button 
-              onClick={activeContent.primaryAction} 
+              onClick={content.primaryAction} 
               className="w-full bg-red-600 hover:bg-red-700 h-12"
             >
-              {activeContent.primaryButton}
+              {content.primaryButton}
             </Button>
             
             <Button 

@@ -1,6 +1,14 @@
 // API response types
 import axios from 'axios';
-import { UserData, BankAccount, Document } from '@/types/user';
+import { 
+  UserData, 
+  BankAccount, 
+  Document, 
+  EmploymentInfo, 
+  BusinessInfo, 
+  NextOfKinInfo 
+} from '@/types/user';
+import { getToken } from './auth';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -50,7 +58,7 @@ export interface BackendPhoneResponse {
 
 // Base API URL - For production deployment
 // Hardcoded to Render URL to ensure it's used in the cPanel deployment
-const API_URL = 'https://litefi-backend.onrender.com';
+const API_URL = 'http://localhost:3000';
 
 // Ignore any environment variables to ensure we use the hardcoded URL
 // This is important for cPanel deployment
@@ -237,139 +245,121 @@ export const testConnection = async (): Promise<boolean> => {
 // User Profile Management
 export const userApi = {
   // Get user profile
-  getProfile: async () => {
-    return await apiRequest<ApiResponse<UserData>>('get', '/users/profile');
-  },
+  getProfile: () => apiRequest<ApiResponse<UserData>>('get', '/users/profile'),
 
   // Update user profile
-  updateProfile: async (profileData: {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    dateOfBirth?: string;
-    gender?: 'MALE' | 'FEMALE' | 'OTHER';
-    address?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    bvn?: string;
-    nin?: string;
-  }) => {
-    return await apiRequest<ApiResponse<UserData>>('patch', '/users/profile', profileData);
-  },
+  updateProfile: (data: Partial<UserData>) => 
+    apiRequest<ApiResponse<UserData>>('patch', '/users/profile', data),
 
   // Update employment information
-  updateEmployment: async (employmentData: {
-    employmentStatus: 'EMPLOYED' | 'SELF_EMPLOYED' | 'UNEMPLOYED' | 'STUDENT' | 'RETIRED';
-    employerName?: string;
-    jobTitle?: string;
-    workAddress?: string;
-    monthlyIncome?: number;
-    employmentStartDate?: string;
-    workEmail?: string;
-    workPhone?: string;
-  }) => {
-    return await apiRequest<ApiResponse<UserData>>('patch', '/users/employment', employmentData);
-  },
+  updateEmployment: (data: EmploymentInfo) =>
+    apiRequest<ApiResponse<UserData>>('patch', '/users/employment', data),
 
   // Update business information
-  updateBusiness: async (businessData: {
-    businessName: string;
-    businessType: string;
-    businessAddress: string;
-    businessRegistrationNumber?: string;
-    businessPhone?: string;
-    businessEmail?: string;
-    monthlyRevenue: number;
-    businessStartDate: string;
-  }) => {
-    return await apiRequest<ApiResponse<UserData>>('patch', '/users/business', businessData);
-  },
+  updateBusiness: (data: BusinessInfo) =>
+    apiRequest<ApiResponse<UserData>>('patch', '/users/business', data),
 
-  // Update next of kin information
-  updateNextOfKin: async (nextOfKinData: {
-    firstName: string;
-    lastName: string;
-    relationship: string;
-    phone: string;
-    email: string;
-    address: string;
-  }) => {
-    return await apiRequest<ApiResponse<UserData>>('patch', '/users/next-of-kin', nextOfKinData);
-  },
+  // Next of Kin
+  getNextOfKin: () => 
+    apiRequest<ApiResponse<NextOfKinInfo>>('get', '/users/next-of-kin'),
+
+  updateNextOfKin: (data: NextOfKinInfo) =>
+    apiRequest<ApiResponse<UserData>>('patch', '/users/next-of-kin', data),
 
   // Bank account management
-  getBankAccounts: async () => {
-    return await apiRequest<ApiResponse<BankAccount[]>>('get', '/users/bank-accounts');
-  },
+  getBankAccounts: () => 
+    apiRequest<ApiResponse<BankAccount[]>>('get', '/users/bank-accounts'),
 
-  addBankAccount: async (bankAccountData: {
-    bankName: string;
-    accountNumber: string;
-    accountName: string;
-    bankCode: string;
-  }) => {
-    return await apiRequest<ApiResponse<BankAccount>>('post', '/users/bank-accounts', bankAccountData);
-  },
+  addBankAccount: (data: Partial<BankAccount>) =>
+    apiRequest<ApiResponse<BankAccount>>('post', '/users/bank-accounts', data),
 
-  setDefaultBankAccount: async (accountId: string) => {
-    return await apiRequest<ApiResponse<BankAccount>>('patch', `/users/bank-accounts/${accountId}/default`);
-  },
+  setDefaultBankAccount: (accountId: string) =>
+    apiRequest<ApiResponse<void>>('patch', `/users/bank-accounts/${accountId}/default`),
 
-  deleteBankAccount: async (accountId: string) => {
-    return await apiRequest<ApiResponse<{success: boolean}>>('delete', `/users/bank-accounts/${accountId}`);
-  },
+  deleteBankAccount: (accountId: string) =>
+    apiRequest<ApiResponse<void>>('delete', `/users/bank-accounts/${accountId}`),
 
   // Document management
-  getDocuments: async () => {
-    return await apiRequest<ApiResponse<Document[]>>('get', '/users/documents');
-  },
+  getDocuments: () => 
+    apiRequest<ApiResponse<Document[]>>('get', '/users/documents'),
 
-  uploadDocument: async (formData: FormData) => {
-    return await apiRequest<ApiResponse<Document>>(
+  uploadDocument: (formData: FormData) =>
+    apiRequest<ApiResponse<Document>>('post', '/users/documents', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  deleteDocument: (documentId: string) =>
+    apiRequest<ApiResponse<void>>('delete', `/users/documents/${documentId}`),
+
+  // Profile status
+  checkInvestmentProfileStatus: () => 
+    apiRequest<ApiResponse<{ isComplete: boolean; missingFields: string[] }>>('get', '/users/profile-status/investment'),
+
+  checkLoanProfileStatus: () => 
+    apiRequest<ApiResponse<{ isComplete: boolean; missingFields: string[] }>>('get', '/users/profile-status/loan'),
+
+  // Security
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    apiRequest<ApiResponse<void>>('post', '/users/change-password', data),
+
+  setupTransactionPin: (data: { pin: string }) =>
+    apiRequest<ApiResponse<void>>('post', '/users/setup-pin', data),
+
+  verifyTransactionPin: (data: { pin: string }) =>
+    apiRequest<ApiResponse<void>>('post', '/users/verify-pin', data),
+
+  // File uploads
+  uploadProfilePicture: async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return await apiRequest<ApiResponse<{ avatarUrl: string }>>(
       'post',
-      '/users/documents',
+      '/users/profile-picture',
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+          'Content-Type': 'multipart/form-data'
+        }
       }
     );
   },
 
-  deleteDocument: async (documentId: string) => {
-    return await apiRequest<ApiResponse<{success: boolean}>>('delete', `/users/documents/${documentId}`);
-  },
+  uploadGuarantorIdCard: async (
+    file: File,
+    guarantorData: {
+      firstName: string;
+      lastName: string;
+      middleName?: string;
+      relationship: string;
+      email: string;
+      phone: string;
+      address: string;
+      occupation: string;
+      bvn: string;
+    }
+  ) => {
+    const formData = new FormData();
+    formData.append('idCard', file);
+    
+    // Append guarantor data
+    Object.entries(guarantorData).forEach(([key, value]) => {
+      if (value) {
+        formData.append(key, value.toString());
+      }
+    });
 
-  // Profile completion status
-  getInvestmentProfileStatus: async () => {
-    return await apiRequest<ApiResponse<{isComplete: boolean; missingFields?: string[]}>>('get', '/users/profile-status/investment');
+    return await apiRequest<ApiResponse<any>>(
+      'put',
+      '/users/guarantor',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
   },
-
-  getLoanProfileStatus: async () => {
-    return await apiRequest<ApiResponse<{isComplete: boolean; missingFields?: string[]}>>('get', '/users/profile-status/loan');
-  },
-
-  // Security
-  changePassword: async (passwordData: {
-    currentPassword: string;
-    newPassword: string;
-  }) => {
-    return await apiRequest<ApiResponse<{success: boolean}>>('post', '/users/change-password', passwordData);
-  },
-
-  setupTransactionPin: async (pinData: {
-    pin: string;
-  }) => {
-    return await apiRequest<ApiResponse<{success: boolean}>>('post', '/users/setup-transaction-pin', pinData);
-  },
-
-  verifyTransactionPin: async (pinData: {
-    pin: string;
-  }) => {
-    return await apiRequest<ApiResponse<{verified: boolean}>>('post', '/users/verify-transaction-pin', pinData);
-  }
 };
 
 // Wallet API functions
@@ -696,5 +686,32 @@ export const dashboardApi = {
     return await apiRequest<ApiResponse<{recentTransactions: Transaction[]}>>('get', `/dashboard/recent-transactions${queryParams}`);
   }
 };
+
+// Utility function to validate file size and type
+export function validateFileUpload(file: File, options: { 
+  maxSizeInMB?: number; 
+  allowedTypes?: string[];
+}): { valid: boolean; error?: string } {
+  const { maxSizeInMB = 5, allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'] } = options;
+  
+  // Check file size
+  const fileSizeInMB = file.size / (1024 * 1024);
+  if (fileSizeInMB > maxSizeInMB) {
+    return { 
+      valid: false, 
+      error: `File size must be less than ${maxSizeInMB}MB` 
+    };
+  }
+
+  // Check file type
+  if (!allowedTypes.includes(file.type)) {
+    return { 
+      valid: false, 
+      error: `File type must be one of: ${allowedTypes.map(type => type.split('/')[1]).join(', ')}` 
+    };
+  }
+
+  return { valid: true };
+}
 
 export default axiosInstance;
