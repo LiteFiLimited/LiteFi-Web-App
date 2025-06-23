@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -23,6 +23,15 @@ import { Button } from "@/components/ui/button";
 import CreateNewInvestmentModal from "@/app/components/CreateNewInvestmentModal";
 import CopyButton from "@/app/components/CopyButton";
 import { useToastContext } from "@/app/components/ToastProvider";
+import { dashboardApi, userApi } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils";
+
+// Import our new components
+import { WalletCard } from "@/components/dashboard/WalletCard";
+import { InvestmentCard } from "@/components/dashboard/InvestmentCard";
+import { LoanCard } from "@/components/dashboard/LoanCard";
+import { InvestmentsTable } from "@/components/dashboard/InvestmentsTable";
+import { LoanPaymentsTable } from "@/components/dashboard/LoanPaymentsTable";
 
 // Define the InvestmentType interface
 interface InvestmentType {
@@ -30,6 +39,73 @@ interface InvestmentType {
   description: string;
   route: string;
   icon: string;
+}
+
+// Define interfaces for dashboard data
+interface DashboardData {
+  wallet?: {
+    balance: number;
+    currency: string;
+    lastTransaction?: {
+      id: string;
+      type: string;
+      amount: number;
+      status: string;
+      createdAt: string;
+    };
+  };
+  investments?: {
+    totalInvested: number;
+    activeInvestments: number;
+    totalReturns: number;
+    recentInvestments?: Array<{
+      id: string;
+      name: string;
+      amount: number;
+      status: string;
+      maturityDate: string;
+      expectedReturns: number;
+    }>;
+    latestInvestment?: {
+      id: string;
+      name: string;
+      amount: number;
+      status: string;
+      maturityDate: string;
+    };
+  };
+  loans?: {
+    totalBorrowed: number;
+    activeLoans: number;
+    outstandingAmount: number;
+    latestLoan?: {
+      id: string;
+      type: string;
+      amount: number;
+      status: string;
+      nextPaymentDate: string;
+      nextPaymentAmount: number;
+    };
+  };
+  upcomingPayments?: Array<{
+    id: string;
+    type: string;
+    loanId?: string;
+    investmentId?: string;
+    reference?: string;
+    amount: number;
+    dueDate: string;
+    status: string;
+  }>;
+}
+
+// User interface from login response
+interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
 }
 
 export default function DashboardPage() {
@@ -41,8 +117,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const { success, error, info } = useToastContext();
 
-  // Demo Profile Status Toggle - in real app this would come from backend
+  // State for profile completion and dashboard data
   const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [userName, setUserName] = useState("User");
 
   // Investment types data - same structure as in the investments page
   const investmentTypes: InvestmentType[] = [
@@ -60,75 +139,72 @@ export default function DashboardPage() {
     }
   ];
 
-  // Sample investment data
-  const investmentData = [
-    {
-      id: 1,
-      name: "House rent",
-      principalAmount: "₦ 1,400,000",
-      earning: "₦ 14,000",
-      tenure: "24 months",
-      startDate: "12.05.2025",
-      maturityDate: "12.05.2027",
-      progress: 60
-    },
-    {
-      id: 2,
-      name: "Vacation in Bali",
-      principalAmount: "₦ 500,000",
-      earning: "₦ 4,000",
-      tenure: "32 months",
-      startDate: "12.05.2025",
-      maturityDate: "12.05.2027",
-      progress: 10
-    },
-    {
-      id: 3,
-      name: "Short term savings",
-      principalAmount: "₦ 100,000",
-      earning: "₦ 1,300",
-      tenure: "12 months",
-      startDate: "12.05.2025",
-      maturityDate: "12.05.2027",
-      progress: 100
-    }
-  ];
+  // Fetch dashboard data and check profile completion status
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      try {
+        // Get user data from local storage
+        const userDataString = localStorage.getItem('userData');
+        if (userDataString) {
+          try {
+            const userData = JSON.parse(userDataString) as User;
+            if (userData.firstName && userData.lastName) {
+              setUserName(`${userData.firstName} ${userData.lastName}`);
+            }
+          } catch (e) {
+            console.error("Error parsing user data from localStorage:", e);
+          }
+        }
 
-  // Sample loan payment data
-  const loanPaymentData = [
-    {
-      id: 1,
-      type: "Salary Loan",
-      dueDate: "12.05.2025",
-      amount: "₦ 40,000",
-      tenure: "24 months",
-      status: "Overdue"
-    },
-    {
-      id: 2,
-      type: "Working Capital Loan",
-      dueDate: "12.05.2025",
-      amount: "₦ 5,000",
-      tenure: "32 months",
-      status: "On track"
-    },
-    {
-      id: 3,
-      type: "Auto Loan",
-      dueDate: "12.05.2025",
-      amount: "₦ 10,000",
-      tenure: "12 months",
-      status: "On track"
-    }
-  ];
+        // If no user data in local storage, try to get it from the API
+        if (userName === "User") {
+          try {
+            const userProfileResponse = await userApi.getProfile();
+            if (userProfileResponse.data) {
+              const { firstName, lastName } = userProfileResponse.data;
+              setUserName(`${firstName} ${lastName}`);
+            }
+          } catch (profileErr) {
+            console.error("Error fetching user profile:", profileErr);
+          }
+        }
+
+        // Check if profile is complete
+        const profileStatusResponse = await userApi.getInvestmentProfileStatus();
+        setIsProfileComplete(profileStatusResponse.data?.isComplete || false);
+
+        // Get dashboard summary
+        const dashboardResponse = await dashboardApi.getDashboardSummary();
+        if (dashboardResponse.success && dashboardResponse.data) {
+          setDashboardData(dashboardResponse.data);
+        } else {
+          error("Failed to load dashboard data", dashboardResponse.message || "Please try again later");
+        }
+      } catch (err: any) {
+        console.error("Error fetching dashboard data:", err);
+        error("Failed to load dashboard data", err.message || "Please try again later");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   // Helper function to determine status styling
   const getStatusStyle = (status: string) => {
     switch(status.toLowerCase()) {
       case 'on track':
+      case 'active':
+      case 'completed':
         return 'text-green-600';
       case 'overdue':
+      case 'pending':
         return 'text-orange-500';
+      case 'failed':
+      case 'rejected':
+        return 'text-red-600';
       default:
         return 'text-gray-600';
     }
@@ -150,515 +226,126 @@ export default function DashboardPage() {
     router.push('/dashboard/loans');
   };
 
-  const handleViewInvestment = (id: number) => {
+  const handleViewInvestment = (id: string) => {
     router.push(`/dashboard/investments/${id}`);
   };
 
+  const handleRepayLoan = (id: string) => {
+    router.push(`/dashboard/loans/${id}`);
+  };
+
+  // Format date from ISO string to readable format
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', { 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
+  // Safe accessor for nested properties with null/undefined checks
+  const safeValue = (obj: any, path: string, defaultValue: any = null) => {
+    try {
+      const result = path.split('.').reduce((o, p) => (o ? o[p] : undefined), obj);
+      return result !== undefined ? result : defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
+  };
+
+  // Filter loan payments from upcoming payments
+  const loanPayments = dashboardData?.upcomingPayments?.filter(payment => 
+    payment.type === "LOAN_REPAYMENT"
+  ) || [];
+
   return (
     <>
-      {/* Replace Profile Status Toggle with Demo Mode Switch */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Your Financial Dashboard</h1>
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="demo-mode" className="text-sm text-gray-500">
-            Demo Mode
-          </Label>
-          <Switch
-            id="demo-mode"
-            checked={isProfileComplete}
-            onCheckedChange={setIsProfileComplete}
-          />
-        </div>
       </div>
       
-      <p className="text-muted-foreground mb-6">Welcome back, Andrew tate</p>
+      <p className="text-muted-foreground mb-6">Welcome back, {userName}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Wallet Balance Card */}
-        <Card className="rounded-none shadow-none border-4 border-white overflow-hidden">
-          <div className="bg-gray-50 p-6 border-b border-white">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">Your wallet balance</h3>
-              <button 
-                onClick={handleHistoryClick}
-                className="text-xs border border-gray-200 flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                History
-                <Image
-                  src="/assets/svgs/arrow-right.svg"
-                  alt="History"
-                  width={16}
-                  height={16}
-                />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 mt-4 mb-8">
-              <div className="text-2xl font-bold">
-                {showWalletBalance ? "₦ 0.00" : "*****"}
-              </div>
-              <button 
-                onClick={() => setShowWalletBalance(!showWalletBalance)}
-                className="text-gray-500 flex items-center hover:text-gray-700 transition-colors"
-              >
-                {showWalletBalance ? <VscEye size={20} /> : <RxEyeClosed size={20} />}
-              </button>
-            </div>
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => success("Funding initiated", "Redirecting to Mono for secure payment")}
-                className="flex-1 bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Fund with Mono
-              </button>
-              <button 
-                onClick={() => info("Withdrawal request", "Processing your withdrawal request")}
-                className="flex-1 bg-white text-gray-800 px-4 py-3 rounded-none text-sm font-medium border border-gray-300 hover:bg-gray-100 transition-colors"
-              >
-                Withdraw
-              </button>
-            </div>
-          </div>
-          {isProfileComplete ? (
-            <div className="bg-white p-6">
-              <div className="text-sm text-gray-500">
-                <p className="mb-1">You can also fund account using the details below</p>
-                <div className="grid grid-cols-1 gap-2">
-                  <div>
-                    <span className="text-gray-500">Acc name:</span> <span className="font-bold text-black">John Doe</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
-                    <CopyButton
-                      textToCopy="3588020135"
-                      onCopySuccess={() => success("Account number copied to clipboard")}
-                      onCopyError={() => error("Failed to copy account number")}
-                      className="ml-2"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white p-6 text-center">
-              <p className="text-sm font-medium text-gray-700 mb-2">No data shown</p>
-              <p className="text-sm text-gray-500 mb-4">Complete your profile set up to start using the features</p>
-              <Button
-                onClick={handleCompleteProfile}
-                variant="outline"
-                className="rounded-none h-9 px-6 mx-auto text-red-600 border-red-600 hover:bg-red-50"
-              >
-                Complete profile set up
-              </Button>
-            </div>
-          )}
-        </Card>
+        {/* Wallet Card */}
+        <WalletCard 
+          isLoading={isLoading}
+          isProfileComplete={isProfileComplete}
+          showBalance={showWalletBalance}
+          toggleShowBalance={() => setShowWalletBalance(!showWalletBalance)}
+          walletBalance={safeValue(dashboardData, 'wallet.balance', 0)}
+          userName={userName}
+          onHistoryClick={handleHistoryClick}
+          onFundClick={() => success("Funding initiated", "Redirecting to Mono for secure payment")}
+          onWithdrawClick={() => info("Withdrawal request", "Processing your withdrawal request")}
+          onCompleteProfileClick={handleCompleteProfile}
+        />
 
-        {/* Investment Portfolio Card */}
-        <Card className="rounded-none shadow-none border-4 border-white overflow-hidden">
-          <div className="bg-gray-50 p-6 border-b border-white">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">Your Investment Portfolio</h3>
-              <button 
-                onClick={() => router.push('/dashboard/investments')}
-                className="text-xs border border-gray-200 flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                This week
-                <Image
-                  src="/assets/svgs/arrow-right.svg"
-                  alt="View Investments"
-                  width={16}
-                  height={16}
-                />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 mt-4 mb-8">
-              <div className="text-2xl font-bold">
-                {showInvestmentBalance ? "₦ 0.00" : "*****"}
-              </div>
-              <button 
-                onClick={() => setShowInvestmentBalance(!showInvestmentBalance)}
-                className="text-gray-500 flex items-center hover:text-gray-700 transition-colors"
-              >
-                {showInvestmentBalance ? <VscEye size={20} /> : <RxEyeClosed size={20} />}
-              </button>
-            </div>
-            <div className="flex space-x-2">
-              <button 
-                onClick={() => {
-                  info("Opening investment options", "Choose your preferred investment type");
-                  setShowCreateInvestmentModal(true);
-                }}
-                className="bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
-              >
-                Create New Investment
-              </button>
-              {isProfileComplete && (
-                <button 
-                  onClick={() => router.push('/dashboard/investments')}
-                  className="bg-white text-gray-800 px-4 py-3 rounded-none text-sm font-medium border border-gray-300 hover:bg-gray-100 transition-colors"
-                >
-                  View Investment
-                </button>
-              )}
-            </div>
-          </div>
-          {isProfileComplete ? (
-            <div className="bg-white p-6">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">Total Interest earned</span>
-                <div className="flex items-center">
-                  <span className="font-bold text-black">+ ₦ 2,383</span>
-                  <div className="flex items-center ml-2 text-green-600">
-                    <span className="text-sm font-medium">12.5%</span>
-                    <Image 
-                      src="/assets/svgs/increase.svg" 
-                      alt="Increase" 
-                      width={16} 
-                      height={16}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white p-6 text-center">
-              <p className="text-sm font-medium text-gray-700 mb-2">No data shown</p>
-              <p className="text-sm text-gray-500 mb-4">Complete your profile set up to start using the features</p>
-              <Button
-                onClick={handleCompleteProfile}
-                variant="outline"
-                className="rounded-none h-9 px-6 mx-auto text-red-600 border-red-600 hover:bg-red-50"
-              >
-                Complete profile set up
-              </Button>
-            </div>
-          )}
-        </Card>
+        {/* Investment Card */}
+        <InvestmentCard 
+          isLoading={isLoading}
+          isProfileComplete={isProfileComplete}
+          showBalance={showInvestmentBalance}
+          toggleShowBalance={() => setShowInvestmentBalance(!showInvestmentBalance)}
+          totalInvested={safeValue(dashboardData, 'investments.totalInvested', 0)}
+          totalReturns={safeValue(dashboardData, 'investments.totalReturns', 0)}
+          activeInvestments={safeValue(dashboardData, 'investments.activeInvestments', 0)}
+          onCreateInvestmentClick={() => {
+            info("Opening investment options", "Choose your preferred investment type");
+            setShowCreateInvestmentModal(true);
+          }}
+          onViewInvestmentsClick={() => router.push('/dashboard/investments')}
+          onCompleteProfileClick={handleCompleteProfile}
+        />
 
-        {/* Loan Balance Card */}
-        <Card className="rounded-none shadow-none border-4 border-white overflow-hidden">
-          <div className="bg-gray-50 p-6 border-b border-white">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-medium">Loan and Repayments</h3>
-              <button 
-                onClick={handleRepaymentsClick}
-                className="text-xs border border-gray-200 flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                Repayments
-                <Image
-                  src="/assets/svgs/arrow-right.svg"
-                  alt="Repayments"
-                  width={16}
-                  height={16}
-                />
-              </button>
-            </div>
-            <div className="flex items-center gap-2 mt-4 mb-8">
-              <div className="text-2xl font-bold">
-                {showLoanBalance ? "₦ 0.00" : "*****"}
-              </div>
-              <button 
-                onClick={() => setShowLoanBalance(!showLoanBalance)}
-                className="text-gray-500 flex items-center hover:text-gray-700 transition-colors"
-              >
-                {showLoanBalance ? <VscEye size={20} /> : <RxEyeClosed size={20} />}
-              </button>
-            </div>
-            <div className="flex">
-              {isProfileComplete ? (
-                <button className="bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors">
-                  Repay
-                </button>
-              ) : (
-                <button 
-                  onClick={() => {
-                    info("Redirecting to loan application", "Choose from our available loan options");
-                    router.push('/dashboard/loans');
-                  }}
-                  className="bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
-                >
-                  Apply For Loan
-                </button>
-              )}
-            </div>
-          </div>
-          {isProfileComplete ? (
-            <div className="bg-white p-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-gray-500 text-sm mb-1">Next repayment</p>
-                  <p className="font-bold">₦51,431.50</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-500 text-sm mb-1">Due date</p>
-                  <p className="font-bold">Apr 30, 2025</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white p-6 text-center">
-              <p className="text-sm font-medium text-gray-700 mb-2">No data shown</p>
-              <p className="text-sm text-gray-500 mb-4">Complete your profile set up to start using the features</p>
-              <Button
-                onClick={handleCompleteProfile}
-                variant="outline"
-                className="rounded-none h-9 px-6 mx-auto text-red-600 border-red-600 hover:bg-red-50"
-              >
-                Complete profile set up
-              </Button>
-            </div>
-          )}
-        </Card>
+        {/* Loan Card */}
+        <LoanCard 
+          isLoading={isLoading}
+          isProfileComplete={isProfileComplete}
+          showBalance={showLoanBalance}
+          toggleShowBalance={() => setShowLoanBalance(!showLoanBalance)}
+          outstandingAmount={safeValue(dashboardData, 'loans.outstandingAmount', 0)}
+          activeLoans={safeValue(dashboardData, 'loans.activeLoans', 0)}
+          nextPaymentAmount={safeValue(dashboardData, 'loans.latestLoan.nextPaymentAmount', 0)}
+          nextPaymentDate={safeValue(dashboardData, 'loans.latestLoan.nextPaymentDate')}
+          onRepaymentsClick={handleRepaymentsClick}
+          onRepayClick={() => router.push('/dashboard/loans')}
+          onApplyForLoanClick={() => {
+            info("Redirecting to loan application", "Choose from our available loan options");
+            router.push('/dashboard/loans');
+          }}
+          onCompleteProfileClick={handleCompleteProfile}
+        />
       </div>
 
-      {/* Investments Overview Section - Only show when profile is complete */}
-      {isProfileComplete && (
-        <>
-          <Card className="rounded-none shadow-none border-4 border-white overflow-hidden mt-6">
-            <div className="bg-gray-50 p-6 border-b border-white">
-              <h2 className="text-xl font-bold">Investments</h2>
-              <div className="flex items-center mt-2">
-                <div className="flex items-center">
-                  <div className="bg-green-600 rounded-full p-1 mr-2 flex items-center justify-center">
-                    <FaCheck className="text-white text-xs" />
-                  </div>
-                  <span className="text-base font-bold text-gray-700">3 investments maturing</span>
-                </div>
-                <span className="text-gray-400 ml-1">this month</span>
-              </div>
-            </div>
-            <div className="bg-white p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-white">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Wealth Plan Name
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Principal Amount
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Earning
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tenure
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Start Date
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Maturity Date
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Progress
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {investmentData.map((investment) => (
-                      <tr key={investment.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 mr-2">
-                              <Image
-                                src="/assets/svgs/litefi.svg"
-                                alt="LiteFi"
-                                width={32}
-                                height={32}
-                              />
-                            </div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {investment.name}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {investment.principalAmount}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {investment.earning}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {investment.tenure}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {investment.startDate}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {investment.maturityDate}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-green-600 mb-1">{investment.progress}%</span>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5">
-                              <div className="bg-green-600 h-1.5 rounded-full" style={{ width: `${investment.progress}%` }}></div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Button 
-                            variant="outline" 
-                            className="rounded-none h-9 bg-white hover:bg-gray-50 text-xs border-gray-200"
-                            onClick={() => handleViewInvestment(investment.id)}
-                          >
-                            View Investment
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="p-6 border-t border-gray-100">
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious 
-                        href="#" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentPage(Math.max(1, currentPage - 1));
-                        }} 
-                      />
-                    </PaginationItem>
-                    <PaginationItem>
-                      <PaginationLink 
-                        href="#"
-                        isActive={currentPage === 1}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentPage(1);
-                        }}
-                      >
-                        1
-                      </PaginationLink>
-                    </PaginationItem>
-                    <PaginationItem>
-                      <PaginationNext 
-                        href="#" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentPage(currentPage + 1);
-                        }} 
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            </div>
-          </Card>
-
-          {/* Upcoming Loan Payment Section */}
-          <Card className="rounded-none shadow-none border-4 border-white overflow-hidden mt-6">
-            <div className="bg-gray-50 p-6 border-b border-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold">Upcoming Loan Payment</h2>
-                  <div className="flex items-center mt-2">
-                    <div className="flex items-center">
-                      <div className="bg-green-600 rounded-full p-1 mr-2 flex items-center justify-center">
-                        <FaCheck className="text-white text-xs" />
-                      </div>
-                      <span className="text-base font-bold text-gray-700">3 loans due</span>
-                    </div>
-                    <span className="text-gray-400 ml-1">this month</span>
-                  </div>
-                </div>
-                <Link 
-                  href="/dashboard/loans"
-                  className="bg-red-600 text-white px-6 py-2 text-sm hover:bg-red-700 transition-colors"
-                >
-                  View all loans
-                </Link>
-              </div>
-            </div>
-            <div className="bg-white p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-white">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Loan Type
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Due Date
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount Due
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Tenure
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {loanPaymentData.map((loan) => (
-                      <tr key={loan.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-8 w-8 mr-2">
-                              <Image
-                                src="/assets/svgs/litefi.svg"
-                                alt="LiteFi"
-                                width={32}
-                                height={32}
-                              />
-                            </div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {loan.type}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {loan.dueDate}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {loan.amount}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {loan.tenure}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span className={getStatusStyle(loan.status)}>
-                            {loan.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Button 
-                            variant="outline" 
-                            className="rounded-none h-9 bg-white hover:bg-gray-50 text-xs border-gray-200"
-                            onClick={() => router.push(`/dashboard/loans/${loan.id}`)}
-                          >
-                            Repay
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </Card>
-        </>
+      {/* Investments Table - Only show when there are active investments */}
+      {isProfileComplete && safeValue(dashboardData, 'investments.activeInvestments', 0) > 0 && (
+        <InvestmentsTable 
+          isLoading={isLoading}
+          investments={safeValue(dashboardData, 'investments.recentInvestments', [])}
+          activeInvestments={safeValue(dashboardData, 'investments.activeInvestments', 0)}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          onViewInvestment={handleViewInvestment}
+        />
       )}
 
-      {/* Create New Investment Modal */}
+      {/* Loan Payments Table - Only show when there are active loans */}
+      {isProfileComplete && safeValue(dashboardData, 'loans.activeLoans', 0) > 0 && (
+        <LoanPaymentsTable 
+          isLoading={isLoading}
+          payments={loanPayments}
+          activeLoans={safeValue(dashboardData, 'loans.activeLoans', 0)}
+          onViewLoans={() => router.push('/dashboard/loans')}
+          onRepayLoan={handleRepayLoan}
+        />
+      )}
+
+      {/* Create Investment Modal */}
       {showCreateInvestmentModal && (
-        <CreateNewInvestmentModal 
+        <CreateNewInvestmentModal
           investmentTypes={investmentTypes}
           onClose={() => setShowCreateInvestmentModal(false)}
         />

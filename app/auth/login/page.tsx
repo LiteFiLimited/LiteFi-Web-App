@@ -64,6 +64,9 @@ function LoginContent() {
           const { setAuthToken, handleAuthSuccess } = await import('@/lib/auth');
           setAuthToken(response.accessToken, response.user.id);
           
+          // Store user data in local storage
+          localStorage.setItem('userData', JSON.stringify(response.user));
+          
           success("Login successful!", "Welcome back to LiteFi");
           
           // Redirect to the original path or dashboard
