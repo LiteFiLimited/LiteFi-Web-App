@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Chart } from "@/components/ui/chart";
 import { 
@@ -132,7 +133,9 @@ export default function WalletPage() {
   const [showWalletBalance, setShowWalletBalance] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTimePeriod, setSelectedTimePeriod] = useState("this-month");
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
   const { success, error, info } = useToastContext();
+  const router = useRouter();
   
   // Current month and total values for the chart summary
   const currentMonth = "April 2025";
@@ -153,6 +156,11 @@ export default function WalletPage() {
     }
   };
 
+  const handleCompleteProfile = () => {
+    info("Redirecting to profile setup", "Complete your profile to unlock all features");
+    router.push('/dashboard/profile');
+  };
+
   return (
     <>
       <h1 className="text-2xl font-bold mb-2">Wallet</h1>
@@ -168,7 +176,7 @@ export default function WalletPage() {
             <h3 className="text-sm font-medium text-gray-500 mb-2">Your wallet balance</h3>
             <div className="flex items-center gap-2 mb-8">
               <div className="text-[32px] font-bold">
-                {showWalletBalance ? "₦ 11,200,392" : "*****"}<span className="text-gray-500 font-bold text-lg">.00</span>
+                {showWalletBalance ? "₦ 0" : "*****"}<span className="text-gray-500 font-bold text-lg">.00</span>
               </div>
               <button 
                 onClick={() => setShowWalletBalance(!showWalletBalance)}
@@ -192,28 +200,42 @@ export default function WalletPage() {
               </button>
             </div>
           </div>
-          <div className="bg-white p-6">
-            <div className="text-sm text-gray-500">
-              <p className="mb-1">You can also fund account using the details below</p>
-              <div className="grid grid-cols-1 gap-2">
-                <div>
-                  <span className="text-gray-500">Acc name:</span> <span className="font-bold text-black">John Doe</span>
-                </div>
-                <div className="flex items-center">
-                  <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
-                  <CopyButton
-                    textToCopy="3588020135"
-                    onCopySuccess={() => success("Account number copied to clipboard")}
-                    onCopyError={() => error("Failed to copy account number")}
-                    className="ml-2"
-                  />
-                </div>
-                <div>
-                  <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
+          {isProfileComplete ? (
+            <div className="bg-white p-6">
+              <div className="text-sm text-gray-500">
+                <p className="mb-1">You can also fund account using the details below</p>
+                <div className="grid grid-cols-1 gap-2">
+                  <div>
+                    <span className="text-gray-500">Acc name:</span> <span className="font-bold text-black">John Doe</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="text-gray-500 mr-1">Acc no:</span> <span className="font-bold text-black">3588020135</span>
+                    <CopyButton
+                      textToCopy="3588020135"
+                      onCopySuccess={() => success("Account number copied to clipboard")}
+                      onCopyError={() => error("Failed to copy account number")}
+                      className="ml-2"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Bank:</span> <span className="font-bold text-black">LiteFi MFB</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white p-6 text-center">
+              <p className="text-sm font-medium text-gray-700 mb-2">No data shown</p>
+              <p className="text-sm text-gray-500 mb-4">Complete your profile set up to start using the features</p>
+              <Button
+                onClick={handleCompleteProfile}
+                variant="outline"
+                className="rounded-none h-9 px-6 mx-auto text-red-600 border-red-600 hover:bg-red-50"
+              >
+                Complete profile set up
+              </Button>
+            </div>
+          )}
         </Card>
 
         {/* Weekly Chart */}

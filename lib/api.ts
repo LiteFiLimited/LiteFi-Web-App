@@ -549,4 +549,152 @@ export const loanApi = {
   }
 };
 
+// Dashboard API functions
+export interface DashboardSummary {
+  wallet: {
+    balance: number;
+    currency: string;
+    lastTransaction?: {
+      id: string;
+      type: string;
+      amount: number;
+      status: string;
+      createdAt: string;
+    };
+  };
+  investments: {
+    totalInvested: number;
+    activeInvestments: number;
+    totalReturns: number;
+    latestInvestment?: {
+      id: string;
+      name: string;
+      amount: number;
+      status: string;
+      maturityDate: string;
+    };
+  };
+  loans: {
+    totalBorrowed: number;
+    activeLoans: number;
+    outstandingAmount: number;
+    latestLoan?: {
+      id: string;
+      type: string;
+      amount: number;
+      status: string;
+      nextPaymentDate: string;
+      nextPaymentAmount: number;
+    };
+  };
+  upcomingPayments: Array<{
+    id: string;
+    type: string;
+    loanId?: string;
+    amount: number;
+    dueDate: string;
+    status: string;
+  }>;
+}
+
+export interface WalletBalance {
+  balance: number;
+  currency: string;
+  lastUpdated: string;
+}
+
+export interface InvestmentPortfolio {
+  totalInvested: number;
+  activeInvestments: number;
+  totalReturns: number;
+  portfolioBreakdown: Array<{
+    type: string;
+    amount: number;
+    percentage: number;
+  }>;
+  recentInvestments: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    status: string;
+    maturityDate: string;
+    expectedReturns: number;
+  }>;
+}
+
+export interface LoanSummary {
+  totalBorrowed: number;
+  activeLoans: number;
+  outstandingAmount: number;
+  loanBreakdown: Array<{
+    type: string;
+    amount: number;
+    percentage: number;
+  }>;
+  loans: Array<{
+    id: string;
+    reference: string;
+    type: string;
+    amount: number;
+    status: string;
+    outstandingAmount: number;
+    nextPaymentDate: string;
+    nextPaymentAmount: number;
+  }>;
+}
+
+export interface UpcomingPayment {
+  id: string;
+  type: string;
+  loanId?: string;
+  investmentId?: string;
+  reference: string;
+  amount: number;
+  dueDate: string;
+  status: string;
+}
+
+export interface Transaction {
+  id: string;
+  type: string;
+  category: string;
+  amount: number;
+  status: string;
+  description: string;
+  createdAt: string;
+}
+
+export const dashboardApi = {
+  // Get comprehensive dashboard summary
+  getDashboardSummary: async () => {
+    return await apiRequest<ApiResponse<DashboardSummary>>('get', '/dashboard/summary');
+  },
+
+  // Get wallet balance
+  getWalletBalance: async () => {
+    return await apiRequest<ApiResponse<WalletBalance>>('get', '/dashboard/wallet-balance');
+  },
+
+  // Get investment portfolio summary
+  getInvestmentPortfolio: async () => {
+    return await apiRequest<ApiResponse<InvestmentPortfolio>>('get', '/dashboard/investment-portfolio');
+  },
+
+  // Get loan and repayments summary
+  getLoanSummary: async () => {
+    return await apiRequest<ApiResponse<LoanSummary>>('get', '/dashboard/loan-summary');
+  },
+
+  // Get upcoming payments
+  getUpcomingPayments: async () => {
+    return await apiRequest<ApiResponse<{upcomingPayments: UpcomingPayment[]}>>('get', '/dashboard/upcoming-payments');
+  },
+
+  // Get recent transactions
+  getRecentTransactions: async (limit?: number) => {
+    const queryParams = limit ? `?limit=${limit}` : '';
+    return await apiRequest<ApiResponse<{recentTransactions: Transaction[]}>>('get', `/dashboard/recent-transactions${queryParams}`);
+  }
+};
+
 export default axiosInstance;
