@@ -103,3 +103,13 @@ LiteFi-Web-App/
 * LiteFi brand colors maintained throughout
 * Consistent greyish background (#f8f8f8)
 * Separate containers for image and form on sign-up/login pages
+
+## Static Export Deployment
+
+This application is configured to be deployed as a static export. To build for static export:
+
+1. Ensure all API routes have `export const dynamic = 'force-static'` at the top of the file
+2. Run `npm run build` to generate the static files in the `out` directory
+3. Deploy the contents of the `out` directory to your hosting service
+
+For more details, see [Static Export Deployment Guide](docs/static-export-deployment.md)
