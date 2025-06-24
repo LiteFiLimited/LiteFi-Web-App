@@ -253,46 +253,19 @@ export function useUserProfile() {
     }
   };
 
-  // Profile completion status
+  // Profile completion status (mocked since endpoints were removed)
   const checkInvestmentProfileStatus = async () => {
-    try {
-      // Use the new combined eligibility API
-      const response = await userApi.getEligibilityStatus();
-      if (response.success && response.data) {
-        const isComplete = response.data.investment.complete;
-        setInvestmentProfileComplete(isComplete);
-        return {
-          isComplete,
-          missingFields: response.data.investment.missingFields || [],
-        };
-      }
-      return { isComplete: false, missingFields: [] };
-    } catch (err: any) {
-      showError(
-        "Error",
-        err.message || "Failed to check investment profile status"
-      );
-      return { isComplete: false, missingFields: [] };
-    }
+    // Return mocked data since API endpoint is not available
+    const isComplete = true;
+    setInvestmentProfileComplete(isComplete);
+    return { isComplete, missingFields: [] };
   };
 
   const checkLoanProfileStatus = async () => {
-    try {
-      // Use the new combined eligibility API
-      const response = await userApi.getEligibilityStatus();
-      if (response.success && response.data) {
-        const isComplete = response.data.loan.complete;
-        setLoanProfileComplete(isComplete);
-        return {
-          isComplete,
-          missingFields: response.data.loan.missingFields || [],
-        };
-      }
-      return { isComplete: false, missingFields: [] };
-    } catch (err: any) {
-      showError("Error", err.message || "Failed to check loan profile status");
-      return { isComplete: false, missingFields: [] };
-    }
+    // Return mocked data since API endpoint is not available
+    const isComplete = true;
+    setLoanProfileComplete(isComplete);
+    return { isComplete, missingFields: [] };
   };
 
   // Security

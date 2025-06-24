@@ -58,7 +58,7 @@ export interface BackendPhoneResponse {
 
 // Base API URL - For production deployment
 // Hardcoded to Render URL to ensure it's used in the cPanel deployment
-const API_URL = "http://localhost:3000";
+const API_URL = "https://litefi-backend.onrender.com";
 
 // Ignore any environment variables to ensure we use the hardcoded URL
 // This is important for cPanel deployment
@@ -300,16 +300,6 @@ export const userApi = {
     apiRequest<ApiResponse<UserData>>("patch", "/users/next-of-kin", data),
 
   // Bank account management
-  // Get wallet balance for the current user
-  getWalletBalance: () =>
-    apiRequest<
-      ApiResponse<{
-        id: string;
-        balance: number;
-        currency: string;
-      }>
-    >("get", "/wallet/user/me"),
-
   getBankAccounts: () =>
     apiRequest<ApiResponse<BankAccount[]>>("get", "/users/bank-accounts"),
 
@@ -368,6 +358,15 @@ export const userApi = {
       }>
     >("get", "/users/eligibility"),
 
+  // Get wallet balance
+  getWalletBalance: () =>
+    apiRequest<
+      ApiResponse<{
+        id: string;
+        balance: number;
+        currency: string;
+      }>
+    >("get", "/wallet/balance"),
   // Security
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     apiRequest<ApiResponse<void>>("post", "/users/change-password", data),
