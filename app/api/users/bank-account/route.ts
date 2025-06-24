@@ -1,8 +1,13 @@
 import { NextRequest } from "next/server";
 import { createErrorResponse, createSuccessResponse } from "@/lib/api-config";
 
-// Force this route to be static for compatibility with "output: export"
-export const dynamic = "force-static";
+// Configure this route for static export
+export const dynamic = "error";
+export const dynamicParams = false;
+export const revalidate = false;
+export const fetchCache = "only-no-store";
+export const runtime = "nodejs";
+export const preferredRegion = "auto";
 
 export async function GET(request: NextRequest) {
   try {

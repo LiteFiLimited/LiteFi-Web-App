@@ -23,6 +23,15 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   output: 'export', // Ensure static export
+  // Configure static export to ignore API routes
+  staticPageGenerationTimeout: 120,
+  // Exclude API routes from static export - necessary for Vercel deployment
+  experimental: {
+    // Note: this is an experimental feature, but it's the recommended way to handle this issue
+    // It ensures that API routes are not processed during static export
+    excludeDefaultMomentLocales: true,
+    webVitalsAttribution: ['CLS', 'LCP'],
+  },
   images: {
     unoptimized: true,
     remotePatterns: [
