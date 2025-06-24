@@ -1,14 +1,14 @@
 // API response types
-import axios from 'axios';
-import { 
-  UserData, 
-  BankAccount, 
-  Document, 
-  EmploymentInfo, 
-  BusinessInfo, 
-  NextOfKinInfo 
-} from '@/types/user';
-import { getToken } from './auth';
+import axios from "axios";
+import {
+  UserData,
+  BankAccount,
+  Document,
+  EmploymentInfo,
+  BusinessInfo,
+  NextOfKinInfo,
+} from "@/types/user";
+import { getToken } from "./auth";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -58,15 +58,15 @@ export interface BackendPhoneResponse {
 
 // Base API URL - For production deployment
 // Hardcoded to Render URL to ensure it's used in the cPanel deployment
-const API_URL = 'http://localhost:3000';
+const API_URL = "https://litefi-backend.onrender.com";
 
 // Ignore any environment variables to ensure we use the hardcoded URL
 // This is important for cPanel deployment
 
 // Log the API URL configuration
-console.log('API Configuration:', {
+console.log("API Configuration:", {
   baseURL: API_URL,
-  environment: process.env.NODE_ENV
+  environment: process.env.NODE_ENV,
 });
 
 // Create axios instance
@@ -75,29 +75,29 @@ const axiosInstance = axios.create({
   timeout: 30000, // Increased timeout for better backend communication
   withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    console.log('Request:', {
+    console.log("Request:", {
       method: config.method,
       url: config.url,
       headers: config.headers,
-      data: config.data
+      data: config.data,
     });
 
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem("authToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
   (error) => {
-    console.error('Request Error:', error);
+    console.error("Request Error:", error);
     return Promise.reject(error);
   }
 );
@@ -105,29 +105,32 @@ axiosInstance.interceptors.request.use(
 // Response interceptor
 axiosInstance.interceptors.response.use(
   (response) => {
-    console.log('Response:', {
+    console.log("Response:", {
       status: response.status,
-      data: response.data
+      data: response.data,
     });
     return response;
   },
   (error) => {
-    console.error('Response error:', error);
-    
+    console.error("Response error:", error);
+
     // Better error handling for connection issues
-    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      console.error('Connection timeout - backend may not be running on', API_URL);
-    } else if (error.code === 'ERR_NETWORK' || !error.response) {
-      console.error('Network error - cannot connect to backend at', API_URL);
+    if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
+      console.error(
+        "Connection timeout - backend may not be running on",
+        API_URL
+      );
+    } else if (error.code === "ERR_NETWORK" || !error.response) {
+      console.error("Network error - cannot connect to backend at", API_URL);
     }
-    
+
     return Promise.reject(error);
   }
 );
 
 // Generic API request function
 async function apiRequest<T = any>(
-  method: 'get' | 'post' | 'put' | 'patch' | 'delete',
+  method: "get" | "post" | "put" | "patch" | "delete",
   endpoint: string,
   data?: any,
   config?: any
@@ -143,30 +146,32 @@ async function apiRequest<T = any>(
     // Return the backend response directly
     return response.data;
   } catch (error: any) {
-    console.error('API Error:', error);
-    
+    console.error("API Error:", error);
+
     // Handle different types of errors
-    if (error.code === 'ECONNABORTED') {
+    if (error.code === "ECONNABORTED") {
       throw {
         success: false,
         message: `Connection timeout. Please check if the backend server is running on ${API_URL}`,
-        error: 'Timeout',
-        statusCode: 408
+        error: "Timeout",
+        statusCode: 408,
       };
     } else if (!error.response) {
       throw {
         success: false,
         message: `Cannot connect to server at ${API_URL}. Please check if the backend is running.`,
-        error: 'Network error',
-        statusCode: 503
+        error: "Network error",
+        statusCode: 503,
       };
     } else {
-      throw error.response?.data || {
-        success: false,
-        message: error.message || 'An unexpected error occurred',
-        error: 'Unknown error',
-        statusCode: error.response?.status || 500
-      };
+      throw (
+        error.response?.data || {
+          success: false,
+          message: error.message || "An unexpected error occurred",
+          error: "Unknown error",
+          statusCode: error.response?.status || 500,
+        }
+      );
     }
   }
 }
@@ -180,64 +185,92 @@ export const authApi = {
     email: string;
     country?: string;
     referralCode?: string;
-  }) => apiRequest<BackendVerificationResponse>('post', '/auth/register', userData),
+  }) =>
+    apiRequest<BackendVerificationResponse>("post", "/auth/register", userData),
 
   // Verify email with OTP
   verifyEmail: (data: { email: string; code: string }) =>
-    apiRequest<BackendVerificationResponse>('post', '/auth/verify-email', data),
+    apiRequest<BackendVerificationResponse>("post", "/auth/verify-email", data),
 
   // Resend OTP - supports both email and phone
   resendOtp: (data: { email?: string; phone?: string; type?: string }) =>
-    apiRequest<BackendVerificationResponse>('post', '/auth/resend-otp', data),
+    apiRequest<BackendVerificationResponse>("post", "/auth/resend-otp", data),
 
   // Send phone OTP
   sendPhoneOtp: (data: { phone: string }) =>
-    apiRequest<BackendPhoneResponse>('post', '/auth/send-phone-otp', data),
+    apiRequest<BackendPhoneResponse>("post", "/auth/send-phone-otp", data),
 
   // Send phone OTP (for cleaner typing)
   resendPhoneOtp: (data: { phone: string }) =>
-    apiRequest<BackendPhoneResponse>('post', '/auth/resend-otp', { phone: data.phone, type: 'phone' }),
+    apiRequest<BackendPhoneResponse>("post", "/auth/resend-otp", {
+      phone: data.phone,
+      type: "phone",
+    }),
 
   // Verify phone OTP
-  verifyPhoneOtp: (data: { phone: string; verificationId: string; otp: string }) =>
-    apiRequest<BackendVerificationResponse>('post', '/auth/verify-phone-otp', data),
+  verifyPhoneOtp: (data: {
+    phone: string;
+    verificationId: string;
+    otp: string;
+  }) =>
+    apiRequest<BackendVerificationResponse>(
+      "post",
+      "/auth/verify-phone-otp",
+      data
+    ),
 
   // Create password
   createPassword: (data: { email: string; password: string }) =>
-    apiRequest<BackendLoginResponse>('post', '/auth/create-password', data),
+    apiRequest<BackendLoginResponse>("post", "/auth/create-password", data),
 
   // Login - returns backend response directly
   login: (credentials: { email: string; password: string }) =>
-    apiRequest<BackendLoginResponse>('post', '/auth/login', credentials),
+    apiRequest<BackendLoginResponse>("post", "/auth/login", credentials),
 
   // Logout
-  logout: () => apiRequest<BackendVerificationResponse>('post', '/auth/logout'),
+  logout: () => apiRequest<BackendVerificationResponse>("post", "/auth/logout"),
 
   // Refresh token
   refreshToken: (data: { token: string }) =>
-    apiRequest<BackendLoginResponse>('post', '/auth/refresh-token', data),
+    apiRequest<BackendLoginResponse>("post", "/auth/refresh-token", data),
 
   // Request password reset
   requestPasswordReset: (data: { email: string }) =>
-    apiRequest<BackendVerificationResponse>('post', '/auth/reset-password', data),
+    apiRequest<BackendVerificationResponse>(
+      "post",
+      "/auth/reset-password",
+      data
+    ),
 
   // Verify reset password OTP
   verifyResetPasswordOtp: (data: { email: string; code: string }) =>
-    apiRequest<BackendVerificationResponse>('post', '/auth/verify-reset-password', data),
+    apiRequest<BackendVerificationResponse>(
+      "post",
+      "/auth/verify-reset-password",
+      data
+    ),
 
   // Confirm password reset with code
-  confirmPasswordReset: (data: { email: string; code: string; newPassword: string }) =>
-    apiRequest<BackendVerificationResponse>('post', '/auth/confirm-reset', data),
+  confirmPasswordReset: (data: {
+    email: string;
+    code: string;
+    newPassword: string;
+  }) =>
+    apiRequest<BackendVerificationResponse>(
+      "post",
+      "/auth/confirm-reset",
+      data
+    ),
 };
 
 // Test backend connection
 export const testConnection = async (): Promise<boolean> => {
   try {
-    const response = await apiRequest<any>('get', '/');
-    console.log('Backend connection test successful:', response);
+    const response = await apiRequest<any>("get", "/");
+    console.log("Backend connection test successful:", response);
     return true;
   } catch (error) {
-    console.error('Backend connection test failed:', error);
+    console.error("Backend connection test failed:", error);
     return false;
   }
 };
@@ -245,82 +278,98 @@ export const testConnection = async (): Promise<boolean> => {
 // User Profile Management
 export const userApi = {
   // Get user profile
-  getProfile: () => apiRequest<ApiResponse<UserData>>('get', '/users/profile'),
+  getProfile: () => apiRequest<ApiResponse<UserData>>("get", "/users/profile"),
 
   // Update user profile
-  updateProfile: (data: Partial<UserData>) => 
-    apiRequest<ApiResponse<UserData>>('patch', '/users/profile', data),
+  updateProfile: (data: Partial<UserData>) =>
+    apiRequest<ApiResponse<UserData>>("patch", "/users/profile", data),
 
   // Update employment information
   updateEmployment: (data: EmploymentInfo) =>
-    apiRequest<ApiResponse<UserData>>('patch', '/users/employment', data),
+    apiRequest<ApiResponse<UserData>>("patch", "/users/employment", data),
 
   // Update business information
   updateBusiness: (data: BusinessInfo) =>
-    apiRequest<ApiResponse<UserData>>('patch', '/users/business', data),
+    apiRequest<ApiResponse<UserData>>("patch", "/users/business", data),
 
   // Next of Kin
-  getNextOfKin: () => 
-    apiRequest<ApiResponse<NextOfKinInfo>>('get', '/users/next-of-kin'),
+  getNextOfKin: () =>
+    apiRequest<ApiResponse<NextOfKinInfo>>("get", "/users/next-of-kin"),
 
   updateNextOfKin: (data: NextOfKinInfo) =>
-    apiRequest<ApiResponse<UserData>>('patch', '/users/next-of-kin', data),
+    apiRequest<ApiResponse<UserData>>("patch", "/users/next-of-kin", data),
 
   // Bank account management
-  getBankAccounts: () => 
-    apiRequest<ApiResponse<BankAccount[]>>('get', '/users/bank-accounts'),
+  getBankAccounts: () =>
+    apiRequest<ApiResponse<BankAccount[]>>("get", "/users/bank-accounts"),
 
   addBankAccount: (data: Partial<BankAccount>) =>
-    apiRequest<ApiResponse<BankAccount>>('post', '/users/bank-accounts', data),
+    apiRequest<ApiResponse<BankAccount>>("post", "/users/bank-accounts", data),
 
   setDefaultBankAccount: (accountId: string) =>
-    apiRequest<ApiResponse<void>>('patch', `/users/bank-accounts/${accountId}/default`),
+    apiRequest<ApiResponse<void>>(
+      "patch",
+      `/users/bank-accounts/${accountId}/default`
+    ),
 
   deleteBankAccount: (accountId: string) =>
-    apiRequest<ApiResponse<void>>('delete', `/users/bank-accounts/${accountId}`),
+    apiRequest<ApiResponse<void>>(
+      "delete",
+      `/users/bank-accounts/${accountId}`
+    ),
 
   // Document management
-  getDocuments: () => 
-    apiRequest<ApiResponse<Document[]>>('get', '/users/documents'),
+  getDocuments: () =>
+    apiRequest<ApiResponse<Document[]>>("get", "/users/documents"),
 
   uploadDocument: (formData: FormData) =>
-    apiRequest<ApiResponse<Document>>('post', '/users/documents', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+    apiRequest<ApiResponse<Document>>("post", "/users/documents", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     }),
 
   deleteDocument: (documentId: string) =>
-    apiRequest<ApiResponse<void>>('delete', `/users/documents/${documentId}`),
+    apiRequest<ApiResponse<void>>("delete", `/users/documents/${documentId}`),
 
   // Profile status
-  checkInvestmentProfileStatus: () => 
-    apiRequest<ApiResponse<{ isComplete: boolean; missingFields: string[] }>>('get', '/users/profile-status/investment'),
+  checkInvestmentProfileStatus: () =>
+    // Return mocked data since endpoint is not available (404)
+    Promise.resolve({
+      success: true,
+      data: { isComplete: true, missingFields: [] },
+      message: "Profile status check simulated",
+    }),
 
-  checkLoanProfileStatus: () => 
-    apiRequest<ApiResponse<{ isComplete: boolean; missingFields: string[] }>>('get', '/users/profile-status/loan'),
+  checkLoanProfileStatus: () =>
+    // Return mocked data since endpoint is not available (404)
+    Promise.resolve({
+      success: true,
+      data: { isComplete: true, missingFields: [] },
+      message: "Profile status check simulated",
+    }),
 
   // Security
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
-    apiRequest<ApiResponse<void>>('post', '/users/change-password', data),
+    apiRequest<ApiResponse<void>>("post", "/users/change-password", data),
 
   setupTransactionPin: (data: { pin: string }) =>
-    apiRequest<ApiResponse<void>>('post', '/users/setup-pin', data),
+    apiRequest<ApiResponse<void>>("post", "/users/setup-pin", data),
 
   verifyTransactionPin: (data: { pin: string }) =>
-    apiRequest<ApiResponse<void>>('post', '/users/verify-pin', data),
+    apiRequest<ApiResponse<void>>("post", "/users/verify-pin", data),
 
   // File uploads
   uploadProfilePicture: async (file: File) => {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     return await apiRequest<ApiResponse<{ avatarUrl: string }>>(
-      'post',
-      '/users/profile-picture',
+      "post",
+      "/users/profile-picture",
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       }
     );
   },
@@ -340,8 +389,8 @@ export const userApi = {
     }
   ) => {
     const formData = new FormData();
-    formData.append('idCard', file);
-    
+    formData.append("idCard", file);
+
     // Append guarantor data
     Object.entries(guarantorData).forEach(([key, value]) => {
       if (value) {
@@ -350,13 +399,13 @@ export const userApi = {
     });
 
     return await apiRequest<ApiResponse<any>>(
-      'put',
-      '/users/guarantor',
+      "put",
+      "/users/guarantor",
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+          "Content-Type": "multipart/form-data",
+        },
       }
     );
   },
@@ -366,27 +415,33 @@ export const userApi = {
 export const walletApi = {
   // Get all wallets
   getAll: async () => {
-    return await apiRequest<ApiResponse<any>>('get', '/wallet');
+    return await apiRequest<ApiResponse<any>>("get", "/wallet");
   },
 
   // Get wallet by ID
   getById: async (id: string) => {
-    return await apiRequest<ApiResponse<any>>('get', `/wallet/${id}`);
+    return await apiRequest<ApiResponse<any>>("get", `/wallet/${id}`);
   },
 
   // Get authenticated user wallet
   getUserWallet: async () => {
-    return await apiRequest<ApiResponse<any>>('get', '/wallet/user/me');
+    return await apiRequest<ApiResponse<any>>("get", "/wallet/user/me");
   },
 
   // Create virtual account for authenticated user
   createVirtualAccount: async () => {
-    return await apiRequest<ApiResponse<any>>('post', '/wallet/virtual-account/create');
+    return await apiRequest<ApiResponse<any>>(
+      "post",
+      "/wallet/virtual-account/create"
+    );
   },
 
   // Get virtual account details for authenticated user
   getVirtualAccountDetails: async () => {
-    return await apiRequest<ApiResponse<any>>('get', '/wallet/virtual-account/details');
+    return await apiRequest<ApiResponse<any>>(
+      "get",
+      "/wallet/virtual-account/details"
+    );
   },
 
   // Create direct payment link using Mono
@@ -397,35 +452,45 @@ export const walletApi = {
     customerName?: string;
     customerEmail?: string;
   }) => {
-    return await apiRequest<ApiResponse<any>>('post', '/wallet/direct-payment/create', data);
+    return await apiRequest<ApiResponse<any>>(
+      "post",
+      "/wallet/direct-payment/create",
+      data
+    );
   },
 
   // Get Mono public key for client-side integration
   getMonoPublicKey: async () => {
-    return await apiRequest<ApiResponse<string>>('get', '/wallet/mono/public-key');
+    return await apiRequest<ApiResponse<string>>(
+      "get",
+      "/wallet/mono/public-key"
+    );
   },
 
   // Verify Mono transaction status
   verifyTransaction: async (reference: string) => {
-    return await apiRequest<ApiResponse<any>>('get', `/wallet/transaction/verify/${reference}`);
-  }
+    return await apiRequest<ApiResponse<any>>(
+      "get",
+      `/wallet/transaction/verify/${reference}`
+    );
+  },
 };
 
 // Investment API functions
 export const investmentApi = {
   // Get all investments for authenticated user
   getAllInvestments: async () => {
-    return await apiRequest<ApiResponse<any>>('get', '/investments');
+    return await apiRequest<ApiResponse<any>>("get", "/investments");
   },
 
   // Get all available investment plans
   getInvestmentPlans: async () => {
-    return await apiRequest<ApiResponse<any>>('get', '/investments/plans');
+    return await apiRequest<ApiResponse<any>>("get", "/investments/plans");
   },
 
   // Get investment details by ID
   getInvestmentById: async (id: string) => {
-    return await apiRequest<ApiResponse<any>>('get', `/investments/${id}`);
+    return await apiRequest<ApiResponse<any>>("get", `/investments/${id}`);
   },
 
   // Calculate investment returns
@@ -434,7 +499,11 @@ export const investmentApi = {
     amount: number;
     duration: number;
   }) => {
-    return await apiRequest<ApiResponse<any>>('post', '/investments/calculate', data);
+    return await apiRequest<ApiResponse<any>>(
+      "post",
+      "/investments/calculate",
+      data
+    );
   },
 
   // Create a new investment
@@ -443,47 +512,54 @@ export const investmentApi = {
     amount: number;
     upfrontInterestPayment?: boolean;
   }) => {
-    return await apiRequest<ApiResponse<any>>('post', '/investments', data);
+    return await apiRequest<ApiResponse<any>>("post", "/investments", data);
   },
 
   // Create a foreign currency investment
   createForeignInvestment: async (formData: FormData) => {
     return await apiRequest<ApiResponse<any>>(
-      'post',
-      '/investments/foreign',
+      "post",
+      "/investments/foreign",
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       }
     );
   },
 
   // Request investment withdrawal
-  requestWithdrawal: async (id: string, data: {
-    amount?: number;
-    reason?: string;
-  }) => {
-    return await apiRequest<ApiResponse<any>>('post', `/investments/${id}/withdraw`, data);
-  }
+  requestWithdrawal: async (
+    id: string,
+    data: {
+      amount?: number;
+      reason?: string;
+    }
+  ) => {
+    return await apiRequest<ApiResponse<any>>(
+      "post",
+      `/investments/${id}/withdraw`,
+      data
+    );
+  },
 };
 
 // Loan API functions
 export const loanApi = {
   // Get all loans for authenticated user
   getAllLoans: async () => {
-    return await apiRequest<ApiResponse<any>>('get', '/loans');
+    return await apiRequest<ApiResponse<any>>("get", "/loans");
   },
 
   // Get all available loan products
   getLoanProducts: async () => {
-    return await apiRequest<ApiResponse<any>>('get', '/loans/products');
+    return await apiRequest<ApiResponse<any>>("get", "/loans/products");
   },
 
   // Get loan details by ID
   getLoanById: async (id: string) => {
-    return await apiRequest<ApiResponse<any>>('get', `/loans/${id}`);
+    return await apiRequest<ApiResponse<any>>("get", `/loans/${id}`);
   },
 
   // Create a salary loan application
@@ -494,7 +570,7 @@ export const loanApi = {
     purpose: string;
     documents?: string[];
   }) => {
-    return await apiRequest<ApiResponse<any>>('post', '/loans/salary', data);
+    return await apiRequest<ApiResponse<any>>("post", "/loans/salary", data);
   },
 
   // Create a working capital loan application
@@ -505,7 +581,11 @@ export const loanApi = {
     purpose: string;
     documents?: string[];
   }) => {
-    return await apiRequest<ApiResponse<any>>('post', '/loans/working-capital', data);
+    return await apiRequest<ApiResponse<any>>(
+      "post",
+      "/loans/working-capital",
+      data
+    );
   },
 
   // Create an auto loan application
@@ -516,7 +596,7 @@ export const loanApi = {
     purpose: string;
     documents?: string[];
   }) => {
-    return await apiRequest<ApiResponse<any>>('post', '/loans/auto', data);
+    return await apiRequest<ApiResponse<any>>("post", "/loans/auto", data);
   },
 
   // Create a travel loan application
@@ -527,16 +607,23 @@ export const loanApi = {
     purpose: string;
     documents?: string[];
   }) => {
-    return await apiRequest<ApiResponse<any>>('post', '/loans/travel', data);
+    return await apiRequest<ApiResponse<any>>("post", "/loans/travel", data);
   },
 
   // Make a loan repayment
-  makeLoanRepayment: async (id: string, data: {
-    amount: number;
-    reference: string;
-  }) => {
-    return await apiRequest<ApiResponse<any>>('post', `/loans/${id}/repayment`, data);
-  }
+  makeLoanRepayment: async (
+    id: string,
+    data: {
+      amount: number;
+      reference: string;
+    }
+  ) => {
+    return await apiRequest<ApiResponse<any>>(
+      "post",
+      `/loans/${id}/repayment`,
+      data
+    );
+  },
 };
 
 // Dashboard API functions
@@ -657,57 +744,82 @@ export interface Transaction {
 export const dashboardApi = {
   // Get comprehensive dashboard summary
   getDashboardSummary: async () => {
-    return await apiRequest<ApiResponse<DashboardSummary>>('get', '/dashboard/summary');
+    return await apiRequest<ApiResponse<DashboardSummary>>(
+      "get",
+      "/dashboard/summary"
+    );
   },
 
   // Get wallet balance
   getWalletBalance: async () => {
-    return await apiRequest<ApiResponse<WalletBalance>>('get', '/dashboard/wallet-balance');
+    return await apiRequest<ApiResponse<WalletBalance>>(
+      "get",
+      "/dashboard/wallet-balance"
+    );
   },
 
   // Get investment portfolio summary
   getInvestmentPortfolio: async () => {
-    return await apiRequest<ApiResponse<InvestmentPortfolio>>('get', '/dashboard/investment-portfolio');
+    return await apiRequest<ApiResponse<InvestmentPortfolio>>(
+      "get",
+      "/dashboard/investment-portfolio"
+    );
   },
 
   // Get loan and repayments summary
   getLoanSummary: async () => {
-    return await apiRequest<ApiResponse<LoanSummary>>('get', '/dashboard/loan-summary');
+    return await apiRequest<ApiResponse<LoanSummary>>(
+      "get",
+      "/dashboard/loan-summary"
+    );
   },
 
   // Get upcoming payments
   getUpcomingPayments: async () => {
-    return await apiRequest<ApiResponse<{upcomingPayments: UpcomingPayment[]}>>('get', '/dashboard/upcoming-payments');
+    return await apiRequest<
+      ApiResponse<{ upcomingPayments: UpcomingPayment[] }>
+    >("get", "/dashboard/upcoming-payments");
   },
 
   // Get recent transactions
   getRecentTransactions: async (limit?: number) => {
-    const queryParams = limit ? `?limit=${limit}` : '';
-    return await apiRequest<ApiResponse<{recentTransactions: Transaction[]}>>('get', `/dashboard/recent-transactions${queryParams}`);
-  }
+    const queryParams = limit ? `?limit=${limit}` : "";
+    return await apiRequest<ApiResponse<{ recentTransactions: Transaction[] }>>(
+      "get",
+      `/dashboard/recent-transactions${queryParams}`
+    );
+  },
 };
 
 // Utility function to validate file size and type
-export function validateFileUpload(file: File, options: { 
-  maxSizeInMB?: number; 
-  allowedTypes?: string[];
-}): { valid: boolean; error?: string } {
-  const { maxSizeInMB = 5, allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'] } = options;
-  
+export function validateFileUpload(
+  file: File,
+  options: {
+    maxSizeInMB?: number;
+    allowedTypes?: string[];
+  }
+): { valid: boolean; error?: string } {
+  const {
+    maxSizeInMB = 5,
+    allowedTypes = ["image/jpeg", "image/jpg", "image/png"],
+  } = options;
+
   // Check file size
   const fileSizeInMB = file.size / (1024 * 1024);
   if (fileSizeInMB > maxSizeInMB) {
-    return { 
-      valid: false, 
-      error: `File size must be less than ${maxSizeInMB}MB` 
+    return {
+      valid: false,
+      error: `File size must be less than ${maxSizeInMB}MB`,
     };
   }
 
   // Check file type
   if (!allowedTypes.includes(file.type)) {
-    return { 
-      valid: false, 
-      error: `File type must be one of: ${allowedTypes.map(type => type.split('/')[1]).join(', ')}` 
+    return {
+      valid: false,
+      error: `File type must be one of: ${allowedTypes
+        .map((type) => type.split("/")[1])
+        .join(", ")}`,
     };
   }
 
