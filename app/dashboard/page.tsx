@@ -26,6 +26,7 @@ import { useToastContext } from "@/app/components/ToastProvider";
 import { dashboardApi, userApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useEligibility } from "@/app/components/EligibilityProvider";
 
 // Import our new components
 import { WalletCard } from "@/components/dashboard/WalletCard";
@@ -117,13 +118,18 @@ export default function DashboardPage() {
   const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
   const router = useRouter();
   const { success, error, info } = useToastContext();
+  const { checkEligibility } = useEligibility();
 
   // Use the useUserProfile hook to get consistent profile data
   const { profile, isLoading: profileLoading } = useUserProfile();
   
-  // State for dashboard data
+  // State for eligibility status
   const [isLoading, setIsLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [investmentEligible, setInvestmentEligible] = useState(false);
+  const [loanEligible, setLoanEligible] = useState(false);
+  
+  // We're no longer using dashboardData - we'll get individual component data from their respective APIs
+  const [walletBalance, setWalletBalance] = useState(0);
 
   // Investment types data - same structure as in the investments page
   const investmentTypes: InvestmentType[] = [
@@ -141,28 +147,39 @@ export default function DashboardPage() {
     }
   ];
 
-  // Create a function to fetch dashboard data that can be reused
-  const fetchDashboardData = async () => {
+  // Create a function to check eligibility status
+  const checkEligibilityStatus = async () => {
     setIsLoading(true);
     try {
-      // Get dashboard summary
-      const dashboardResponse = await dashboardApi.getDashboardSummary();
-      if (dashboardResponse.success && dashboardResponse.data) {
-        setDashboardData(dashboardResponse.data);
+      // Get eligibility status for both investment and loan
+      const eligibilityResponse = await userApi.getEligibilityStatus();
+      if (eligibilityResponse.success && eligibilityResponse.data) {
+        setInvestmentEligible(eligibilityResponse.data.investment.complete);
+        setLoanEligible(eligibilityResponse.data.loan.complete);
       } else {
-        error("Failed to load dashboard data", dashboardResponse.message || "Please try again later");
+        error("Failed to load eligibility status", eligibilityResponse.message || "Please try again later");
+      }
+      
+      // Get wallet balance (this is still needed for the wallet card)
+      try {
+        const walletResponse = await userApi.getWalletBalance();
+        if (walletResponse.success && walletResponse.data) {
+          setWalletBalance(walletResponse.data.balance);
+        }
+      } catch (walletErr) {
+        console.error("Error fetching wallet balance:", walletErr);
       }
     } catch (err: any) {
-      console.error("Error fetching dashboard data:", err);
-      error("Failed to load dashboard data", err.message || "Please try again later");
+      console.error("Error fetching eligibility data:", err);
+      error("Failed to load profile data", err.message || "Please try again later");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fetch dashboard data on component mount
+  // Check eligibility status on component mount
   useEffect(() => {
-    fetchDashboardData();
+    checkEligibilityStatus();
   }, []);
 
   // Helper function to determine status styling
@@ -207,31 +224,11 @@ export default function DashboardPage() {
     router.push(`/dashboard/loans/${id}`);
   };
 
-  // Format date from ISO string to readable format
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', { 
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric' 
-    });
-  };
+  // We no longer need the formatDate function since we're not displaying 
+  // the tables with dates anymore
 
-  // Safe accessor for nested properties with null/undefined checks
-  const safeValue = (obj: any, path: string, defaultValue: any = null) => {
-    try {
-      const result = path.split('.').reduce((o, p) => (o ? o[p] : undefined), obj);
-      return result !== undefined ? result : defaultValue;
-    } catch (e) {
-      return defaultValue;
-    }
-  };
-
-  // Filter loan payments from upcoming payments
-  const loanPayments = dashboardData?.upcomingPayments?.filter(payment => 
-    payment.type === "LOAN_REPAYMENT"
-  ) || [];
+  // We no longer need the safe accessor function or to filter loan payments
+  // since we're no longer using dashboardData
 
   return (
     <>
@@ -248,10 +245,10 @@ export default function DashboardPage() {
           isProfileComplete={!profileLoading && profile !== null}
           showBalance={showWalletBalance}
           toggleShowBalance={() => setShowWalletBalance(!showWalletBalance)}
-          walletBalance={safeValue(dashboardData, 'wallet.balance', 0)}
+          walletBalance={walletBalance}
           userName={profile ? `${profile.firstName} ${profile.lastName}` : 'User'}
           onHistoryClick={handleHistoryClick}
-          onFundClick={() => fetchDashboardData()} // Refresh data after successful funding
+          onFundClick={() => checkEligibilityStatus()} // Refresh data after successful funding
           onWithdrawClick={() => info("Withdrawal request", "Processing your withdrawal request")}
           onCompleteProfileClick={handleCompleteProfile}
         />
@@ -259,68 +256,55 @@ export default function DashboardPage() {
         {/* Investment Card */}
         <InvestmentCard 
           isLoading={isLoading}
-          isProfileComplete={!profileLoading && profile !== null}
+          isProfileComplete={investmentEligible}
           showBalance={showInvestmentBalance}
           toggleShowBalance={() => setShowInvestmentBalance(!showInvestmentBalance)}
-          totalInvested={safeValue(dashboardData, 'investments.totalInvested', 0)}
-          totalReturns={safeValue(dashboardData, 'investments.totalReturns', 0)}
-          activeInvestments={safeValue(dashboardData, 'investments.activeInvestments', 0)}
-          onCreateInvestmentClick={() => {
-                  info("Opening investment options", "Choose your preferred investment type");
-                  setShowCreateInvestmentModal(true);
+          totalInvested={0} // No longer coming from dashboardData
+          totalReturns={0}  // No longer coming from dashboardData
+          activeInvestments={0} // No longer coming from dashboardData
+          onCreateInvestmentClick={async () => {
+                  const isEligible = await checkEligibility('investment');
+                  if (isEligible) {
+                    info("Opening investment options", "Choose your preferred investment type");
+                    setShowCreateInvestmentModal(true);
+                  }
                 }}
-          onViewInvestmentsClick={() => router.push('/dashboard/investments')}
+          onViewInvestmentsClick={async () => {
+                  await checkEligibility('investment');
+                  router.push('/dashboard/investments');
+                }}
           onCompleteProfileClick={handleCompleteProfile}
         />
 
         {/* Loan Card */}
         <LoanCard 
           isLoading={isLoading}
-          isProfileComplete={!profileLoading && profile !== null}
+          isProfileComplete={loanEligible}
           showBalance={showLoanBalance}
           toggleShowBalance={() => setShowLoanBalance(!showLoanBalance)}
-          outstandingAmount={safeValue(dashboardData, 'loans.outstandingAmount', 0)}
-          activeLoans={safeValue(dashboardData, 'loans.activeLoans', 0)}
-          nextPaymentAmount={safeValue(dashboardData, 'loans.latestLoan.nextPaymentAmount', 0)}
-          nextPaymentDate={safeValue(dashboardData, 'loans.latestLoan.nextPaymentDate')}
+          outstandingAmount={0} // No longer coming from dashboardData
+          activeLoans={0} // No longer coming from dashboardData
+          nextPaymentAmount={0} // No longer coming from dashboardData
+          nextPaymentDate={undefined}
           onRepaymentsClick={handleRepaymentsClick}
           onRepayClick={() => router.push('/dashboard/loans')}
-          onApplyForLoanClick={() => {
-                    info("Redirecting to loan application", "Choose from our available loan options");
+          onApplyForLoanClick={async () => {
+                    await checkEligibility('loan');
                     router.push('/dashboard/loans');
                   }}
           onCompleteProfileClick={handleCompleteProfile}
         />
       </div>
 
-      {/* Investments Table - Only show when there are active investments */}
-      {!profileLoading && profile !== null && safeValue(dashboardData, 'investments.activeInvestments', 0) > 0 && (
-        <InvestmentsTable 
-          isLoading={isLoading}
-          investments={safeValue(dashboardData, 'investments.recentInvestments', [])}
-          activeInvestments={safeValue(dashboardData, 'investments.activeInvestments', 0)}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          onViewInvestment={handleViewInvestment}
-        />
-      )}
-
-      {/* Loan Payments Table - Only show when there are active loans */}
-      {!profileLoading && profile !== null && safeValue(dashboardData, 'loans.activeLoans', 0) > 0 && (
-        <LoanPaymentsTable 
-          isLoading={isLoading}
-          payments={loanPayments}
-          activeLoans={safeValue(dashboardData, 'loans.activeLoans', 0)}
-          onViewLoans={() => router.push('/dashboard/loans')}
-          onRepayLoan={handleRepayLoan}
-        />
-      )}
+      {/* We've removed the investments and loan payments tables since we're 
+      no longer using dashboardData. The user will need to go to the specific
+      pages to view their investments and loans. */}
 
       {/* Create Investment Modal */}
       {showCreateInvestmentModal && (
         <CreateNewInvestmentModal 
           investmentTypes={investmentTypes}
-          onClose={() => setShowCreateInvestmentModal(false)}
+          onCloseAction={() => setShowCreateInvestmentModal(false)}
         />
       )}
     </>

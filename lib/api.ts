@@ -332,21 +332,41 @@ export const userApi = {
 
   // Profile status
   checkInvestmentProfileStatus: () =>
-    // Return mocked data since endpoint is not available (404)
-    Promise.resolve({
-      success: true,
-      data: { isComplete: true, missingFields: [] },
-      message: "Profile status check simulated",
-    }),
+    apiRequest<ApiResponse<{ isComplete: boolean; missingFields: string[] }>>(
+      "get",
+      "/users/profile-status/investment"
+    ),
 
   checkLoanProfileStatus: () =>
-    // Return mocked data since endpoint is not available (404)
-    Promise.resolve({
-      success: true,
-      data: { isComplete: true, missingFields: [] },
-      message: "Profile status check simulated",
-    }),
+    apiRequest<ApiResponse<{ isComplete: boolean; missingFields: string[] }>>(
+      "get",
+      "/users/profile-status/loan"
+    ),
 
+  // Eligibility Status
+  getEligibilityStatus: () =>
+    apiRequest<
+      ApiResponse<{
+        loan: {
+          complete: boolean;
+          missingFields: string[];
+        };
+        investment: {
+          complete: boolean;
+          missingFields: string[];
+        };
+      }>
+    >("get", "/users/eligibility"),
+
+  // Get wallet balance
+  getWalletBalance: () =>
+    apiRequest<
+      ApiResponse<{
+        id: string;
+        balance: number;
+        currency: string;
+      }>
+    >("get", "/wallet/balance"),
   // Security
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     apiRequest<ApiResponse<void>>("post", "/users/change-password", data),
