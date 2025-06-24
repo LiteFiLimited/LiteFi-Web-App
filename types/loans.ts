@@ -7,8 +7,8 @@ export interface LoanProduct {
   maxAmount: number;
   minDuration: number;
   maxDuration: number;
-  type: 'SALARY' | 'WORKING_CAPITAL' | 'AUTO' | 'TRAVEL';
-  status: 'ACTIVE' | 'INACTIVE';
+  type: "SALARY" | "WORKING_CAPITAL" | "AUTO" | "TRAVEL";
+  status: "ACTIVE" | "INACTIVE";
   createdAt: string;
   updatedAt: string;
 }
@@ -21,7 +21,13 @@ export interface Loan {
   startDate: string | null;
   dueDate: string | null;
   purpose: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'COMPLETED' | 'DEFAULTED';
+  status:
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "ACTIVE"
+    | "COMPLETED"
+    | "DEFAULTED";
   productId: string;
   product?: LoanProduct;
   repayments?: LoanRepayment[];
@@ -35,7 +41,7 @@ export interface LoanRepayment {
   amount: number;
   dueDate: string;
   paidDate: string | null;
-  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'PARTIALLY_PAID';
+  status: "PENDING" | "PAID" | "OVERDUE" | "PARTIALLY_PAID";
   createdAt: string;
   updatedAt: string;
 }
@@ -45,7 +51,7 @@ export interface LoanPayment {
   loanId: string;
   amount: number;
   reference: string;
-  status: 'SUCCESSFUL' | 'FAILED' | 'PENDING';
+  status: "SUCCESSFUL" | "FAILED" | "PENDING";
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +62,21 @@ export interface LoanApplication {
   duration: number;
   purpose: string;
   documents?: string[];
+}
+
+export interface VehicleDetails {
+  make: string;
+  model: string;
+  year: string | number;
+  mileage: string | number;
+  color?: string;
+  vin: string;
+  plateNumber?: string;
+}
+
+export interface AutoLoanApplication extends LoanApplication {
+  vehicleDetails: VehicleDetails;
+  documentIds?: string[];
 }
 
 // Types for UI components

@@ -2,36 +2,59 @@ export interface InvestmentPlan {
   id: string;
   name: string;
   description: string;
-  interestRate: number;
-  minAmount: number;
-  maxAmount: number;
-  minDuration: number;
-  maxDuration: number;
+  type: "NAIRA" | "FOREIGN";
   currency: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
+  minimumAmount: number;
+  maximumAmount: number;
+  minimumTenure: number;
+  maximumTenure: number;
+  interestRates: {
+    minTenure: number;
+    maxTenure: number;
+    rate: number;
+  }[];
+  features: string[];
+  active: boolean;
 }
 
 export interface Investment {
   id: string;
+  reference: string;
   name: string;
   amount: number;
-  interestRate: number;
-  duration: number;
-  startDate: string | null;
-  maturityDate: string | null;
-  status: 'PENDING' | 'ACTIVE' | 'MATURED' | 'WITHDRAWN' | 'REJECTED';
+  status: "PENDING" | "ACTIVE" | "MATURED" | "WITHDRAWN" | "REJECTED";
+  planType: "NAIRA" | "FOREIGN";
   currency: string;
-  planId: string;
-  plan?: InvestmentPlan;
-  returns?: {
-    totalInterest: number;
-    monthlyInterest: number;
-    maturityAmount: number;
-  };
+  interestRate: number;
+  tenure: number;
+  startDate?: string;
+  maturityDate?: string;
+  expectedReturns: number;
+  totalInterest?: number;
   createdAt: string;
-  updatedAt: string;
+  activatedAt?: string;
+  plan?: {
+    id: string;
+    name: string;
+    description?: string;
+    type: "NAIRA" | "FOREIGN";
+    minimumAmount?: number;
+    maximumAmount?: number;
+    minimumTenure?: number;
+    maximumTenure?: number;
+  };
+  interestPayments?: {
+    id: string;
+    amount: number;
+    status: string;
+    paymentDate: string;
+  }[];
+  documents?: {
+    id: string;
+    type: string;
+    url: string;
+    createdAt: string;
+  }[];
 }
 
 export interface InvestmentWithdrawal {
@@ -39,7 +62,7 @@ export interface InvestmentWithdrawal {
   investmentId: string;
   amount: number;
   reason?: string;
-  status: 'PENDING' | 'COMPLETED' | 'REJECTED';
+  status: "PENDING" | "COMPLETED" | "REJECTED";
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +71,9 @@ export interface InvestmentCalculation {
   totalInterest: number;
   monthlyInterest: number;
   maturityAmount: number;
+  interestRate: number;
+  startDate: string;
+  maturityDate: string;
   breakdown: {
     month: number;
     interest: number;
@@ -55,11 +81,30 @@ export interface InvestmentCalculation {
   }[];
 }
 
-export interface ForeignInvestmentRequest {
-  planId: string;
+export interface InvestmentRequest {
+  planId?: string; // planId is now optional
   amount: number;
   name: string;
+  tenure: number;
   currency: string;
   agreementAccepted: boolean;
-  paymentProofId?: string;
+  upfrontInterestPayment?: boolean;
+}
+
+export interface ForeignInvestmentRequest {
+  planId?: string; // planId is now optional
+  amount: number;
+  name: string;
+  tenure: number;
+  currency: string;
+  agreementAccepted: boolean;
+  sourceOfFunds: string;
+  fundingMethod: string;
+}
+
+export interface InvestmentType {
+  title: string;
+  description: string;
+  route: string;
+  icon: string;
 }
