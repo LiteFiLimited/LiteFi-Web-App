@@ -1,6 +1,14 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/(.*)", "destination": "https://litefi-backend.onrender.com/$1" }
+  ],
+  "redirects": [
+    { "source": "/login", "destination": "/auth/login", "permanent": true },
+    { "source": "/sign-up", "destination": "/auth/sign-up", "permanent": true },
+    { "source": "/verify-phone", "destination": "/auth/verify-phone", "permanent": true },
+    { "source": "/create-password", "destination": "/auth/create-password", "permanent": true },
+    { "source": "/reset-password", "destination": "/auth/reset-password", "permanent": true },
+    { "source": "/create-new-password", "destination": "/auth/create-new-password", "permanent": true }
   ],
   "headers": [
     {
@@ -23,5 +31,7 @@
   ],
   "buildCommand": "npm run build",
   "framework": "nextjs",
-  "outputDirectory": "out"
+  "outputDirectory": "out",
+  "trailingSlash": true,
+  "cleanUrls": true
 }

@@ -45,13 +45,11 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: 'https://litefi-backend.onrender.com',
     BACKEND_API_URL: 'https://litefi-backend.onrender.com'
   },
-  // Improved experimental settings
+  // Only include supported experimental features
   experimental: {
     webpackBuildWorker: true,
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
-    // Using fallbackNodePolyfills false helps with newer browsers
-    fallbackNodePolyfills: false,
   },
 };
 

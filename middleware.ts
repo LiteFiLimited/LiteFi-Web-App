@@ -1,60 +1,66 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
+// Skip middleware execution during static export build
+// This allows the project to be built with "output: export"
 export function middleware(request: NextRequest) {
+  // Skip middleware in production (static export)
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.next();
+  }
   const { pathname } = request.nextUrl;
-  
+
   // Define public routes that don't require authentication
   const publicRoutes = [
-    '/',
-    '/auth/login',
-    '/auth/sign-up',
-    '/auth/verify-phone',
-    '/auth/create-password',
-    '/auth/reset-password',
-    '/auth/create-new-password',
-    '/terms',
-    '/privacy',
-    '/login',
-    '/sign-up',
-    '/verify-phone',
-    '/create-password',
-    '/reset-password',
-    '/create-new-password'
+    "/",
+    "/auth/login",
+    "/auth/sign-up",
+    "/auth/verify-phone",
+    "/auth/create-password",
+    "/auth/reset-password",
+    "/auth/create-new-password",
+    "/terms",
+    "/privacy",
+    "/login",
+    "/sign-up",
+    "/verify-phone",
+    "/create-password",
+    "/reset-password",
+    "/create-new-password",
   ];
 
   // Define API routes that don't require authentication
   const publicApiRoutes = [
-    '/api/auth/login',
-    '/api/auth/register',
-    '/api/auth/verify-email',
-    '/api/auth/verify-phone',
-    '/api/auth/verify-phone-otp',
-    '/api/auth/send-phone-otp',
-    '/api/auth/resend-otp',
-    '/api/auth/resend-verification',
-    '/api/auth/reset-password',
-    '/api/auth/confirm-reset'
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/verify-email",
+    "/api/auth/verify-phone",
+    "/api/auth/verify-phone-otp",
+    "/api/auth/send-phone-otp",
+    "/api/auth/resend-otp",
+    "/api/auth/resend-verification",
+    "/api/auth/reset-password",
+    "/api/auth/confirm-reset",
   ];
 
   // Define protected routes that require authentication
   const protectedRoutes = [
-    '/dashboard',
-    '/profile',
-    '/wallet',
-    '/loans',
-    '/investments',
-    '/settings'
+    "/dashboard",
+    "/profile",
+    "/wallet",
+    "/loans",
+    "/investments",
+    "/settings",
   ];
 
   // Map of public routes without 'auth/' prefix to their actual paths
   const routeMap: Record<string, string> = {
-    '/login': '/auth/login',
-    '/sign-up': '/auth/sign-up',
-    '/verify-phone': '/auth/verify-phone',
-    '/create-password': '/auth/create-password',
-    '/reset-password': '/auth/reset-password',
-    '/create-new-password': '/auth/create-new-password',
+    "/login": "/auth/login",
+    "/sign-up": "/auth/sign-up",
+    "/verify-phone": "/auth/verify-phone",
+    "/create-password": "/auth/create-password",
+    "/reset-password": "/auth/reset-password",
+    "/create-new-password": "/auth/create-new-password",
   };
 
   // Handle route rewrites for public routes
@@ -65,17 +71,17 @@ export function middleware(request: NextRequest) {
   }
 
   // Check if the current path is a public route
-  const isPublicRoute = publicRoutes.some(route => 
-    pathname === route || pathname.startsWith(route + '/')
+  const isPublicRoute = publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
   );
 
   // Check if the current path is a public API route
-  const isPublicApiRoute = publicApiRoutes.some(route => 
-    pathname === route || pathname.startsWith(route + '/')
+  const isPublicApiRoute = publicApiRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
   );
 
   // Check if the current path is a protected route
-  const isProtectedRoute = protectedRoutes.some(route => 
+  const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );
 
@@ -85,14 +91,14 @@ export function middleware(request: NextRequest) {
   }
 
   // For protected routes, check authentication
-  if (isProtectedRoute || pathname.startsWith('/dashboard')) {
+  if (isProtectedRoute || pathname.startsWith("/dashboard")) {
     // Check for authentication token in cookies
-    const token = request.cookies.get('auth-token')?.value;
-    
+    const token = request.cookies.get("auth-token")?.value;
+
     if (!token) {
       // No token found, redirect to login with the original URL as redirect parameter
-      const loginUrl = new URL('/auth/login', request.url);
-      loginUrl.searchParams.set('redirect', pathname);
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }
 
@@ -115,6 +121,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public assets
      */
-    '/((?!_next/static|_next/image|favicon.ico|assets|logo|public).*)',
+    "/((?!_next/static|_next/image|favicon.ico|assets|logo|public).*)",
   ],
-}; 
+};
