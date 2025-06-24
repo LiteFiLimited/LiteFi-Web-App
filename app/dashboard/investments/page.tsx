@@ -19,12 +19,14 @@ import CreateNewInvestmentModal from "@/app/components/CreateNewInvestmentModal"
 import { useInvestments } from "@/hooks/useInvestments";
 import { formatCurrency } from "@/lib/utils";
 import { DashboardCardSkeleton } from "@/components/dashboard/DashboardCardSkeleton";
+import { useEligibility } from "@/app/components/EligibilityProvider";
 
 export default function InvestmentsPage() {
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [activeTab, setActiveTab] = useState<string>("active-investments");
   const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
   const router = useRouter();
+  const { checkEligibility } = useEligibility();
   
   const { 
     activeInvestments, 
@@ -33,6 +35,15 @@ export default function InvestmentsPage() {
     isLoading,
     hasInvestments
   } = useInvestments();
+  
+  // Check eligibility when component mounts
+  useEffect(() => {
+    const checkInvestmentEligibility = async () => {
+      await checkEligibility('investment');
+    };
+    
+    checkInvestmentEligibility();
+  }, [checkEligibility]);
   
   // Investment types data
   const investmentTypes: InvestmentType[] = [

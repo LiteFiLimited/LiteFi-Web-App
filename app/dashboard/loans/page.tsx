@@ -13,10 +13,12 @@ import { EmptyState } from "@/components/loans/EmptyState";
 import { LoanType, ActiveLoan, Loan, LoanProduct } from "@/types/loans";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useLoans } from "@/hooks/useLoans";
+import { useEligibility } from "@/app/components/EligibilityProvider";
 
 export default function LoansPage() {
   const [activeTab, setActiveTab] = useState<string>("upcoming-repayments");
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const { checkEligibility } = useEligibility();
   
   const { 
     loanTypesForUI: loanTypes, 
@@ -29,6 +31,15 @@ export default function LoansPage() {
     fetchLoans,
     fetchLoanProducts
   } = useLoans();
+  
+  // Check eligibility when component mounts
+  useEffect(() => {
+    const checkLoanEligibility = async () => {
+      await checkEligibility('loan');
+    };
+    
+    checkLoanEligibility();
+  }, [checkEligibility]);
   
   // Load initial data
   useEffect(() => {
