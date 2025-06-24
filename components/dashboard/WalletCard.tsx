@@ -7,6 +7,7 @@ import Image from "next/image";
 import CopyButton from "@/app/components/CopyButton";
 import { formatCurrency } from "@/lib/utils";
 import { DashboardCardSkeleton } from "./DashboardCardSkeleton";
+import { WalletFundingModule } from "./WalletFundingModule";
 
 interface WalletCardProps {
   isLoading: boolean;
@@ -69,12 +70,11 @@ export function WalletCard({
           </button>
         </div>
         <div className="flex space-x-2">
-          <button 
-            onClick={onFundClick}
-            className="flex-1 bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
-          >
-            Fund with Mono
-          </button>
+          <WalletFundingModule 
+            className="flex-1"
+            buttonClassName="w-full bg-red-600 text-white px-4 py-3 rounded-none text-sm font-medium hover:bg-red-700 transition-colors"
+            onSuccess={onFundClick}
+          />
           <button 
             onClick={onWithdrawClick}
             className="flex-1 bg-white text-gray-800 px-4 py-3 rounded-none text-sm font-medium border border-gray-300 hover:bg-gray-100 transition-colors"

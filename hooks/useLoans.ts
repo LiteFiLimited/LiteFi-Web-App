@@ -1,17 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
-import { format, parseISO, addMonths } from 'date-fns';
-import { loanApi } from '@/lib/api';
-import { useToastContext } from '@/app/components/ToastProvider';
-import { 
-  Loan, 
-  LoanProduct, 
-  LoanRepayment, 
-  LoanType, 
+import { useState, useEffect, useMemo } from "react";
+import { format, parseISO, addMonths } from "date-fns";
+import { loanApi } from "@/lib/loanApi";
+import { useToastContext } from "@/app/components/ToastProvider";
+import {
+  Loan,
+  LoanProduct,
+  LoanRepayment,
+  LoanType,
   ActiveLoan,
   UpcomingRepayment,
   PendingApproval,
-  CompletedLoan
-} from '@/types/loans';
+  CompletedLoan,
+  VehicleDetails,
+} from "@/types/loans";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -24,19 +25,19 @@ export function useLoans() {
   const [loanProducts, setLoanProducts] = useState<LoanProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { success, error: showError } = useToastContext();
 
   const fetchLoans = async () => {
     try {
       setIsLoading(true);
-      const response = await loanApi.getAllLoans() as ApiResponse<Loan[]>;
+      const response = (await loanApi.getAllLoans()) as ApiResponse<Loan[]>;
       setLoans(response.data);
       setError(null);
       return response.data;
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch loans');
-      showError('Error', 'Failed to fetch loan data');
+      setError(err.message || "Failed to fetch loans");
+      showError("Error", "Failed to fetch loan data");
       return [];
     } finally {
       setIsLoading(false);
@@ -46,11 +47,13 @@ export function useLoans() {
   const fetchLoanProducts = async () => {
     try {
       setIsLoading(true);
-      const response = await loanApi.getLoanProducts() as ApiResponse<LoanProduct[]>;
+      const response = (await loanApi.getLoanProducts()) as ApiResponse<
+        LoanProduct[]
+      >;
       setLoanProducts(response.data);
       return response.data;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to fetch loan products');
+      showError("Error", err.message || "Failed to fetch loan products");
       return [];
     } finally {
       setIsLoading(false);
@@ -60,10 +63,10 @@ export function useLoans() {
   const getLoanById = async (id: string) => {
     try {
       setIsLoading(true);
-      const response = await loanApi.getLoanById(id) as ApiResponse<Loan>;
+      const response = (await loanApi.getLoanById(id)) as ApiResponse<Loan>;
       return response.data;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to fetch loan details');
+      showError("Error", err.message || "Failed to fetch loan details");
       return null;
     } finally {
       setIsLoading(false);
@@ -71,10 +74,10 @@ export function useLoans() {
   };
 
   const createSalaryLoan = async (
-    productId: string, 
-    amount: number, 
-    duration: number, 
-    purpose: string, 
+    productId: string,
+    amount: number,
+    duration: number,
+    purpose: string,
     documents?: string[]
   ) => {
     try {
@@ -84,14 +87,14 @@ export function useLoans() {
         amount,
         duration,
         purpose,
-        documents
+        documents,
       });
-      
-      success('Success', 'Loan application submitted successfully');
+
+      success("Success", "Loan application submitted successfully");
       fetchLoans(); // Refresh loans after creating a new one
       return response.data;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to submit loan application');
+      showError("Error", err.message || "Failed to submit loan application");
       return null;
     } finally {
       setIsLoading(false);
@@ -99,10 +102,10 @@ export function useLoans() {
   };
 
   const createWorkingCapitalLoan = async (
-    productId: string, 
-    amount: number, 
-    duration: number, 
-    purpose: string, 
+    productId: string,
+    amount: number,
+    duration: number,
+    purpose: string,
     documents?: string[]
   ) => {
     try {
@@ -112,14 +115,17 @@ export function useLoans() {
         amount,
         duration,
         purpose,
-        documents
+        documents,
       });
-      
-      success('Success', 'Working capital loan application submitted successfully');
+
+      success(
+        "Success",
+        "Working capital loan application submitted successfully"
+      );
       fetchLoans(); // Refresh loans after creating a new one
       return response.data;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to submit loan application');
+      showError("Error", err.message || "Failed to submit loan application");
       return null;
     } finally {
       setIsLoading(false);
@@ -127,10 +133,11 @@ export function useLoans() {
   };
 
   const createAutoLoan = async (
-    productId: string, 
-    amount: number, 
-    duration: number, 
-    purpose: string, 
+    productId: string,
+    amount: number,
+    duration: number,
+    purpose: string,
+    vehicleDetails: VehicleDetails,
     documents?: string[]
   ) => {
     try {
@@ -140,14 +147,15 @@ export function useLoans() {
         amount,
         duration,
         purpose,
-        documents
+        vehicleDetails,
+        documents,
       });
-      
-      success('Success', 'Auto loan application submitted successfully');
+
+      success("Success", "Auto loan application submitted successfully");
       fetchLoans(); // Refresh loans after creating a new one
       return response.data;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to submit loan application');
+      showError("Error", err.message || "Failed to submit loan application");
       return null;
     } finally {
       setIsLoading(false);
@@ -155,10 +163,10 @@ export function useLoans() {
   };
 
   const createTravelLoan = async (
-    productId: string, 
-    amount: number, 
-    duration: number, 
-    purpose: string, 
+    productId: string,
+    amount: number,
+    duration: number,
+    purpose: string,
     documents?: string[]
   ) => {
     try {
@@ -168,33 +176,37 @@ export function useLoans() {
         amount,
         duration,
         purpose,
-        documents
+        documents,
       });
-      
-      success('Success', 'Travel loan application submitted successfully');
+
+      success("Success", "Travel loan application submitted successfully");
       fetchLoans(); // Refresh loans after creating a new one
       return response.data;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to submit loan application');
+      showError("Error", err.message || "Failed to submit loan application");
       return null;
     } finally {
       setIsLoading(false);
     }
   };
 
-  const makeLoanRepayment = async (id: string, amount: number, reference: string) => {
+  const makeLoanRepayment = async (
+    id: string,
+    amount: number,
+    reference: string
+  ) => {
     try {
       setIsLoading(true);
       const response = await loanApi.makeLoanRepayment(id, {
         amount,
-        reference
+        reference,
       });
-      
-      success('Success', 'Loan repayment successful');
+
+      success("Success", "Loan repayment successful");
       fetchLoans(); // Refresh loans after repayment
       return response.data;
     } catch (err: any) {
-      showError('Error', err.message || 'Failed to process loan repayment');
+      showError("Error", err.message || "Failed to process loan repayment");
       return null;
     } finally {
       setIsLoading(false);
@@ -203,29 +215,31 @@ export function useLoans() {
 
   // Helper function to format currency
   const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(amount);
   };
 
   // Format date to human-readable format
   const formatDate = (dateString: string | null | undefined): string => {
-    if (!dateString) return '-';
+    if (!dateString) return "-";
     try {
-      return format(parseISO(dateString), 'dd-MM-yyyy');
+      return format(parseISO(dateString), "dd-MM-yyyy");
     } catch (e) {
       return dateString;
     }
   };
 
   // Format date to more user-friendly format (e.g., "May 24, 2025")
-  const formatDateFriendly = (dateString: string | null | undefined): string => {
-    if (!dateString) return '-';
+  const formatDateFriendly = (
+    dateString: string | null | undefined
+  ): string => {
+    if (!dateString) return "-";
     try {
-      return format(parseISO(dateString), 'MMM dd, yyyy');
+      return format(parseISO(dateString), "MMM dd, yyyy");
     } catch (e) {
       return dateString;
     }
@@ -234,12 +248,12 @@ export function useLoans() {
   // Convert loan products to LoanType for UI display
   const loanTypesForUI = useMemo(() => {
     if (!loanProducts.length) return [];
-    
-    return loanProducts.map(product => ({
+
+    return loanProducts.map((product) => ({
       title: product.name,
-      amount: formatCurrency(product.maxAmount).replace('NGN', ''),
+      amount: formatCurrency(product.maxAmount).replace("NGN", ""),
       description: product.description,
-      route: product.type.toLowerCase().replace('_', '-') + '-loan'
+      route: product.type.toLowerCase().replace("_", "-") + "-loan",
     })) as LoanType[];
   }, [loanProducts]);
 
@@ -248,15 +262,19 @@ export function useLoans() {
     if (!loans.length) return [];
 
     return loans
-      .filter(loan => loan.status === 'ACTIVE')
-      .map(loan => {
-        const nextRepayment = loan.repayments?.find(rep => rep.status === 'PENDING');
+      .filter((loan) => loan.status === "ACTIVE")
+      .map((loan) => {
+        const nextRepayment = loan.repayments?.find(
+          (rep) => rep.status === "PENDING"
+        );
         return {
-          type: loan.product?.name || 'Loan',
+          type: loan.product?.name || "Loan",
           dueDate: formatDateFriendly(nextRepayment?.dueDate || loan.dueDate),
           dueAmount: formatCurrency(nextRepayment?.amount || 0),
           totalAmount: formatCurrency(loan.amount),
-          route: loan.product?.type.toLowerCase().replace('_', '-') + '-loan' || 'loan-details'
+          route:
+            loan.product?.type.toLowerCase().replace("_", "-") + "-loan" ||
+            "loan-details",
         };
       }) as ActiveLoan[];
   }, [loans]);
@@ -267,15 +285,17 @@ export function useLoans() {
 
     const result: UpcomingRepayment[] = [];
 
-    loans.forEach(loan => {
-      if (loan.status === 'ACTIVE' && loan.repayments) {
-        const pendingRepayments = loan.repayments.filter(rep => rep.status === 'PENDING');
-        
-        pendingRepayments.forEach(repayment => {
+    loans.forEach((loan) => {
+      if (loan.status === "ACTIVE" && loan.repayments) {
+        const pendingRepayments = loan.repayments.filter(
+          (rep) => rep.status === "PENDING"
+        );
+
+        pendingRepayments.forEach((repayment) => {
           result.push({
             applicationId: loan.id.slice(0, 7).toUpperCase(),
             loanId: loan.id.slice(-5).toUpperCase(),
-            type: loan.product?.name || 'Loan',
+            type: loan.product?.name || "Loan",
             outstandingBalance: formatCurrency(loan.amount),
             dueDate: formatDate(repayment.dueDate),
             amountDue: formatCurrency(repayment.amount),
@@ -292,14 +312,17 @@ export function useLoans() {
     if (!loans.length) return [];
 
     return loans
-      .filter(loan => ['PENDING', 'APPROVED'].includes(loan.status))
-      .map(loan => ({
+      .filter((loan) => ["PENDING", "APPROVED"].includes(loan.status))
+      .map((loan) => ({
         applicationId: loan.id.slice(0, 7).toUpperCase(),
         loanId: loan.id.slice(-5).toUpperCase(),
-        type: loan.product?.name || 'Loan',
+        type: loan.product?.name || "Loan",
         amount: formatCurrency(loan.amount),
         submittedDate: formatDate(loan.createdAt),
-        status: loan.status === 'PENDING' ? 'Application in review' : 'Pending Disbursement'
+        status:
+          loan.status === "PENDING"
+            ? "Application in review"
+            : "Pending Disbursement",
       })) as PendingApproval[];
   }, [loans]);
 
@@ -308,20 +331,20 @@ export function useLoans() {
     if (!loans.length) return [];
 
     return loans
-      .filter(loan => ['COMPLETED', 'REJECTED'].includes(loan.status))
-      .map(loan => ({
+      .filter((loan) => ["COMPLETED", "REJECTED"].includes(loan.status))
+      .map((loan) => ({
         applicationId: loan.id.slice(0, 7).toUpperCase(),
         loanId: loan.id.slice(-5).toUpperCase(),
-        type: loan.product?.name || 'Loan',
+        type: loan.product?.name || "Loan",
         amount: formatCurrency(loan.amount),
         closedDate: formatDate(loan.updatedAt),
-        status: loan.status === 'COMPLETED' ? 'Fully Paid' : 'Rejected'
+        status: loan.status === "COMPLETED" ? "Fully Paid" : "Rejected",
       })) as CompletedLoan[];
   }, [loans]);
 
   // Check if user has any active loans
   const hasActiveLoans = useMemo(() => {
-    return loans.some(loan => loan.status === 'ACTIVE');
+    return loans.some((loan) => loan.status === "ACTIVE");
   }, [loans]);
 
   useEffect(() => {
@@ -347,6 +370,6 @@ export function useLoans() {
     createWorkingCapitalLoan,
     createAutoLoan,
     createTravelLoan,
-    makeLoanRepayment
+    makeLoanRepayment,
   };
 }

@@ -25,6 +25,7 @@ import CopyButton from "@/app/components/CopyButton";
 import { useToastContext } from "@/app/components/ToastProvider";
 import { dashboardApi, userApi } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 // Import our new components
 import { WalletCard } from "@/components/dashboard/WalletCard";
@@ -117,11 +118,12 @@ export default function DashboardPage() {
   const router = useRouter();
   const { success, error, info } = useToastContext();
 
-  // State for profile completion and dashboard data
-  const [isProfileComplete, setIsProfileComplete] = useState(false);
+  // Use the useUserProfile hook to get consistent profile data
+  const { profile, isLoading: profileLoading } = useUserProfile();
+  
+  // State for dashboard data
   const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [userName, setUserName] = useState("User");
 
   // Investment types data - same structure as in the investments page
   const investmentTypes: InvestmentType[] = [
@@ -139,56 +141,27 @@ export default function DashboardPage() {
     }
   ];
 
-  // Fetch dashboard data and check profile completion status
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setIsLoading(true);
-      try {
-        // Get user data from local storage
-        const userDataString = localStorage.getItem('userData');
-        if (userDataString) {
-          try {
-            const userData = JSON.parse(userDataString) as User;
-            if (userData.firstName && userData.lastName) {
-              setUserName(`${userData.firstName} ${userData.lastName}`);
-            }
-          } catch (e) {
-            console.error("Error parsing user data from localStorage:", e);
-          }
-        }
-
-        // If no user data in local storage, try to get it from the API
-        if (userName === "User") {
-          try {
-            const userProfileResponse = await userApi.getProfile();
-            if (userProfileResponse.data) {
-              const { firstName, lastName } = userProfileResponse.data;
-              setUserName(`${firstName} ${lastName}`);
-            }
-          } catch (profileErr) {
-            console.error("Error fetching user profile:", profileErr);
-          }
-        }
-
-        // Check if profile is complete
-        const profileStatusResponse = await userApi.checkInvestmentProfileStatus();
-        setIsProfileComplete(profileStatusResponse.data?.isComplete || false);
-
-        // Get dashboard summary
-        const dashboardResponse = await dashboardApi.getDashboardSummary();
-        if (dashboardResponse.success && dashboardResponse.data) {
-          setDashboardData(dashboardResponse.data);
-        } else {
-          error("Failed to load dashboard data", dashboardResponse.message || "Please try again later");
-        }
-      } catch (err: any) {
-        console.error("Error fetching dashboard data:", err);
-        error("Failed to load dashboard data", err.message || "Please try again later");
-      } finally {
-        setIsLoading(false);
+  // Create a function to fetch dashboard data that can be reused
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      // Get dashboard summary
+      const dashboardResponse = await dashboardApi.getDashboardSummary();
+      if (dashboardResponse.success && dashboardResponse.data) {
+        setDashboardData(dashboardResponse.data);
+      } else {
+        error("Failed to load dashboard data", dashboardResponse.message || "Please try again later");
       }
-    };
+    } catch (err: any) {
+      console.error("Error fetching dashboard data:", err);
+      error("Failed to load dashboard data", err.message || "Please try again later");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Fetch dashboard data on component mount
+  useEffect(() => {
     fetchDashboardData();
   }, []);
 
@@ -266,19 +239,19 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">Your Financial Dashboard</h1>
       </div>
       
-      <p className="text-muted-foreground mb-6">Welcome back, {userName}</p>
+      <p className="text-muted-foreground mb-6">Welcome back, {profile ? `${profile.firstName} ${profile.lastName}` : 'User'}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Wallet Card */}
         <WalletCard 
-          isLoading={isLoading}
-          isProfileComplete={isProfileComplete}
+          isLoading={isLoading || profileLoading}
+          isProfileComplete={!profileLoading && profile !== null}
           showBalance={showWalletBalance}
           toggleShowBalance={() => setShowWalletBalance(!showWalletBalance)}
           walletBalance={safeValue(dashboardData, 'wallet.balance', 0)}
-          userName={userName}
+          userName={profile ? `${profile.firstName} ${profile.lastName}` : 'User'}
           onHistoryClick={handleHistoryClick}
-          onFundClick={() => success("Funding initiated", "Redirecting to Mono for secure payment")}
+          onFundClick={() => fetchDashboardData()} // Refresh data after successful funding
           onWithdrawClick={() => info("Withdrawal request", "Processing your withdrawal request")}
           onCompleteProfileClick={handleCompleteProfile}
         />
@@ -286,7 +259,7 @@ export default function DashboardPage() {
         {/* Investment Card */}
         <InvestmentCard 
           isLoading={isLoading}
-          isProfileComplete={isProfileComplete}
+          isProfileComplete={!profileLoading && profile !== null}
           showBalance={showInvestmentBalance}
           toggleShowBalance={() => setShowInvestmentBalance(!showInvestmentBalance)}
           totalInvested={safeValue(dashboardData, 'investments.totalInvested', 0)}
@@ -303,7 +276,7 @@ export default function DashboardPage() {
         {/* Loan Card */}
         <LoanCard 
           isLoading={isLoading}
-          isProfileComplete={isProfileComplete}
+          isProfileComplete={!profileLoading && profile !== null}
           showBalance={showLoanBalance}
           toggleShowBalance={() => setShowLoanBalance(!showLoanBalance)}
           outstandingAmount={safeValue(dashboardData, 'loans.outstandingAmount', 0)}
@@ -321,7 +294,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Investments Table - Only show when there are active investments */}
-      {isProfileComplete && safeValue(dashboardData, 'investments.activeInvestments', 0) > 0 && (
+      {!profileLoading && profile !== null && safeValue(dashboardData, 'investments.activeInvestments', 0) > 0 && (
         <InvestmentsTable 
           isLoading={isLoading}
           investments={safeValue(dashboardData, 'investments.recentInvestments', [])}
@@ -333,7 +306,7 @@ export default function DashboardPage() {
       )}
 
       {/* Loan Payments Table - Only show when there are active loans */}
-      {isProfileComplete && safeValue(dashboardData, 'loans.activeLoans', 0) > 0 && (
+      {!profileLoading && profile !== null && safeValue(dashboardData, 'loans.activeLoans', 0) > 0 && (
         <LoanPaymentsTable 
           isLoading={isLoading}
           payments={loanPayments}

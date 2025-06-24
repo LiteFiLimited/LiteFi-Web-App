@@ -132,9 +132,42 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
       
       // Initialize date if available
       if (profile.profile?.dateOfBirth) {
-        const parsedDate = new Date(profile.profile.dateOfBirth);
-        setDate(parsedDate);
-        setDateInputValue(format(parsedDate, "dd/MM/yyyy"));
+        try {
+          // Handle different date formats (dd/mm/yyyy or yyyy-mm-dd)
+          let parsedDate;
+          const dateStr = profile.profile.dateOfBirth;
+          
+          if (dateStr.includes('/')) {
+            // DD/MM/YYYY format - split and rearrange
+            const [day, month, year] = dateStr.split('/');
+            if (day && month && year) {
+              parsedDate = new Date(`${year}-${month}-${day}`);
+            }
+          } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Already in YYYY-MM-DD format
+            parsedDate = new Date(dateStr);
+          } else {
+            // Try direct parsing as a fallback
+            parsedDate = new Date(dateStr);
+          }
+          
+          if (parsedDate && !isNaN(parsedDate.getTime())) {
+            setDate(parsedDate);
+            setDateInputValue(format(parsedDate, "dd/MM/yyyy"));
+            // Update form data with the parsed date in yyyy-mm-dd format for API compatibility
+            handleChange("dateOfBirth", format(parsedDate, "yyyy-MM-dd"));
+          } else {
+            console.warn("Invalid date value:", dateStr);
+            setDate(undefined);
+            setDateInputValue(dateStr); // Keep the original value for display
+            handleChange("dateOfBirth", ""); // Clear the value in form data
+          }
+        } catch (error) {
+          console.error("Error parsing date:", error);
+          setDate(undefined);
+          setDateInputValue(profile.profile.dateOfBirth); // Keep the original value for display
+          handleChange("dateOfBirth", ""); // Clear the value in form data
+        }
       }
 
       // Set validation states if values exist
@@ -170,7 +203,22 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
 
   const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDateInputValue(e.target.value);
-    handleChange("dateOfBirth", e.target.value);
+    
+    // Convert DD/MM/YYYY to YYYY-MM-DD format for proper date handling
+    if (e.target.value && e.target.value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      const [day, month, year] = e.target.value.split('/');
+      const isoFormatDate = `${year}-${month}-${day}`;
+      handleChange("dateOfBirth", isoFormatDate);
+      
+      // Also update the date state to keep the calendar in sync
+      const parsedDate = new Date(isoFormatDate);
+      if (!isNaN(parsedDate.getTime())) {
+        setDate(parsedDate);
+      }
+    } else {
+      // For incomplete dates, just store the display value
+      handleChange("dateOfBirth", e.target.value);
+    }
   };
 
   const validateBVN = () => {
@@ -185,7 +233,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
         setValidationErrors(prev => ({ ...prev, bvn: undefined }));
       } else {
         setBvnValidationState("error");
-        setValidationErrors(prev => ({ ...prev, bvn: "BVN must be 10-11 digits" }));
+        setValidationErrors(prev => ({ ...prev, bvn: "BVN must be 11 digits" }));
       }
     }, 1000);
   };
@@ -202,7 +250,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
         setValidationErrors(prev => ({ ...prev, nin: undefined }));
       } else {
         setNinValidationState("error");
-        setValidationErrors(prev => ({ ...prev, nin: "NIN must be 10-11 digits" }));
+        setValidationErrors(prev => ({ ...prev, nin: "NIN must be 11 digits" }));
       }
     }, 1000);
   };
