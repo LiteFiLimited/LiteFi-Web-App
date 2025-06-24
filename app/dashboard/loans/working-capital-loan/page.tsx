@@ -70,11 +70,11 @@ export default function TravelLoanPage() {
               height={8}
               className="mr-2"
             />
-            Create New Travel Loan
+            Create a New Working Capital Loan
           </Link>
         </div>
 
-        <h2 className="text-[32px] font-semibold mb-8">Apply for a Travel Loan</h2>
+        <h2 className="text-[32px] font-semibold mb-8">Apply for a Working Capital Loan</h2>
 
         <div className="bg-white p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -124,7 +124,7 @@ export default function TravelLoanPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Travel Documents (Optional)</Label>
+              <Label>Invoice (Optional)</Label>
               {files.length === 0 ? (
                 <div 
                   {...getRootProps()} 
