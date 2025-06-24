@@ -1,24 +1,143 @@
 "use client";
 
-import React, { useState } from "react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import React, { useState, useEffect } from "react";
 import { InactiveLoanCard } from "@/components/loans/InactiveLoanCard";
 import { ActiveLoanCard } from "@/components/loans/ActiveLoanCard";
 import { EmptyLoanCard } from "@/components/loans/EmptyLoanCard";
+import { PendingLoanCard } from "@/components/loans/PendingLoanCard";
+import { LoanCardSkeleton } from "@/components/loans/LoanCardSkeleton";
 import { UpcomingRepaymentsTable } from "@/components/loans/UpcomingRepaymentsTable";
 import { PendingApprovalTable } from "@/components/loans/PendingApprovalTable";
 import { CompletedLoansTable } from "@/components/loans/CompletedLoansTable";
-import { LoanType, ActiveLoan } from "@/types/loans";
+import { EmptyState } from "@/components/loans/EmptyState";
+import { LoanType, ActiveLoan, Loan, LoanProduct } from "@/types/loans";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useLoans } from "@/hooks/useLoans";
 
 export default function LoansPage() {
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("upcoming-repayments");
   const isMobile = useMediaQuery("(max-width: 768px)");
   
-  // Loan types data
-  const loanTypes: LoanType[] = [
+  const { 
+    loanTypesForUI: loanTypes, 
+    activeLoansForUI: activeLoans,
+    upcomingRepayments,
+    pendingApprovals,
+    completedLoans,
+    loans,
+    isLoading,
+    fetchLoans,
+    fetchLoanProducts
+  } = useLoans();
+  
+  // Load initial data
+  useEffect(() => {
+    fetchLoanProducts();
+    fetchLoans();
+  }, []);
+  
+  // Get loan status by loan type
+  const getLoanStatus = (loanTitle: string): { isActive: boolean; isPending: boolean; status: string; loanId: string } => {
+    // Find the loan by title
+    if (loans && loans.length > 0) {
+      const matchingLoan = loans.find(loan => {
+        const loanType = loan.product?.type;
+        return loanType === loanTitle.toUpperCase().replace(' ', '_');
+      });
+      
+      if (matchingLoan) {
+        return {
+          isActive: matchingLoan.status === 'ACTIVE',
+          isPending: matchingLoan.status === 'PENDING' || matchingLoan.status === 'APPROVED', 
+          status: matchingLoan.status,
+          loanId: matchingLoan.id
+        };
+      }
+    }
+    
+    return { isActive: false, isPending: false, status: '', loanId: '' };
+  };
+  
+  // Find active/pending loan data
+  const getLoanData = (loanTitle: string): { data: any; status: string; loanId: string; nextRepaymentDate?: string } | undefined => {
+    // Find the loan from API data
+    if (loans && loans.length > 0) {
+      const matchingLoan = loans.find(loan => {
+        const loanType = loan.product?.type;
+        return loanType === loanTitle.toUpperCase().replace(' ', '_');
+      });
+      
+      if (matchingLoan) {
+        // Get next repayment date if available
+        let nextRepaymentDate: string | undefined;
+        if (matchingLoan.repayments && matchingLoan.repayments.length > 0) {
+          const pendingRepayments = matchingLoan.repayments
+            .filter(rep => rep.status === 'PENDING')
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+            
+          if (pendingRepayments.length > 0) {
+            nextRepaymentDate = pendingRepayments[0].dueDate;
+          }
+        }
+        
+        // Format data to match the expected interface for ActiveLoan
+        if (matchingLoan.status === 'ACTIVE') {
+          const loanAmount = matchingLoan.amount;
+          const formattedAmount = new Intl.NumberFormat('en-NG', {
+            style: 'currency',
+            currency: 'NGN',
+            minimumFractionDigits: 0
+          }).format(loanAmount);
+          
+          // Calculate monthly payment if duration is available
+          const monthlyPayment = matchingLoan.duration 
+            ? loanAmount / matchingLoan.duration 
+            : 0;
+          
+          const formattedMonthlyPayment = new Intl.NumberFormat('en-NG', {
+            style: 'currency',
+            currency: 'NGN',
+            minimumFractionDigits: 0
+          }).format(monthlyPayment);
+          
+          return {
+            data: {
+              type: loanTitle,
+              dueDate: matchingLoan.dueDate || 'N/A',
+              dueAmount: formattedMonthlyPayment,
+              totalAmount: formattedAmount,
+              route: 'repay'
+            },
+            status: matchingLoan.status,
+            loanId: matchingLoan.id,
+            nextRepaymentDate
+          };
+        } else if (matchingLoan.status === 'PENDING' || matchingLoan.status === 'APPROVED') {
+          const loanAmount = matchingLoan.amount;
+          const formattedAmount = new Intl.NumberFormat('en-NG', {
+            style: 'currency',
+            currency: 'NGN',
+            minimumFractionDigits: 0
+          }).format(loanAmount);
+          
+          return {
+            data: {
+              amount: formattedAmount,
+              submittedDate: new Date(matchingLoan.createdAt).toLocaleDateString()
+            },
+            status: matchingLoan.status,
+            loanId: matchingLoan.id
+          };
+        }
+      }
+    }
+    
+    return undefined;
+  };
+
+  // Use data directly from the useLoans hook for all components
+  // Fallback loan types in case the API doesn't return any
+  const fallbackLoanTypes: LoanType[] = [
     {
       title: "Salary Loan",
       amount: "10 million",
@@ -44,136 +163,9 @@ export default function LoansPage() {
       route: "travel-loan"
     }
   ];
-
-  // Active loans data (for demo mode)
-  const activeLoans: ActiveLoan[] = [
-    {
-      type: "Salary Loan",
-      dueDate: "Apr 30, 2025",
-      dueAmount: "₦ 150,000",
-      totalAmount: "₦ 1.12M",
-      route: "salary-loan"
-    }
-  ];
-
-  // Check if a loan is active in demo mode
-  const isLoanActive = (loanTitle: string): boolean => {
-    if (!isDemoMode) return false;
-    return activeLoans.some(loan => loan.type === loanTitle);
-  };
-
-  // Find active loan data
-  const getActiveLoanData = (loanTitle: string): ActiveLoan | undefined => {
-    return activeLoans.find(loan => loan.type === loanTitle);
-  };
-
-  // Sample loan repayment data for upcoming repayments
-  const upcomingRepaymentsData = [
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Salary Loan",
-      outstandingBalance: "₦ 90,000",
-      dueDate: "15-02-2025",
-      amountDue: "₦ 40,000",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Auto Loan",
-      outstandingBalance: "₦ 150,000",
-      dueDate: "15-02-2025",
-      amountDue: "₦ 100,000",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Working Capital",
-      outstandingBalance: "₦ 150,000",
-      dueDate: "15-02-2025",
-      amountDue: "₦ 20,000",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Tavel Loan",
-      outstandingBalance: "₦ 150,000",
-      dueDate: "15-02-2025",
-      amountDue: "₦ 40,000",
-    },
-  ];
-
-  // Sample loan repayment data for pending approval
-  const pendingApprovalData = [
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Salary Loan",
-      amount: "₦ 90,000",
-      submittedDate: "15-02-2025",
-      status: "Application in review",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Auto Loan",
-      amount: "₦ 150,000",
-      submittedDate: "15-02-2025",
-      status: "Pending Disbursement",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Working Capital",
-      amount: "₦ 150,000",
-      submittedDate: "15-02-2025",
-      status: "Application in review",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Tavel Loan",
-      amount: "₦ 150,000",
-      submittedDate: "15-02-2025",
-      status: "Pending Disbursement",
-    },
-  ];
-
-  // Sample loan repayment data for completed
-  const completedData = [
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Salary Loan",
-      amount: "₦ 90,000",
-      closedDate: "15-02-2025",
-      status: "Fully Paid",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Auto Loan",
-      amount: "₦ 150,000",
-      closedDate: "15-02-2025",
-      status: "Rejected",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Working Capital",
-      amount: "₦ 150,000",
-      closedDate: "15-02-2025",
-      status: "Fully Paid",
-    },
-    {
-      applicationId: "#QY737HK",
-      loanId: "#DW98A",
-      type: "Tavel Loan",
-      amount: "₦ 150,000",
-      closedDate: "15-02-2025",
-      status: "Fully Paid",
-    },
-  ];
+  
+  // Use fallback loan types if API returns empty array
+  const displayLoanTypes = loanTypes && loanTypes.length > 0 ? loanTypes : fallbackLoanTypes;
 
   return (
     <div>
@@ -182,83 +174,92 @@ export default function LoansPage() {
           <h1 className="text-2xl font-bold mb-2">My Loans</h1>
           <p className="text-muted-foreground">Manage your loans from this page</p>
         </div>
-        
-        {/* Demo Toggle */}
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="demo-mode" className="text-sm text-gray-500">
-            Demo Mode
-          </Label>
-          <Switch
-            id="demo-mode"
-            checked={isDemoMode}
-            onCheckedChange={setIsDemoMode}
-          />
-        </div>
       </div>
 
-      {/* Only show loan cards grid when in demo mode */}
-      {isDemoMode && (
+      {/* Loan cards grid - Show for both demo mode and real mode */}
+      {!isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {loanTypes.map((loan) => {
-            const isActive = isLoanActive(loan.title);
-            const activeLoanData = getActiveLoanData(loan.title);
+            // Check if this loan type has an active or pending instance
+            const status = getLoanStatus(loan.title);
+            const loanData = getLoanData(loan.title);
             
-            return isActive && activeLoanData ? (
-              <ActiveLoanCard key={loan.title} loan={loan} activeLoanData={activeLoanData} />
-            ) : (
-              <EmptyLoanCard key={loan.title} loan={loan} />
-            );
+            if (isLoading) {
+              return <LoanCardSkeleton key={loan.title} />;
+            }
+            
+            // If there's an active loan of this type
+            if (status.isActive && loanData && loanData.status === 'ACTIVE') {
+              return (
+                <ActiveLoanCard 
+                  key={loan.title} 
+                  loan={loan} 
+                  activeLoanData={loanData.data} 
+                  loanId={loanData.loanId}
+                  nextRepaymentDate={loanData.nextRepaymentDate}
+                />
+              );
+            } 
+            // If there's a pending loan of this type
+            else if (status.isPending && loanData) {
+              return (
+                <PendingLoanCard 
+                  key={loan.title} 
+                  loan={loan}
+                  status={loanData.status}
+                  submittedDate={loanData.data.submittedDate}
+                  amount={loanData.data.amount}
+                  loanId={loanData.loanId}
+                />
+              );
+            } 
+            // If no loan of this type exists
+            else {
+              return <EmptyLoanCard key={loan.title} loan={loan} isLoading={isLoading} />;
+            }
           })}
         </div>
+      ) : (
+        // Skeleton loaders while loading
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {[1, 2, 3, 4].map((i) => (
+            <LoanCardSkeleton key={i} />
+          ))}
+        </div>
       )}
-
-      {/* Display loan types when not in demo mode */}
-      {!isDemoMode && (
+      
+      {/* Empty state - Show when no loans are active */}
+      {!isLoading && loans.length === 0 && (
         <>
-          {/* On mobile, display loan types outside the container */}
-          {isMobile && (
-            <>
-              <div className="bg-white p-8 mb-6">
-                <div className="text-center">
-                  <h2 className="text-xl font-medium mb-2">You do not have any active loan</h2>
-                  <p className="text-gray-500">You're all set! No active loans at the moment. Ready to explore new financing options?</p>
+          {/* Text header for both mobile and desktop */}
+          <div className="bg-white text-center p-8 mb-6">
+            <h2 className="text-xl font-medium mb-2">You do not have any active loan</h2>
+            <p className="text-gray-500">You're all set! No active loans at the moment. Ready to explore new financing options?</p>
+          </div>
+          
+          {/* Loan cards - different layouts for mobile and desktop */}
+          {isMobile ? (
+            <div className="space-y-4">
+              {displayLoanTypes.map((loan) => (
+                <div key={loan.title} className="h-full">
+                  <InactiveLoanCard loan={loan} />
                 </div>
-              </div>
-              
-              <div className="space-y-4">
-                {loanTypes.map((loan) => (
-                  <div key={loan.title} className="h-full">
-                    <InactiveLoanCard loan={loan} />
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Medium and desktop view - Keep everything in one container */}
-          {!isMobile && (
-            <div className="bg-white p-8 mt-6">
-              <div className="text-center mb-8">
-                <h2 className="text-xl font-medium mb-2">You do not have any active loan</h2>
-                <p className="text-gray-500">You're all set! No active loans at the moment. Ready to explore new financing options?</p>
-              </div>
-
-              <div className="bg-gray-50 p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {loanTypes.map((loan) => (
-                    <div key={loan.title} className="h-full">
-                      <InactiveLoanCard loan={loan} />
-                    </div>
-                  ))}
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {displayLoanTypes.map((loan) => (
+                <div key={loan.title} className="h-full">
+                  <InactiveLoanCard loan={loan} />
                 </div>
-              </div>
+              ))}
             </div>
           )}
         </>
       )}
 
-      {/* Loans Repayment Table Section - Only show when in demo mode */}
-      {isDemoMode && (
+      {/* Loans Repayment Table Section - Show only when there are active loans */}
+      {!isLoading && loans.length > 0 && (
         <div className="rounded-none shadow-none border-4 border-white overflow-hidden mt-6">
           {/* Tabs for loan repayment sections */}
           <div className="border-b overflow-x-auto scrollbar-hide bg-white">
@@ -271,7 +272,7 @@ export default function LoansPage() {
                 }`}
                 onClick={() => setActiveTab("upcoming-repayments")}
               >
-                Up coming Repayments
+                Upcoming Repayments
               </button>
               <button
                 className={`py-3 px-6 text-sm whitespace-nowrap ${
@@ -296,23 +297,91 @@ export default function LoansPage() {
             </div>
           </div>
 
-          {/* Table Content based on active tab */}
-          <div className="bg-white p-0">
-            <div className="overflow-x-auto">
-              {activeTab === "upcoming-repayments" && (
-                <UpcomingRepaymentsTable data={upcomingRepaymentsData} />
-              )}
+        {/* Table Content based on active tab */}
+        <div className="bg-white p-0">
+          <div className="overflow-x-auto">
+            {activeTab === "upcoming-repayments" && (
+              isLoading ? (
+                <div className="py-8">
+                  {/* Skeleton loader for table */}
+                  <div className="animate-pulse mx-6">
+                    <div className="h-6 bg-gray-200 rounded mb-4 w-1/4"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-full"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-full"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                </div>
+              ) : upcomingRepayments.length > 0 ? (
+                <UpcomingRepaymentsTable data={upcomingRepayments} />
+              ) : (
+                <div className="py-8 px-6">
+                  <EmptyState 
+                    type="loan"
+                    title="No upcoming repayments" 
+                    message="You don't have any upcoming loan repayments at the moment."
+                    loanTypes={loanTypes}
+                    showLoanTypes={false}
+                  />
+                </div>
+              )
+            )}
 
-              {activeTab === "pending-approval" && (
-                <PendingApprovalTable data={pendingApprovalData} />
-              )}
+            {activeTab === "pending-approval" && (
+              isLoading ? (
+                <div className="py-8">
+                  {/* Skeleton loader for table */}
+                  <div className="animate-pulse mx-6">
+                    <div className="h-6 bg-gray-200 rounded mb-4 w-1/4"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-full"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-full"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                </div>
+              ) : pendingApprovals.length > 0 ? (
+                <PendingApprovalTable data={pendingApprovals} />
+              ) : (
+                <div className="py-8 px-6">
+                  <EmptyState 
+                    type="loan"
+                    title="No pending loan applications" 
+                    message="You don't have any loan applications waiting for approval."
+                    buttonText="Apply for a Loan"
+                    buttonLink="/dashboard/loans"
+                    loanTypes={loanTypes}
+                    showLoanTypes={false}
+                  />
+                </div>
+              )
+            )}
 
-              {activeTab === "completed" && (
-                <CompletedLoansTable data={completedData} />
-              )}
-            </div>
+            {activeTab === "completed" && (
+              isLoading ? (
+                <div className="py-8">
+                  {/* Skeleton loader for table */}
+                  <div className="animate-pulse mx-6">
+                    <div className="h-6 bg-gray-200 rounded mb-4 w-1/4"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-full"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-full"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                </div>
+              ) : completedLoans.length > 0 ? (
+                <CompletedLoansTable data={completedLoans} isLoading={isLoading} />
+              ) : (
+                <div className="py-8 px-6">
+                  <EmptyState 
+                    type="loan"
+                    title="No completed loans" 
+                    message="You don't have any fully paid or rejected loans yet."
+                    loanTypes={loanTypes}
+                    showLoanTypes={false}
+                  />
+                </div>
+              )
+            )}
           </div>
         </div>
+      </div>
       )}
     </div>
   );

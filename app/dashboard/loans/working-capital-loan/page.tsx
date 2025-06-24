@@ -23,15 +23,93 @@ interface FileWithPreview extends File {
   preview?: string;
 }
 
-export default function TravelLoanPage() {
+export default function WorkingCapitalLoanPage() {
   const [amount, setAmount] = useState("");
   const [months, setMonths] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [businessType, setBusinessType] = useState("");
+  const [registrationNumber, setRegistrationNumber] = useState("");
+  const [monthlyRevenue, setMonthlyRevenue] = useState("");
   const [files, setFiles] = useState<FileWithPreview[]>([]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ amount, months, purpose, files });
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Validate required fields
+      if (!amount || !months || !purpose || !businessName || !businessType || !registrationNumber || !monthlyRevenue) {
+        setError('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Prepare loan application data
+      const amountValue = Number(amount.replace(/[^0-9]/g, ""));
+      const monthsValue = Number(months);
+      const monthlyRevenueValue = Number(monthlyRevenue.replace(/[^0-9]/g, ""));
+      
+      // First fetch available loan products to get the correct product ID
+      const { loanApi } = await import('@/lib/loanApi');
+      const productsResponse = await loanApi.getLoanProducts();
+      
+      if (!productsResponse.success) {
+        setError('Failed to fetch loan products. Please try again later.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Find the first active WORKING_CAPITAL type product
+      const workingCapitalProduct = productsResponse.data?.find(
+        (product: { type: string; status: string }) => product.type === 'WORKING_CAPITAL' && product.status === 'ACTIVE'
+      );
+      
+      if (!workingCapitalProduct) {
+        setError('No available working capital loan products found. Please try again later.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Create document IDs array from uploaded files 
+      // In a real implementation, you would upload these files to the server first
+      // and get document IDs back
+      const documentIds = files.map((_, index) => `doc_${index}`);
+      
+      const loanData = {
+        productId: workingCapitalProduct.id,
+        amount: amountValue,
+        duration: monthsValue,
+        purpose: purpose,
+        businessName: businessName,
+        businessType: businessType,
+        registrationNumber: registrationNumber,
+        monthlyRevenue: monthlyRevenueValue,
+        documentIds: documentIds
+      };
+      
+      // Submit loan application
+      const response = await loanApi.createWorkingCapitalLoan(loanData);
+      
+      if (response.success) {
+        setSuccess(true);
+        // Redirect to loan details or confirmation page
+        setTimeout(() => {
+          window.location.href = '/dashboard/loans';
+        }, 2000);
+      } else {
+        setError(response.message || 'Failed to submit loan application');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Update the drop handler to add preview URLs
@@ -77,120 +155,186 @@ export default function TravelLoanPage() {
         <h2 className="text-[32px] font-semibold mb-8">Apply for a Working Capital Loan</h2>
 
         <div className="bg-white p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount you want to borrow</Label>
-                <Input
-                  id="amount"
-                  type="text"
-                  placeholder="Enter amount in naira (up to ₦100,000,000)"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="h-12 rounded-none"
-                />
+          {success ? (
+            <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded mb-6">
+              <h3 className="font-medium">Loan Application Submitted!</h3>
+              <p>Your working capital loan application has been successfully submitted. You will be redirected to the loans page.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded">
+                  <h3 className="font-medium">Error</h3>
+                  <p>{error}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount you want to borrow *</Label>
+                  <Input
+                    id="amount"
+                    type="text"
+                    placeholder="Enter amount in naira (up to ₦100,000,000)"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="months">How many months *</Label>
+                  <Select value={months} onValueChange={setMonths} required>
+                    <SelectTrigger className="h-12 rounded-none">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 months</SelectItem>
+                      <SelectItem value="6">6 months</SelectItem>
+                      <SelectItem value="12">12 months</SelectItem>
+                      <SelectItem value="24">24 months</SelectItem>
+                      <SelectItem value="36">36 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="months">How many months</Label>
-                <Select value={months} onValueChange={setMonths}>
+                <Label htmlFor="purpose">Loan purpose *</Label>
+                <Select value={purpose} onValueChange={setPurpose} required>
                   <SelectTrigger className="h-12 rounded-none">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="3">3 months</SelectItem>
-                    <SelectItem value="6">6 months</SelectItem>
-                    <SelectItem value="12">12 months</SelectItem>
-                    <SelectItem value="24">24 months</SelectItem>
+                    <SelectItem value="inventory">Inventory Purchase</SelectItem>
+                    <SelectItem value="expansion">Business Expansion</SelectItem>
+                    <SelectItem value="equipment">Equipment Purchase</SelectItem>
+                    <SelectItem value="cashFlow">Cash Flow Management</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="businessName">Business Name *</Label>
+                  <Input
+                    id="businessName"
+                    type="text"
+                    placeholder="Enter your business name"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="businessType">Business Type *</Label>
+                  <Select value={businessType} onValueChange={setBusinessType} required>
+                    <SelectTrigger className="h-12 rounded-none">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="LLC">Limited Liability Company (LLC)</SelectItem>
+                      <SelectItem value="SOLE_PROPRIETORSHIP">Sole Proprietorship</SelectItem>
+                      <SelectItem value="PARTNERSHIP">Partnership</SelectItem>
+                      <SelectItem value="CORPORATION">Corporation</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="registrationNumber">Registration Number *</Label>
+                  <Input
+                    id="registrationNumber"
+                    type="text"
+                    placeholder="Enter business registration number"
+                    value={registrationNumber}
+                    onChange={(e) => setRegistrationNumber(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyRevenue">Monthly Revenue *</Label>
+                  <Input
+                    id="monthlyRevenue"
+                    type="text"
+                    placeholder="Enter your monthly revenue"
+                    value={monthlyRevenue}
+                    onChange={(e) => setMonthlyRevenue(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="purpose">Loan purpose</Label>
-              <Select value={purpose} onValueChange={setPurpose}>
-                <SelectTrigger className="h-12 rounded-none">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vacation">Vacation</SelectItem>
-                  <SelectItem value="business">Business Trip</SelectItem>
-                  <SelectItem value="education">Education</SelectItem>
-                  <SelectItem value="medical">Medical Trip</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Invoice (Optional)</Label>
-              {files.length === 0 ? (
-                <div 
-                  {...getRootProps()} 
-                  className={`cursor-pointer transition-all duration-200 p-8 text-center border-2 border-dashed 
-                    ${isDragActive 
-                      ? 'border-gray-400 bg-gray-50' 
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                    }`}
-                >
+              <div className="mt-6">
+                <h3 className="text-base font-medium mb-4">Required Documents *</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Please upload the following documents to process your loan application. We need your business registration
+                  documents, financial statements, and bank statements.
+                </p>
+                
+                <div {...getRootProps()} className={`border-2 border-dashed p-6 text-center cursor-pointer ${
+                  isDragActive ? 'border-gray-400 bg-gray-50' : 'border-gray-200 hover:border-gray-300'
+                }`}>
                   <input {...getInputProps()} />
                   <div className="flex flex-col items-center gap-2">
-                    <HiOutlineUpload className="w-6 h-6 text-gray-400" />
-                    <div className="text-sm text-gray-600">
-                      {isDragActive ? 'Drop files here' : 'Upload'}
+                    <HiOutlineUpload className="h-8 w-8 text-gray-400" />
+                    <div className="text-base text-gray-600 font-medium">
+                      {isDragActive ? 'Drop files here' : 'Upload business documents'}
                     </div>
+                    <p className="text-sm text-gray-500">
+                      Drag & drop files or click to browse
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <div className="mt-4 space-y-2">
-                  {files.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-white p-3 border">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-red-600 text-xs">DOC</span>
+                
+                {files.length > 0 && (
+                  <div className="mt-4 space-y-3">
+                    <h4 className="text-sm font-medium text-gray-700">Uploaded Documents</h4>
+                    {files.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-white p-3 border">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-red-600 text-xs">DOC</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{file.name}</p>
-                          <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(file)}
+                          className="flex-shrink-0 ml-4 w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 p-0 flex items-center justify-center"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(file)}
-                        className="flex-shrink-0 ml-4 w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 p-0 flex items-center justify-center"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-
-                  {/* Add more files option */}
-                  <div 
-                    {...getRootProps()} 
-                    className="cursor-pointer transition-all duration-200 p-4 text-center border-2 border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 mt-2"
-                  >
-                    <input {...getInputProps()} />
-                    <div className="flex flex-col items-center gap-1">
-                      <HiOutlineUpload className="w-5 h-5 text-gray-400" />
-                      <div className="text-xs text-gray-600">Add more files</div>
-                    </div>
+                    ))}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div className="pt-4">
-              <Button 
-                type="submit" 
-                className="bg-red-600 hover:bg-red-700 h-12 px-16 rounded-none"
-              >
-                Submit Application
-              </Button>
-            </div>
-          </form>
+              <div className="pt-4">
+                <Button 
+                  type="submit" 
+                  className="bg-red-600 hover:bg-red-700 h-12 px-16 rounded-none"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Processing...' : 'Submit Application'}
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

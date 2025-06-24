@@ -25,6 +25,10 @@ export default function SalaryLoanPage() {
   const [amount, setAmount] = React.useState("");
   const [months, setMonths] = React.useState("");
   const [purpose, setPurpose] = React.useState("");
+  const [employerName, setEmployerName] = React.useState("");
+  const [monthlySalary, setMonthlySalary] = React.useState("");
+  const [salaryDay, setSalaryDay] = React.useState("");
+  const [workEmail, setWorkEmail] = React.useState("");
   const [make, setMake] = React.useState("");
   const [model, setModel] = React.useState("");
   const [modelOfVehicle, setModelOfVehicle] = React.useState("");
@@ -44,6 +48,8 @@ export default function SalaryLoanPage() {
     plateNumber?: FileWithPreview;
     ownership?: FileWithPreview;
     customs?: FileWithPreview;
+    identificationDocument?: FileWithPreview;
+    bankStatement?: FileWithPreview;
   }>({});
 
   const showCollateral = React.useMemo(() => {
@@ -51,22 +57,84 @@ export default function SalaryLoanPage() {
     return numericAmount >= 2000000;
   }, [amount]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState(false);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({
-      amount,
-      months,
-      purpose,
-      ...(showCollateral && {
-        make,
-        model,
-        modelOfVehicle,
-        mileage,
-        plateNumber,
-        carImages,
-        documents,
-      }),
-    });
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Validate required fields
+      if (!amount || !months || !purpose || !employerName || !monthlySalary || !salaryDay || !workEmail) {
+        setError('Please fill in all required fields');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Prepare loan application data
+      const amountValue = Number(amount.replace(/[^0-9]/g, ""));
+      const monthsValue = Number(months);
+      const monthlySalaryValue = Number(monthlySalary.replace(/[^0-9]/g, ""));
+      const salaryDayValue = Number(salaryDay);
+      
+      // First fetch available loan products to get the correct product ID
+      const { loanApi } = await import('@/lib/loanApi');
+      const productsResponse = await loanApi.getLoanProducts();
+      
+      if (!productsResponse.success) {
+        setError('Failed to fetch loan products. Please try again later.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Find the first active SALARY type product
+      const salaryProduct = productsResponse.data?.find(
+        (product: { type: string; status: string }) => product.type === 'SALARY' && product.status === 'ACTIVE'
+      );
+      
+      if (!salaryProduct) {
+        setError('No available salary loan products found. Please try again later.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Prepare document IDs (this would be populated after document upload)
+      const documentIds = [];
+      if (documents.identificationDocument) documentIds.push('doc_id');
+      if (documents.bankStatement) documentIds.push('doc_bank');
+      
+      const loanData = {
+        productId: salaryProduct.id,
+        amount: amountValue,
+        duration: monthsValue,
+        purpose: purpose,
+        employerName: employerName,
+        monthlySalary: monthlySalaryValue,
+        salaryDay: salaryDayValue,
+        workEmail: workEmail,
+        documentIds: documentIds
+      };
+      
+      // Submit loan application
+      const response = await loanApi.createSalaryLoan(loanData);
+      
+      if (response.success) {
+        setSuccess(true);
+        // Redirect to loan details or confirmation page
+        setTimeout(() => {
+          window.location.href = '/dashboard/loans';
+        }, 2000);
+      } else {
+        setError(response.message || 'Failed to submit loan application');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -91,50 +159,122 @@ export default function SalaryLoanPage() {
         <h2 className="text-[32px] font-semibold mb-8">Apply for a salary loan</h2>
 
         <div className="bg-white p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount you want to borrow</Label>
-                <Input
-                  id="amount"
-                  type="text"
-                  placeholder="Enter amount in naira (up to ₦10,000,000)"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="h-12 rounded-none"
-                />
+          {success ? (
+            <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded mb-6">
+              <h3 className="font-medium">Loan Application Submitted!</h3>
+              <p>Your loan application has been successfully submitted. You will be redirected to the loans page.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded">
+                  <h3 className="font-medium">Error</h3>
+                  <p>{error}</p>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="amount">Amount you want to borrow *</Label>
+                  <Input
+                    id="amount"
+                    type="text"
+                    placeholder="Enter amount in naira (up to ₦10,000,000)"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="months">How many months *</Label>
+                  <Select value={months} onValueChange={setMonths} required>
+                    <SelectTrigger className="h-12 rounded-none">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3 months</SelectItem>
+                      <SelectItem value="6">6 months</SelectItem>
+                      <SelectItem value="12">12 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="months">How many months</Label>
-                <Select value={months} onValueChange={setMonths}>
+                <Label htmlFor="purpose">Loan purpose *</Label>
+                <Select value={purpose} onValueChange={setPurpose} required>
                   <SelectTrigger className="h-12 rounded-none">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="3">3 months</SelectItem>
-                    <SelectItem value="6">6 months</SelectItem>
-                    <SelectItem value="12">12 months</SelectItem>
+                    <SelectItem value="education">Education</SelectItem>
+                    <SelectItem value="medical">Medical Expenses</SelectItem>
+                    <SelectItem value="business">Business</SelectItem>
+                    <SelectItem value="personal">Personal Use</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="employerName">Employer Name *</Label>
+                  <Input
+                    id="employerName"
+                    type="text"
+                    placeholder="Enter your employer's name"
+                    value={employerName}
+                    onChange={(e) => setEmployerName(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="purpose">Loan purpose</Label>
-              <Select value={purpose} onValueChange={setPurpose}>
-                <SelectTrigger className="h-12 rounded-none">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="education">Education</SelectItem>
-                  <SelectItem value="medical">Medical Expenses</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                  <SelectItem value="personal">Personal Use</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="workEmail">Work Email *</Label>
+                  <Input
+                    id="workEmail"
+                    type="email"
+                    placeholder="Enter your work email"
+                    value={workEmail}
+                    onChange={(e) => setWorkEmail(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="monthlySalary">Monthly Salary *</Label>
+                  <Input
+                    id="monthlySalary"
+                    type="text"
+                    placeholder="Enter your monthly salary"
+                    value={monthlySalary}
+                    onChange={(e) => setMonthlySalary(e.target.value)}
+                    className="h-12 rounded-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="salaryDay">Salary Day *</Label>
+                  <Select value={salaryDay} onValueChange={setSalaryDay} required>
+                    <SelectTrigger className="h-12 rounded-none">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                        <SelectItem key={day} value={day.toString()}>
+                          {day}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
             {showCollateral && (
               <>
@@ -283,15 +423,38 @@ export default function SalaryLoanPage() {
               </>
             )}
 
+            <div>
+              <h3 className="text-base font-medium mb-4">Required Documents</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Please upload the following documents to process your loan application.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <DocumentUploadBox
+                  title="Identification Document (ID card, passport, or driver's license) *"
+                  file={documents.identificationDocument}
+                  onDrop={(files) => setDocuments(prev => ({ ...prev, identificationDocument: files[0] }))}
+                  onRemove={() => setDocuments(prev => ({ ...prev, identificationDocument: undefined }))}
+                />
+                <DocumentUploadBox
+                  title="Bank Statement (last 3 months) *"
+                  file={documents.bankStatement}
+                  onDrop={(files) => setDocuments(prev => ({ ...prev, bankStatement: files[0] }))}
+                  onRemove={() => setDocuments(prev => ({ ...prev, bankStatement: undefined }))}
+                />
+              </div>
+            </div>
+
             <div className="pt-4">
               <Button 
                 type="submit" 
                 className="bg-red-600 hover:bg-red-700 h-12 px-16 rounded-none"
+                disabled={isSubmitting}
               >
-                Submit Application
+                {isSubmitting ? 'Processing...' : 'Submit Application'}
               </Button>
             </div>
           </form>
+          )}
         </div>
       </div>
     </div>

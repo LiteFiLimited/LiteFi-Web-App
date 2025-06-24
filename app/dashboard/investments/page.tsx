@@ -1,8 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -16,15 +14,25 @@ import {
 import { ActiveInvestmentsTable } from "@/components/investments/ActiveInvestmentsTable";
 import { PendingReviewTable } from "@/components/investments/PendingReviewTable";
 import { ClosedInvestmentsTable } from "@/components/investments/ClosedInvestmentsTable";
-import { InvestmentType, Investment } from "@/types/investments";
+import { InvestmentType } from "@/types/investments";
 import CreateNewInvestmentModal from "@/app/components/CreateNewInvestmentModal";
+import { useInvestments } from "@/hooks/useInvestments";
+import { formatCurrency } from "@/lib/utils";
+import { DashboardCardSkeleton } from "@/components/dashboard/DashboardCardSkeleton";
 
 export default function InvestmentsPage() {
-  const [isDemoMode, setIsDemoMode] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState("usd");
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [activeTab, setActiveTab] = useState<string>("active-investments");
   const [showCreateInvestmentModal, setShowCreateInvestmentModal] = useState(false);
   const router = useRouter();
+  
+  const { 
+    activeInvestments, 
+    pendingInvestments, 
+    closedInvestments, 
+    isLoading,
+    hasInvestments
+  } = useInvestments();
   
   // Investment types data
   const investmentTypes: InvestmentType[] = [
@@ -44,93 +52,68 @@ export default function InvestmentsPage() {
 
   // Currency options for the dropdown
   const currencyOptions = [
-    { value: "usd", label: "USD" },
-    { value: "naira", label: "Naira" },
-    { value: "pound", label: "Pound" },
-    { value: "euro", label: "Euro" }
+    { value: "USD", label: "USD" },
+    { value: "NGN", label: "Naira" },
+    { value: "GBP", label: "Pound" },
+    { value: "EUR", label: "Euro" }
   ];
-
-  // Sample data for Active Investments
-  const activeInvestmentsData = [
-    {
-      principalAmount: "₦ 2,500,000",
-      currency: "NGN",
-      tenure: "12 months",
-      startDate: "15-02-2025",
-      maturityDate: "15-02-2026",
-      totalPayouts: "₦ 3,250,000"
-    },
-    {
-      principalAmount: "$ 5,000",
-      currency: "USD",
-      tenure: "24 months",
-      startDate: "10-01-2025",
-      maturityDate: "10-01-2027",
-      totalPayouts: "$ 7,000"
-    }
-  ];
-
-  // Sample data for Pending Review
-  const pendingReviewData = [
-    {
-      principalAmount: "₦ 1,750,000",
-      currency: "NGN",
-      tenure: "6 months",
-      startDate: "Pending",
-      maturityDate: "Pending",
-      totalPayouts: "₦ 2,100,000",
-      status: "Under Review"
-    },
-    {
-      principalAmount: "€ 3,000",
-      currency: "EUR",
-      tenure: "12 months",
-      startDate: "Pending",
-      maturityDate: "Pending",
-      totalPayouts: "€ 3,900",
-      status: "Processing"
-    }
-  ];
-
-  // Sample data for Closed Investments
-  const closedInvestmentsData = [
-    {
-      principalAmount: "₦ 1,000,000",
-      currency: "NGN",
-      tenure: "24 months",
-      startDate: "15-02-2023",
-      maturityDate: "15-02-2025",
-      totalPayouts: "₦ 1,850,000",
-      canWithdraw: true
-    },
-    {
-      principalAmount: "$ 5,000",
-      currency: "USD",
-      tenure: "24 months",
-      startDate: "15-02-2023",
-      maturityDate: "15-02-2025",
-      totalPayouts: "$ 7,000",
-      canWithdraw: true
-    },
-    {
-      principalAmount: "€ 11,000",
-      currency: "CAD",
-      tenure: "12 months",
-      startDate: "15-02-2023",
-      maturityDate: "15-02-2024",
-      totalPayouts: "€ 17,300",
-      canWithdraw: true
-    },
-    {
-      principalAmount: "£ 25,000",
-      currency: "GBP",
-      tenure: "24 months",
-      startDate: "15-02-2023",
-      maturityDate: "15-02-2025",
-      totalPayouts: "£ 32,000",
-      canWithdraw: false
-    }
-  ];
+  
+  // Calculate total investments by currency
+  const getTotalInvestments = (currency: string) => {
+    const investments = activeInvestments.filter(inv => inv.currency === currency);
+    return investments.reduce((total, inv) => total + inv.amount, 0);
+  };
+  
+  // Calculate total returns by currency
+  const getTotalReturns = (currency: string) => {
+    const investments = activeInvestments.filter(inv => inv.currency === currency);
+    return investments.reduce((total, inv) => {
+      return total + (inv.expectedReturns - inv.amount);
+    }, 0);
+  };
+  
+  // Calculate percentage increase
+  const getPercentageIncrease = (currency: string) => {
+    const total = getTotalInvestments(currency);
+    const returns = getTotalReturns(currency);
+    if (total === 0) return 0;
+    return ((returns / total) * 100).toFixed(1);
+  };
+  
+  // Format table data for active investments
+  const formatActiveInvestmentsData = activeInvestments.map(inv => ({
+    id: inv.id,
+    principalAmount: `${inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency === 'GBP' ? '£' : '€'} ${formatCurrency(inv.amount)}`,
+    currency: inv.currency,
+    tenure: `${inv.tenure} ${inv.tenure === 1 ? 'month' : 'months'}`,
+    startDate: inv.startDate ? new Date(inv.startDate).toLocaleDateString() : 'N/A',
+    maturityDate: inv.maturityDate ? new Date(inv.maturityDate).toLocaleDateString() : 'N/A',
+    totalPayouts: `${inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency === 'GBP' ? '£' : '€'} ${formatCurrency(inv.expectedReturns)}`
+  }));
+  
+  // Format table data for pending investments
+  const formatPendingInvestmentsData = pendingInvestments.map(inv => ({
+    id: inv.id,
+    principalAmount: `${inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency === 'GBP' ? '£' : '€'} ${formatCurrency(inv.amount)}`,
+    currency: inv.currency,
+    tenure: `${inv.tenure} ${inv.tenure === 1 ? 'month' : 'months'}`,
+    startDate: 'Pending',
+    maturityDate: 'Pending',
+    totalPayouts: `${inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency === 'GBP' ? '£' : '€'} ${formatCurrency(inv.expectedReturns)}`,
+    status: 'Under Review'
+  }));
+  
+  // Format table data for closed investments
+  const formatClosedInvestmentsData = closedInvestments.map(inv => ({
+    id: inv.id,
+    principalAmount: `${inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency === 'GBP' ? '£' : '€'} ${formatCurrency(inv.amount)}`,
+    currency: inv.currency,
+    tenure: `${inv.tenure} ${inv.tenure === 1 ? 'month' : 'months'}`,
+    startDate: inv.startDate ? new Date(inv.startDate).toLocaleDateString() : 'N/A',
+    maturityDate: inv.maturityDate ? new Date(inv.maturityDate).toLocaleDateString() : 'N/A',
+    totalPayouts: `${inv.currency === 'NGN' ? '₦' : inv.currency === 'USD' ? '$' : inv.currency === 'GBP' ? '£' : '€'} ${formatCurrency(inv.expectedReturns)}`,
+    canWithdraw: inv.status === 'MATURED'
+  }));
 
   return (
     <div>
@@ -141,50 +124,45 @@ export default function InvestmentsPage() {
         </div>
         
         <div className="flex items-center gap-4">
-          {/* Create Investment Button - Only show when in demo mode */}
-          {isDemoMode && (
-            <Button 
-              onClick={() => setShowCreateInvestmentModal(true)}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 h-10 rounded-none"
-            >
-              Create New Investment
-            </Button>
-          )}
-          
-          {/* Demo Toggle */}
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="demo-mode" className="text-sm text-gray-500">
-              Demo Mode
-            </Label>
-            <Switch
-              id="demo-mode"
-              checked={isDemoMode}
-              onCheckedChange={setIsDemoMode}
-            />
-          </div>
+          {/* Create Investment Button */}
+          <Button 
+            onClick={() => setShowCreateInvestmentModal(true)}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 h-10 rounded-none"
+          >
+            Create New Investment
+          </Button>
         </div>
       </div>
 
-      {/* Investment Summary Cards */}
-      {isDemoMode ? (
+      {isLoading ? (
+        // Loading state for investment cards
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <DashboardCardSkeleton />
+          <DashboardCardSkeleton />
+          <DashboardCardSkeleton />
+        </div>
+      ) : hasInvestments ? (
+        // Investment Summary Cards
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white p-6">
             <span className="text-sm text-gray-500">Total Investment NGN</span>
             <div className="flex items-center justify-between mt-2">
-              <p className="text-2xl font-bold">₦ 1,500,000</p>
-              <div className="flex items-center">
-                <span className="font-bold text-black">+ ₦ 120k</span>
-                <div className="flex items-center ml-2 text-green-600">
-                  <span className="text-sm font-medium">12.6%</span>
-                  <Image 
-                    src="/assets/svgs/increase.svg" 
-                    alt="Increase" 
-                    width={16} 
-                    height={16}
-                    className="ml-1"
-                  />
+              <p className="text-2xl font-bold">₦ {formatCurrency(getTotalInvestments("NGN"))}</p>
+              {getTotalReturns("NGN") > 0 && (
+                <div className="flex items-center">
+                  <span className="font-bold text-black">+ ₦ {formatCurrency(getTotalReturns("NGN"))}</span>
+                  <div className="flex items-center ml-2 text-green-600">
+                    <span className="text-sm font-medium">{getPercentageIncrease("NGN")}%</span>
+                    <Image 
+                      src="/assets/svgs/increase.svg" 
+                      alt="Increase" 
+                      width={16} 
+                      height={16}
+                      className="ml-1"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
           <div className="bg-white p-6">
@@ -198,7 +176,7 @@ export default function InvestmentsPage() {
                   <SelectValue placeholder="USD" />
                 </SelectTrigger>
                 <SelectContent>
-                  {currencyOptions.map((option) => (
+                  {currencyOptions.filter(c => c.value !== "NGN").map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -207,30 +185,36 @@ export default function InvestmentsPage() {
               </Select>
             </div>
             <div className="flex items-center justify-between mt-2">
-              <p className="text-2xl font-bold">$ 5,200</p>
-              <div className="flex items-center">
-                <span className="font-bold text-black">+ $ 200</span>
-                <div className="flex items-center ml-2 text-green-600">
-                  <span className="text-sm font-medium">10.8%</span>
-                  <Image 
-                    src="/assets/svgs/increase.svg" 
-                    alt="Increase" 
-                    width={16} 
-                    height={16}
-                    className="ml-1"
-                  />
+              <p className="text-2xl font-bold">
+                {selectedCurrency === "USD" ? "$" : selectedCurrency === "GBP" ? "£" : "€"} {formatCurrency(getTotalInvestments(selectedCurrency))}
+              </p>
+              {getTotalReturns(selectedCurrency) > 0 && (
+                <div className="flex items-center">
+                  <span className="font-bold text-black">
+                    + {selectedCurrency === "USD" ? "$" : selectedCurrency === "GBP" ? "£" : "€"} {formatCurrency(getTotalReturns(selectedCurrency))}
+                  </span>
+                  <div className="flex items-center ml-2 text-green-600">
+                    <span className="text-sm font-medium">{getPercentageIncrease(selectedCurrency)}%</span>
+                    <Image 
+                      src="/assets/svgs/increase.svg" 
+                      alt="Increase" 
+                      width={16} 
+                      height={16}
+                      className="ml-1"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
           <div className="bg-white p-6">
             <span className="text-sm text-gray-500">Investments Paid out</span>
-            <p className="text-2xl font-bold mt-2">203</p>
+            <p className="text-2xl font-bold mt-2">{closedInvestments.length}</p>
           </div>
         </div>
       ) : null}
 
-      {!isDemoMode ? (
+      {!isLoading && !hasInvestments ? (
         <div className="bg-white p-8">
           {/* Empty state message */}
           <div className="text-center mb-8">
@@ -282,7 +266,7 @@ export default function InvestmentsPage() {
             </div>
           </div>
         </div>
-      ) : (
+      ) : hasInvestments ? (
         <div className="rounded-none shadow-none border-4 border-white overflow-hidden mt-6">
           {/* Tabs for investment sections */}
           <div className="border-b overflow-x-auto scrollbar-hide bg-white">
@@ -295,7 +279,7 @@ export default function InvestmentsPage() {
                 }`}
                 onClick={() => setActiveTab("active-investments")}
               >
-                Active Investments
+                Active Investments ({activeInvestments.length})
               </button>
               <button
                 className={`py-3 px-6 text-sm whitespace-nowrap ${
@@ -305,7 +289,7 @@ export default function InvestmentsPage() {
                 }`}
                 onClick={() => setActiveTab("pending-review")}
               >
-                Pending review
+                Pending review ({pendingInvestments.length})
               </button>
               <button
                 className={`py-3 px-6 text-sm whitespace-nowrap ${
@@ -315,7 +299,7 @@ export default function InvestmentsPage() {
                 }`}
                 onClick={() => setActiveTab("closed-investments")}
               >
-                Closed Investments
+                Closed Investments ({closedInvestments.length})
               </button>
             </div>
           </div>
@@ -324,26 +308,44 @@ export default function InvestmentsPage() {
           <div className="bg-white p-0">
             <div className="overflow-x-auto">
               {activeTab === "active-investments" && (
-                <ActiveInvestmentsTable data={activeInvestmentsData} />
+                activeInvestments.length > 0 ? (
+                  <ActiveInvestmentsTable data={formatActiveInvestmentsData} />
+                ) : (
+                  <div className="text-center py-16">
+                    <p className="text-gray-500">No active investments</p>
+                  </div>
+                )
               )}
 
               {activeTab === "pending-review" && (
-                <PendingReviewTable data={pendingReviewData} />
+                pendingInvestments.length > 0 ? (
+                  <PendingReviewTable data={formatPendingInvestmentsData} />
+                ) : (
+                  <div className="text-center py-16">
+                    <p className="text-gray-500">No pending investments</p>
+                  </div>
+                )
               )}
 
               {activeTab === "closed-investments" && (
-                <ClosedInvestmentsTable data={closedInvestmentsData} />
+                closedInvestments.length > 0 ? (
+                  <ClosedInvestmentsTable data={formatClosedInvestmentsData} />
+                ) : (
+                  <div className="text-center py-16">
+                    <p className="text-gray-500">No closed investments</p>
+                  </div>
+                )
               )}
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Create New Investment Modal */}
       {showCreateInvestmentModal && (
         <CreateNewInvestmentModal 
           investmentTypes={investmentTypes}
-          onClose={() => setShowCreateInvestmentModal(false)}
+          onCloseAction={() => setShowCreateInvestmentModal(false)}
         />
       )}
     </div>
