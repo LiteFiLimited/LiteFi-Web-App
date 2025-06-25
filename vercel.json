@@ -33,5 +33,8 @@
   "framework": null,
   "outputDirectory": "out",
   "trailingSlash": true,
-  "cleanUrls": true
+  "cleanUrls": true,
+  "env": {
+    "NEXT_EXPORT": "true"
+  }
 }
