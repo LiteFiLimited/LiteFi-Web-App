@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { createErrorResponse, createSuccessResponse } from '@/lib/api-config';
 
 // Add this line to make the route compatible with static exports
-export const dynamic = 'force-static';
 
 export async function POST(request: NextRequest) {
   try {

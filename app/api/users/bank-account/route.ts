@@ -3,7 +3,6 @@ import { createErrorResponse, createSuccessResponse } from "@/lib/api-config";
 
 // This is the recommended configuration for static export with API routes
 // It tells Next.js to generate this route statically at build time
-export const dynamic = "force-static";
 // Tell Next.js this route shouldn't have dynamic params
 export const dynamicParams = false;
 // Disable revalidation

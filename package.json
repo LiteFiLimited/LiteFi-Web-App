@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "export": "next build",
-    "vercel-build": "cp next.config.vercel.mjs next.config.mjs && next build && node scripts/cleanup-for-vercel.js && node scripts/create-vercel-output.js"
+    "export": "next build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
