@@ -38,6 +38,30 @@ Remember that in a static export, API routes don't function as true server endpo
 export const dynamic = 'force-static';
 ```
 
+## Middleware in Static Exports
+
+One of the most common issues when deploying a Next.js static export to Vercel is middleware. Next.js middleware is not supported in static exports, but Vercel still tries to load it, causing the error:
+
+```
+500: INTERNAL_SERVER_ERROR
+Code: MIDDLEWARE_INVOCATION_FAILED
+```
+
+We've implemented the following solutions to fix this issue:
+
+1. **Modified the middleware file**:
+   - Added `export const dynamic = 'force-static'` to the middleware file
+   - Added a condition to skip middleware execution in production or when `NEXT_EXPORT` is set to "true"
+
+2. **Created dummy middleware files for Vercel**:
+   - Added `middleware-manifest.json` to the output directory
+   - Created a `server` directory with a dummy `middleware.js` file that does nothing
+
+3. **Added an environment variable**:
+   - Set `NEXT_EXPORT: "true"` in vercel.json to ensure middleware is skipped
+
+These changes ensure that Vercel doesn't try to execute the middleware in the static export, which would cause errors.
+
 ## Limitations
 
 With this setup, there are some limitations:

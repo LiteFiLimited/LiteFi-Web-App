@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// This tells Next.js that this middleware should be included in the static export
+export const dynamic = 'force-static';
+
 // Skip middleware execution during static export build
 // This allows the project to be built with "output: export"
 export function middleware(request: NextRequest) {
   // Skip middleware in production (static export)
-  if (process.env.NODE_ENV === "production") {
+  // This is critical for static exports
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_EXPORT === "true") {
     return NextResponse.next();
   }
+  
+  // Only run middleware in development
   const { pathname } = request.nextUrl;
 
   // Define public routes that don't require authentication
