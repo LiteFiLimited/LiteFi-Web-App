@@ -83,16 +83,24 @@ const axiosInstance = axios.create({
 // Request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
+    const token = localStorage.getItem("accessToken");
+    
     console.log("Request:", {
       method: config.method,
       url: config.url,
-      headers: config.headers,
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      headers: {
+        ...config.headers,
+        Authorization: token ? `Bearer ${token.substring(0, 20)}...` : 'Not set'
+      },
       data: config.data,
     });
 
-    const token = localStorage.getItem("authToken");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn("No authentication token found in localStorage!");
     }
     return config;
   },
@@ -113,6 +121,29 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     console.error("Response error:", error);
+
+    // Handle authentication errors
+    if (error.response?.status === 401) {
+      console.error("Authentication failed - clearing tokens and redirecting to login");
+      
+      // Clear all authentication data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userData');
+        
+        // Clear auth cookies
+        document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Strict';
+        document.cookie = 'refresh-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Strict';
+        
+        // Redirect to login after a short delay to allow cleanup
+        setTimeout(() => {
+          window.location.href = '/auth/login';
+        }, 1000);
+      }
+    }
 
     // Better error handling for connection issues
     if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
