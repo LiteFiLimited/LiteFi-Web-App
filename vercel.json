@@ -29,8 +29,8 @@
       ]
     }
   ],
-  "buildCommand": "npm run build",
-  "framework": "nextjs",
+  "buildCommand": "npm run vercel-build",
+  "framework": null,
   "outputDirectory": "out",
   "trailingSlash": true,
   "cleanUrls": true

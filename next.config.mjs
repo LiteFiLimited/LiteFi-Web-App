@@ -14,7 +14,6 @@ try {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   trailingSlash: true,
-  distDir: 'out',
   skipTrailingSlashRedirect: true,
   eslint: {
     ignoreDuringBuilds: true,
