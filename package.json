@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "export": "next build",
-    "vercel-build": "cp next.config.vercel.mjs next.config.mjs && next build && node scripts/disable-middleware-completely.js && node scripts/prepare-vercel-deploy.js"
+    "vercel-build": "cp next.config.vercel.mjs next.config.mjs && next build && node scripts/cleanup-for-vercel.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

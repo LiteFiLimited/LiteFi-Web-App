@@ -1,87 +1,57 @@
-# Deploying Next.js Static Exports to Vercel
+# Vercel Static Export Guide
 
-This document explains how to deploy a Next.js application with static exports (`output: 'export'`) to Vercel.
+This document outlines the steps taken to enable static export deployment on Vercel for this Next.js application.
 
-## The Problem
+## Background
 
-When using `output: 'export'` in Next.js, the application is built as a static site without server components. However, Vercel's default Next.js deployment expects certain files like `routes-manifest.json` that are not generated in static export mode.
+Next.js static exports (`output: 'export'`) are incompatible with certain features, particularly middleware. When deploying to Vercel, this can cause a `MIDDLEWARE_INVOCATION_FAILED` error.
 
-## The Solution
+## Solution
 
-We've implemented the following changes to make the static export compatible with Vercel:
+We've implemented a solution that completely disables middleware for Vercel deployments while maintaining a clean build process.
 
-1. **Updated `next.config.mjs`**:
-   - Removed `distDir: 'out'` as it conflicts with `output: 'export'`
-   - Kept `output: 'export'` to generate static files
+### Key Components
 
-2. **Updated `vercel.json`**:
-   - Changed `framework` from `"nextjs"` to `null` to tell Vercel not to use its Next.js-specific handling
-   - Set `buildCommand` to `"npm run vercel-build"` to use our custom build script
-   - Kept `outputDirectory: "out"` to specify where the built files are located
+1. **Minimal middleware.ts file**
+   - Contains a placeholder middleware that does nothing
+   - Uses `export const dynamic = 'force-static'` to ensure static compatibility
+   - Has an empty matcher to prevent it from running on any routes
 
-3. **Added a custom build script**:
-   - Created `scripts/prepare-vercel-deploy.js` that generates a minimal `routes-manifest.json` file
-   - Added a `vercel-build` script to package.json that runs the build and then the preparation script
+2. **Vercel-specific Next.js config**
+   - `next.config.vercel.mjs` is used specifically for Vercel deployments
+   - Contains all necessary settings for static export
+   - Sets environment variables to disable middleware
 
-## How It Works
+3. **Cleanup script**
+   - `scripts/cleanup-for-vercel.js` removes all middleware-related files from the build output
+   - Creates minimal placeholder files needed for Vercel compatibility
 
-1. When Vercel runs the build, it executes `npm run vercel-build`
-2. This runs `next build` to generate the static export in the `out` directory
-3. Then it runs `node scripts/prepare-vercel-deploy.js` which creates the missing `routes-manifest.json` file
-4. Vercel serves the static files from the `out` directory
+4. **Minimal vercel.json**
+   - Contains only essential configuration for static export
+   - Avoids complex routing rules that might conflict with static export
 
-## API Routes in Static Exports
+### Build Process
 
-Remember that in a static export, API routes don't function as true server endpoints. They are included in the JavaScript bundle and run on the client side. All API routes must include:
+The build process for Vercel is defined in package.json:
 
-```typescript
-export const dynamic = 'force-static';
+```json
+"vercel-build": "cp next.config.vercel.mjs next.config.mjs && next build && node scripts/cleanup-for-vercel.js"
 ```
 
-## Middleware in Static Exports
+This process:
+1. Uses the Vercel-specific Next.js config
+2. Builds the application
+3. Runs the cleanup script to remove middleware files and create minimal placeholders
 
-One of the most common issues when deploying a Next.js static export to Vercel is middleware. Next.js middleware is not supported in static exports, but Vercel still tries to load it, causing the error:
+## Troubleshooting
 
-```
-500: INTERNAL_SERVER_ERROR
-Code: MIDDLEWARE_INVOCATION_FAILED
-```
+If you encounter the `MIDDLEWARE_INVOCATION_FAILED` error or `Route at index X must define either 'handle' or 'src' property` error:
 
-We've implemented the following solutions to completely disable middleware:
+1. Ensure vercel.json is minimal and doesn't contain complex routing rules
+2. Verify that all middleware files are properly removed from the build output
+3. Check that the cleanup script is running correctly
 
-1. **Replaced the middleware file with a dummy version**:
-   - Completely emptied the middleware.ts file
-   - Added `export const dynamic = 'force-static'` to the middleware file
-   - Set an empty matcher array to prevent middleware from running on any routes
+## References
 
-2. **Created special files for Vercel**:
-   - Added `middleware-manifest.json` with empty configuration
-   - Created a `server` directory with a dummy `middleware.js` file
-   - Added `middleware.js.nft.json` to prevent middleware from loading
-
-3. **Added environment variables**:
-   - Set `NEXT_EXPORT: "true"` in vercel.json
-   - Set `NEXT_DISABLE_MIDDLEWARE: "1"` in vercel.json
-
-4. **Created a special build process for Vercel**:
-   - Created a special `next.config.vercel.mjs` file with middleware disabled
-   - Updated the `vercel-build` script to use this special config file
-   - Added a script to remove middleware files from the build output
-
-These changes ensure that Vercel doesn't try to execute the middleware in the static export, which would cause errors.
-
-## Limitations
-
-With this setup, there are some limitations:
-
-1. No server-side rendering
-2. No API routes (they're included in the bundle but don't function as true server endpoints)
-3. No middleware functionality
-4. No incremental static regeneration
-
-## Benefits
-
-1. Faster page loads (fully static)
-2. Can be deployed to any static hosting provider
-3. Lower hosting costs
-4. Better reliability (no server to go down) 
+- [Next.js Static Export Documentation](https://nextjs.org/docs/app/building-your-application/deploying/static-exports)
+- [Vercel Deployment Documentation](https://vercel.com/docs/deployments/overview) 
