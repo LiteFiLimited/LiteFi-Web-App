@@ -47,18 +47,26 @@ One of the most common issues when deploying a Next.js static export to Vercel i
 Code: MIDDLEWARE_INVOCATION_FAILED
 ```
 
-We've implemented the following solutions to fix this issue:
+We've implemented the following solutions to completely disable middleware:
 
-1. **Modified the middleware file**:
+1. **Replaced the middleware file with a dummy version**:
+   - Completely emptied the middleware.ts file
    - Added `export const dynamic = 'force-static'` to the middleware file
-   - Added a condition to skip middleware execution in production or when `NEXT_EXPORT` is set to "true"
+   - Set an empty matcher array to prevent middleware from running on any routes
 
-2. **Created dummy middleware files for Vercel**:
-   - Added `middleware-manifest.json` to the output directory
-   - Created a `server` directory with a dummy `middleware.js` file that does nothing
+2. **Created special files for Vercel**:
+   - Added `middleware-manifest.json` with empty configuration
+   - Created a `server` directory with a dummy `middleware.js` file
+   - Added `middleware.js.nft.json` to prevent middleware from loading
 
-3. **Added an environment variable**:
-   - Set `NEXT_EXPORT: "true"` in vercel.json to ensure middleware is skipped
+3. **Added environment variables**:
+   - Set `NEXT_EXPORT: "true"` in vercel.json
+   - Set `NEXT_DISABLE_MIDDLEWARE: "1"` in vercel.json
+
+4. **Created a special build process for Vercel**:
+   - Created a special `next.config.vercel.mjs` file with middleware disabled
+   - Updated the `vercel-build` script to use this special config file
+   - Added a script to remove middleware files from the build output
 
 These changes ensure that Vercel doesn't try to execute the middleware in the static export, which would cause errors.
 

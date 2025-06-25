@@ -31,8 +31,6 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
-    // Disable middleware completely
-    disableMiddleware: true,
   },
 };
 
