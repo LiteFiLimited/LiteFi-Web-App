@@ -16,6 +16,7 @@ export const setAuthToken = (token: string, userId: string): void => {
   
   // Set in localStorage for client-side access
   localStorage.setItem('accessToken', token);
+  localStorage.setItem('authToken', token); // Also set for compatibility
   localStorage.setItem('userId', userId);
   
   // Set in cookies for server-side middleware access
@@ -68,6 +69,7 @@ export const logout = (): void => {
   
   // Clear localStorage
   localStorage.removeItem('accessToken');
+  localStorage.removeItem('authToken'); // Also clear compatibility token
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('userId');
   localStorage.removeItem('userData'); // Also clear user data
@@ -78,6 +80,42 @@ export const logout = (): void => {
   
   // Redirect to login page
   window.location.href = '/auth/login';
+};
+
+// Debug function to check authentication state
+export const debugAuthState = (): void => {
+  if (typeof window === 'undefined') {
+    console.log('Server-side: Cannot access localStorage');
+    return;
+  }
+  
+  const accessToken = localStorage.getItem('accessToken');
+  const authToken = localStorage.getItem('authToken');
+  const userId = localStorage.getItem('userId');
+  const userData = localStorage.getItem('userData');
+  
+  console.log('🔐 Authentication Debug State:', {
+    hasAccessToken: !!accessToken,
+    hasAuthToken: !!authToken,
+    accessTokenLength: accessToken?.length || 0,
+    authTokenLength: authToken?.length || 0,
+    userId: userId,
+    hasUserData: !!userData,
+    tokensMatch: accessToken === authToken,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Also check cookies
+  const cookieToken = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1];
+    
+  console.log('🍪 Cookie State:', {
+    hasCookieToken: !!cookieToken,
+    cookieTokenLength: cookieToken?.length || 0,
+    cookieMatchesLocalStorage: cookieToken === accessToken
+  });
 };
 
 // Hook to protect routes that require authentication
