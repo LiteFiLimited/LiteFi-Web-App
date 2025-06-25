@@ -35,6 +35,7 @@
   "trailingSlash": true,
   "cleanUrls": true,
   "env": {
-    "NEXT_EXPORT": "true"
+    "NEXT_EXPORT": "true",
+    "NEXT_DISABLE_MIDDLEWARE": "1"
   }
 }

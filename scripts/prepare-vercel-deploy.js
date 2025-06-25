@@ -58,7 +58,22 @@ if (!fs.existsSync(middlewarePath)) {
 export default function middleware() {
   return Response.next();
 }
+
+// Empty matcher to prevent middleware from running on any routes
+export const config = {
+  matcher: []
+};
   `);
+}
+
+// Create an empty middleware.js.nft.json file
+const middlewareNftPath = path.join(serverDir, 'middleware.js.nft.json');
+if (!fs.existsSync(middlewareNftPath)) {
+  console.log('Creating middleware.js.nft.json for Vercel compatibility');
+  fs.writeFileSync(middlewareNftPath, JSON.stringify({
+    version: 1,
+    files: []
+  }, null, 2));
 }
 
 console.log('Vercel deployment preparation complete!'); 
