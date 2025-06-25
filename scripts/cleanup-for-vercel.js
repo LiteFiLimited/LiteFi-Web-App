@@ -57,6 +57,36 @@ try {
 // Create minimal files needed for Vercel
 console.log('Creating minimal files needed for Vercel...');
 
+// Create a minimal .vercel/output/config.json file
+const vercelOutputDir = path.join(__dirname, '..', '.vercel', 'output');
+if (!fs.existsSync(vercelOutputDir)) {
+  fs.mkdirSync(vercelOutputDir, { recursive: true });
+}
+
+// Create a proper config.json file for Vercel
+const configPath = path.join(vercelOutputDir, 'config.json');
+fs.writeFileSync(configPath, JSON.stringify({
+  "version": 3,
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}, null, 2));
+
+// Create a proper routes.json file in the output directory
+const routesPath = path.join(outDir, 'routes.json');
+fs.writeFileSync(routesPath, JSON.stringify({
+  "version": 3,
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}, null, 2));
+
 // Create an empty routes-manifest.json file
 const routesManifestPath = path.join(outDir, 'routes-manifest.json');
 fs.writeFileSync(routesManifestPath, JSON.stringify({
@@ -70,6 +100,10 @@ fs.writeFileSync(routesManifestPath, JSON.stringify({
   dataRoutes: [],
   rewrites: []
 }, null, 2));
+
+// Create a .nojekyll file to prevent GitHub Pages from ignoring files that start with an underscore
+const nojekyllPath = path.join(outDir, '.nojekyll');
+fs.writeFileSync(nojekyllPath, '');
 
 console.log('Cleanup complete!');
 

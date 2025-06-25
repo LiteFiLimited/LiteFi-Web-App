@@ -1,11 +1,5 @@
 {
   "buildCommand": "npm run vercel-build",
-  "framework": null,
   "outputDirectory": "out",
-  "trailingSlash": true,
-  "cleanUrls": true,
-  "env": {
-    "NEXT_EXPORT": "true",
-    "NEXT_DISABLE_MIDDLEWARE": "1"
-  }
+  "framework": null
 }
