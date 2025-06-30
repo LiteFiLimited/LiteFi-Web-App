@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Bell, Check, X, CreditCard, TrendingUp, AlertCircle, DollarSign } from "lucide-react";
 
 interface Notification {

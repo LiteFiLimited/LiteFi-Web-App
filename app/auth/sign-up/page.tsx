@@ -3,10 +3,10 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Checkbox } from "@/app/components/ui/checkbox";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
-import { Button } from "@/app/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import EmailVerificationModal from "@/app/components/EmailVerificationModal";
 import { useToastContext } from "@/app/components/ToastProvider";
 import { authApi } from "@/lib/api";

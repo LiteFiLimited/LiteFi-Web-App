@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/app/components/ui/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import InvestmentSuccessModal from "@/app/components/InvestmentSuccessModal";

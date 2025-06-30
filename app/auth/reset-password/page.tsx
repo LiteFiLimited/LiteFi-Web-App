@@ -3,9 +3,9 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Input } from "@/app/components/ui/input";
-import { Button } from "@/app/components/ui/button";
-import { Label } from "@/app/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import ResetPasswordVerificationModal from "@/app/components/ResetPasswordVerificationModal";
 import { useToastContext } from "@/app/components/ToastProvider";
 import { authApi } from "@/lib/api";
