@@ -2,8 +2,8 @@
 
 import React from "react";
 import Image from "next/image";
-import { Input } from "@/app/components/ui/input";
-import { Button } from "@/app/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
 
 import mailAnimation from "@/public/assets/gif/mail.gif";
