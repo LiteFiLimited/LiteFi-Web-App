@@ -9,6 +9,7 @@ import {
   NextOfKinInfo,
 } from "@/types/user";
 import { getToken } from "./auth";
+import { getApiUrl } from "./env-config";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -56,12 +57,8 @@ export interface BackendPhoneResponse {
   };
 }
 
-// Base API URL - For production deployment
-// Hardcoded to Render URL to ensure it's used in the cPanel deployment
-const API_URL = "https://litefi-backend.onrender.com";
-
-// Ignore any environment variables to ensure we use the hardcoded URL
-// This is important for cPanel deployment
+// Base API URL - Use secure environment configuration
+const API_URL = getApiUrl();
 
 // Log the API URL configuration
 console.log("API Configuration:", {
@@ -84,7 +81,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("accessToken");
-    
+
     console.log("Request:", {
       method: config.method,
       url: config.url,
@@ -92,7 +89,9 @@ axiosInstance.interceptors.request.use(
       tokenLength: token?.length || 0,
       headers: {
         ...config.headers,
-        Authorization: token ? `Bearer ${token.substring(0, 20)}...` : 'Not set'
+        Authorization: token
+          ? `Bearer ${token.substring(0, 20)}...`
+          : "Not set",
       },
       data: config.data,
     });
@@ -124,23 +123,27 @@ axiosInstance.interceptors.response.use(
 
     // Handle authentication errors
     if (error.response?.status === 401) {
-      console.error("Authentication failed - clearing tokens and redirecting to login");
-      
+      console.error(
+        "Authentication failed - clearing tokens and redirecting to login"
+      );
+
       // Clear all authentication data
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('userData');
-        
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userData");
+
         // Clear auth cookies
-        document.cookie = 'auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Strict';
-        document.cookie = 'refresh-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Strict';
-        
+        document.cookie =
+          "auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Strict";
+        document.cookie =
+          "refresh-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Strict";
+
         // Redirect to login after a short delay to allow cleanup
         setTimeout(() => {
-          window.location.href = '/auth/login';
+          window.location.href = "/auth/login";
         }, 1000);
       }
     }

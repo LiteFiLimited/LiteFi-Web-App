@@ -29,8 +29,7 @@ export async function GET(request: NextRequest) {
 
     const backendResponse = await fetch(
       `${
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        "https://litefi-backend.onrender.com"
+        process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL
       }/users/bank-accounts`,
       {
         headers: {
@@ -93,8 +92,7 @@ export async function POST(request: NextRequest) {
 
     const backendResponse = await fetch(
       `${
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        "https://litefi-backend.onrender.com"
+        process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL
       }/users/bank-accounts`,
       {
         method: "POST",
@@ -149,8 +147,7 @@ export async function PATCH(request: NextRequest) {
 
     const backendResponse = await fetch(
       `${
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        "https://litefi-backend.onrender.com"
+        process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL
       }/users/bank-accounts/${accountId}/default`,
       {
         method: "PATCH",
@@ -204,8 +201,7 @@ export async function DELETE(request: NextRequest) {
 
     const backendResponse = await fetch(
       `${
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        "https://litefi-backend.onrender.com"
+        process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL
       }/users/bank-accounts/${accountId}`,
       {
         method: "DELETE",

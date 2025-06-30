@@ -1,6 +1,7 @@
 // API response types
 import axios from "axios";
 import { UserData, BankAccount, Document } from "@/types/user";
+import { getApiUrl } from "./env-config";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -48,12 +49,8 @@ export interface BackendPhoneResponse {
   };
 }
 
-// Base API URL - For production deployment
-// Hardcoded to Render URL to ensure it's used in the cPanel deployment
-const API_URL = "https://litefi-backend.onrender.com";
-
-// Ignore any environment variables to ensure we use the hardcoded URL
-// This is important for cPanel deployment
+// Base API URL - Use secure environment configuration
+const API_URL = getApiUrl();
 
 // Log the API URL configuration
 console.log("API Configuration:", {
