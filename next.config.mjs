@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -22,4 +24,4 @@ const nextConfig = {
   serverExternalPackages: [],
 };
 
-export default nextConfig; 
+export default nextConfig;

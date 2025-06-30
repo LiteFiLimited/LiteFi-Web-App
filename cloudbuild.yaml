@@ -1,0 +1,57 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/atomic-key-464116-m5/litefi-web-app:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/atomic-key-464116-m5/litefi-web-app:latest'
+      - '.'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/atomic-key-464116-m5/litefi-web-app:$COMMIT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/atomic-key-464116-m5/litefi-web-app:latest'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'litefi-frontend'
+      - '--image'
+      - 'gcr.io/atomic-key-464116-m5/litefi-web-app:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL},BACKEND_API_URL=${_BACKEND_API_URL}'
+      - '--max-instances'
+      - '10'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+
+# Images to be pushed to Container Registry
+images:
+  - 'gcr.io/atomic-key-464116-m5/litefi-web-app:$COMMIT_SHA'
+  - 'gcr.io/atomic-key-464116-m5/litefi-web-app:latest'
+
+# Build configuration
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+# Timeout for the entire build (20 minutes)
+timeout: 1200s
