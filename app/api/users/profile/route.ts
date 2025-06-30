@@ -1,19 +1,25 @@
-import { NextRequest } from 'next/server';
-import { createErrorResponse, createSuccessResponse } from '@/lib/api-config';
+import { NextRequest } from "next/server";
+import { createErrorResponse, createSuccessResponse } from "@/lib/api-config";
 
 // Add this line to make the route compatible with static exports
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
+    const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return createErrorResponse('Authorization header is required', 401);
+      return createErrorResponse("Authorization header is required", 401);
     }
 
-    const backendResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://litefi-backend.onrender.com'}/users/profile`, {
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL;
+    if (!apiUrl) {
+      return createErrorResponse("Backend API URL not configured", 500);
+    }
+
+    const backendResponse = await fetch(`${apiUrl}/users/profile`, {
       headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
+        Authorization: authHeader,
+        "Content-Type": "application/json",
       },
     });
 
@@ -21,32 +27,41 @@ export async function GET(request: NextRequest) {
 
     if (!backendResponse.ok) {
       return createErrorResponse(
-        responseData.message || 'Failed to get profile',
+        responseData.message || "Failed to get profile",
         backendResponse.status
       );
     }
 
-    return createSuccessResponse('Profile retrieved successfully', responseData.data);
+    return createSuccessResponse(
+      "Profile retrieved successfully",
+      responseData.data
+    );
   } catch (error) {
-    console.error('Profile retrieval error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("Profile retrieval error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('Authorization');
+    const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return createErrorResponse('Authorization header is required', 401);
+      return createErrorResponse("Authorization header is required", 401);
     }
 
     const body = await request.json();
 
-    const backendResponse = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://litefi-backend.onrender.com'}/users/profile`, {
-      method: 'PATCH',
+    const apiUrl =
+      process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL;
+    if (!apiUrl) {
+      return createErrorResponse("Backend API URL not configured", 500);
+    }
+
+    const backendResponse = await fetch(`${apiUrl}/users/profile`, {
+      method: "PATCH",
       headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
+        Authorization: authHeader,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
     });
@@ -55,14 +70,17 @@ export async function PATCH(request: NextRequest) {
 
     if (!backendResponse.ok) {
       return createErrorResponse(
-        responseData.message || 'Failed to update profile',
+        responseData.message || "Failed to update profile",
         backendResponse.status
       );
     }
 
-    return createSuccessResponse('Profile updated successfully', responseData.data);
+    return createSuccessResponse(
+      "Profile updated successfully",
+      responseData.data
+    );
   } catch (error) {
-    console.error('Profile update error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("Profile update error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
-} 
+}

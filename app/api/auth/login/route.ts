@@ -1,13 +1,13 @@
-import { NextRequest } from 'next/server';
-import { createErrorResponse, createSuccessResponse } from '@/lib/api-config';
+import { NextRequest } from "next/server";
+import { createErrorResponse, createSuccessResponse } from "@/lib/api-config";
 
 /**
  * Frontend Authentication Proxy Endpoint
- * 
+ *
  * This endpoint serves as a proxy to the backend authentication system.
  * It forwards login requests to the backend and handles the hybrid authentication response.
  * Sets both localStorage tokens (via JSON response) and HTTP cookies for server-side middleware.
- * 
+ *
  * @param request - HTTP request containing login credentials
  * @returns JSON response with user data and authentication token + HTTP cookies
  */
@@ -19,14 +19,20 @@ export async function POST(request: NextRequest) {
 
     // Validate that both email and password are provided
     if (!email || !password) {
-      return createErrorResponse('Email and password are required');
+      return createErrorResponse("Email and password are required");
     }
 
     // Forward authentication request to backend API
-    const backendResponse = await fetch(`${process.env.BACKEND_API_URL}/auth/login`, {
-      method: 'POST',
+    const apiUrl =
+      process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) {
+      return createErrorResponse("Backend API URL not configured", 500);
+    }
+
+    const backendResponse = await fetch(`${apiUrl}/auth/login`, {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ email, password }),
     });
@@ -36,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (!backendResponse.ok) {
       // Forward backend error response
       return createErrorResponse(
-        responseData.message || 'Authentication failed',
+        responseData.message || "Authentication failed",
         backendResponse.status
       );
     }
@@ -45,43 +51,46 @@ export async function POST(request: NextRequest) {
     const { accessToken, refreshToken, user } = responseData;
 
     // Create success response with user data and token
-    const response = createSuccessResponse(
-      'Login successful',
-      { user, token: accessToken }
-    );
+    const response = createSuccessResponse("Login successful", {
+      user,
+      token: accessToken,
+    });
 
     // Set authentication cookies for server-side middleware access
-    const isProduction = process.env.NODE_ENV === 'production';
-    
+    const isProduction = process.env.NODE_ENV === "production";
+
     // Set access token cookie
-    response.cookies.set('auth-token', accessToken, {
+    response.cookies.set("auth-token", accessToken, {
       httpOnly: false, // Allow client-side access for localStorage sync
       secure: isProduction,
-      sameSite: 'strict',
+      sameSite: "strict",
       maxAge: 86400, // 24 hours
-      path: '/'
+      path: "/",
     });
 
     // Set refresh token cookie (httpOnly for security)
     if (refreshToken) {
-      response.cookies.set('refresh-token', refreshToken, {
+      response.cookies.set("refresh-token", refreshToken, {
         httpOnly: true, // More secure for refresh tokens
         secure: isProduction,
-        sameSite: 'strict',
+        sameSite: "strict",
         maxAge: 604800, // 7 days
-        path: '/'
+        path: "/",
       });
     }
 
     return response;
   } catch (error) {
-    console.error('Login proxy error:', error);
-    
+    console.error("Login proxy error:", error);
+
     // Handle network errors or backend unavailability
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      return createErrorResponse('Backend service unavailable. Please try again later.', 503);
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      return createErrorResponse(
+        "Backend service unavailable. Please try again later.",
+        503
+      );
     }
-    
-    return createErrorResponse('Internal server error', 500);
+
+    return createErrorResponse("Internal server error", 500);
   }
-} 
+}

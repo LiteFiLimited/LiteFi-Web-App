@@ -39,14 +39,21 @@ export const dynamic = 'force-static';
 
 Vercel automatically handles static exports from Next.js. Simply connect your repository and deploy.
 
-### Other Static Hosts (like CPanel)
+### Google Cloud Storage / Firebase Hosting
 
-For hosts like CPanel, you need to:
+For GCP hosting, you can use:
+- Firebase Hosting for static sites
+- Google Cloud Storage with CDN
+- Google Cloud Run for containerized deployments
+
+### Other Static Hosts
+
+For other static hosting providers, you need to:
 
 1. Upload the contents of the `out` directory to your web root
 2. Configure URL rewriting for client-side routing
 
-#### Apache Configuration (for CPanel)
+#### Apache Configuration
 
 Create or edit `.htaccess` file in your web root:
 

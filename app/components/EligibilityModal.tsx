@@ -9,8 +9,8 @@ export type EligibilityType = "investment" | "loan";
 // Format field names for better readability
 const formatFieldName = (field: string): string => {
   // Convert snake_case to proper display format
-  if (field === "proof of_address") return "Proof of address";
-  if (field === "id document") return "ID document";
+  if (field === "proof of_address") return "Proof of Address";
+  if (field === "id document") return "ID Document";
 
   // Handle other field formats
   return field

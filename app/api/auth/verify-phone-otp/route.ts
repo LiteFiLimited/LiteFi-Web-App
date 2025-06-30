@@ -1,4 +1,3 @@
-
 import { NextRequest } from "next/server";
 import {
   createErrorResponse,
@@ -42,8 +41,11 @@ export async function POST(request: NextRequest) {
 
     // Forward request to backend API
     const backendUrl =
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
-      "https://litefi-backend.onrender.com";
+      process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL;
+
+    if (!backendUrl) {
+      return createErrorResponse("Backend API URL not configured", 500);
+    }
 
     console.log("Forwarding verify phone OTP to backend:", {
       phone,

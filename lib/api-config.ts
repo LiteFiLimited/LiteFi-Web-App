@@ -1,16 +1,30 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { getApiUrl as getSecureApiUrl } from "./env-config";
+
+// API URL configuration - Use secure environment configuration
+export const getApiUrl = () => {
+  return getSecureApiUrl();
+};
+
+// Log the current API configuration
+console.log("API Configuration:", {
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  BACKEND_API_URL: process.env.BACKEND_API_URL,
+  selectedApiUrl: getApiUrl(),
+  environment: process.env.NODE_ENV,
+});
 
 // CORS headers configuration
 export const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Max-Age': '86400',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Max-Age": "86400",
 };
 
 // Standard API headers
 export const API_HEADERS = {
-  'Content-Type': 'application/json',
+  "Content-Type": "application/json",
   ...CORS_HEADERS,
 };
 
@@ -20,16 +34,13 @@ export function createApiResponse(
   status: number = 200,
   additionalHeaders: Record<string, string> = {}
 ): NextResponse {
-  return new NextResponse(
-    JSON.stringify(data),
-    {
-      status,
-      headers: {
-        ...API_HEADERS,
-        ...additionalHeaders,
-      },
-    }
-  );
+  return new NextResponse(JSON.stringify(data), {
+    status,
+    headers: {
+      ...API_HEADERS,
+      ...additionalHeaders,
+    },
+  });
 }
 
 // Helper function to create error responses
@@ -76,20 +87,20 @@ export function handleOptionsRequest(): NextResponse {
 function getErrorTypeFromStatus(status: number): string {
   switch (status) {
     case 400:
-      return 'Bad Request';
+      return "Bad Request";
     case 401:
-      return 'Unauthorized';
+      return "Unauthorized";
     case 403:
-      return 'Forbidden';
+      return "Forbidden";
     case 404:
-      return 'Not Found';
+      return "Not Found";
     case 409:
-      return 'Conflict';
+      return "Conflict";
     case 422:
-      return 'Unprocessable Entity';
+      return "Unprocessable Entity";
     case 500:
-      return 'Internal Server Error';
+      return "Internal Server Error";
     default:
-      return 'Error';
+      return "Error";
   }
-} 
+}

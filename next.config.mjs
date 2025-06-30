@@ -16,8 +16,8 @@ const nextConfig = {
     ],
   },
   env: {
-    NEXT_PUBLIC_API_URL: 'https://litefi-backend.onrender.com',
-    BACKEND_API_URL: 'https://litefi-backend.onrender.com',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    BACKEND_API_URL: process.env.BACKEND_API_URL,
   },
   serverExternalPackages: [],
 };
