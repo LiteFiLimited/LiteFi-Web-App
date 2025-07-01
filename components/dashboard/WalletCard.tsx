@@ -38,6 +38,14 @@ export function WalletCard({
     return <DashboardCardSkeleton />;
   }
 
+  const safeFormatCurrency = (value: number) => {
+    try {
+      return formatCurrency(value);
+    } catch (error) {
+      return new Intl.NumberFormat('en-NG').format(value);
+    }
+  };
+
   return (
     <Card className="rounded-none shadow-none border-4 border-white overflow-hidden">
       <div className="bg-gray-50 p-6 border-b border-white">
@@ -59,7 +67,7 @@ export function WalletCard({
         <div className="flex items-center gap-2 mt-4 mb-8">
           <div className="text-2xl font-bold">
             {showBalance ? 
-              `₦ ${formatCurrency(walletBalance)}` : 
+              `₦ ${safeFormatCurrency(walletBalance)}` : 
               "*****"}
           </div>
           <button 

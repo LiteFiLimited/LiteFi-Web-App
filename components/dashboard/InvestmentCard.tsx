@@ -36,6 +36,14 @@ export function InvestmentCard({
     return <DashboardCardSkeleton />;
   }
 
+  const safeFormatCurrency = (value: number) => {
+    try {
+      return formatCurrency(value);
+    } catch (error) {
+      return new Intl.NumberFormat('en-NG').format(value);
+    }
+  };
+
   return (
     <Card className="rounded-none shadow-none border-4 border-white overflow-hidden">
       <div className="bg-gray-50 p-6 border-b border-white">
@@ -57,7 +65,7 @@ export function InvestmentCard({
         <div className="flex items-center gap-2 mt-4 mb-8">
           <div className="text-2xl font-bold">
             {showBalance ? 
-              `₦ ${formatCurrency(totalInvested)}` : 
+              `₦ ${safeFormatCurrency(totalInvested)}` : 
               "*****"}
           </div>
           <button 
@@ -89,7 +97,7 @@ export function InvestmentCard({
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-500">Total Interest earned</span>
             <div className="flex items-center">
-              <span className="font-bold text-black">+ ₦ {formatCurrency(totalReturns)}</span>
+              <span className="font-bold text-black">+ ₦ {safeFormatCurrency(totalReturns)}</span>
               <div className="flex items-center ml-2 text-green-600">
                 <span className="text-sm font-medium">12.5%</span>
                 <Image 
