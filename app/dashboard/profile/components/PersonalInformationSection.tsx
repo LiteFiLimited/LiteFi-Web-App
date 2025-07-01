@@ -160,18 +160,19 @@ export function PersonalInformationSection({
               onBlur={() => handleBlur("dateOfBirth")}
               className={cn(
                 showErrors.dateOfBirth && !validations.dateOfBirth ? "border-red-500" : "",
-                "pr-10"
+                "pr-12"
               )}
               maxLength={10}
             />
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant="outline"
-                  className="absolute right-0 top-0 h-full px-2"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100"
                   type="button"
                 >
-                  <CalendarIcon className="h-4 w-4" />
+                  <CalendarIcon className="h-4 w-4 text-gray-500" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">

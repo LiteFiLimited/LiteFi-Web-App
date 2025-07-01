@@ -8,8 +8,9 @@ export default function VerifyPhonePage() {
   const router = useRouter();
 
   const handleComplete = () => {
-    // Redirect to create password after phone verification
-    router.push("/auth/create-password");
+    // Since we now collect passwords during registration, 
+    // redirect to login after phone verification
+    router.push("/auth/login");
   };
 
   return <PhoneVerificationForm onCompleteAction={handleComplete} />;

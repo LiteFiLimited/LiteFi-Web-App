@@ -217,6 +217,7 @@ export const authApi = {
     firstName: string;
     lastName: string;
     email: string;
+    password: string;
     country?: string;
     referralCode?: string;
   }) =>

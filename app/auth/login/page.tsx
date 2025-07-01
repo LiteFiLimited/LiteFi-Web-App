@@ -105,16 +105,40 @@ function LoginContent() {
         // Extract the actual error message from the server response
         let errorMessage = "An unexpected error occurred";
         
-        if (err?.message) {
+        // Handle the different error response structures from the backend
+        if (err?.response?.status === 401) {
+          // Unauthorized - invalid credentials
+          errorMessage = err?.response?.data?.message || "Invalid email or password";
+        } else if (err?.response?.status === 400) {
+          // Bad request - validation errors or account issues
+          errorMessage = err?.response?.data?.message || "Please check your credentials";
+        } else if (err?.response?.status === 404) {
+          // User not found
+          errorMessage = "Account not found. Please check your email or sign up for a new account";
+        } else if (err?.response?.status === 409) {
+          // Account exists but needs completion (email verification, etc.)
+          errorMessage = err?.response?.data?.message || "Please complete your account setup";
+        } else if (err?.response?.data?.message) {
+          // Any other backend error with a message
+          errorMessage = err.response.data.message;
+        } else if (err?.message && typeof err.message === 'string') {
+          // Direct error message
           errorMessage = err.message;
         } else if (err?.error && typeof err.error === 'string') {
+          // Error property
           errorMessage = err.error;
-        } else if (err?.response?.data?.message) {
-          errorMessage = err.response.data.message;
         } else if (typeof err === 'string') {
+          // Error as string
           errorMessage = err;
+        } else if (err?.response?.status >= 500) {
+          // Server errors
+          errorMessage = "Server is currently unavailable. Please try again later";
+        } else if (err?.code === 'NETWORK_ERROR' || !err?.response) {
+          // Network errors
+          errorMessage = "Unable to connect to server. Please check your internet connection";
         }
         
+        console.log("Extracted error message:", errorMessage);
         error("Login failed", errorMessage);
       } finally {
         setIsLoading(false);
