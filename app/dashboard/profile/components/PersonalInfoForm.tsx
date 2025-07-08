@@ -204,20 +204,19 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
   const handleDateInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDateInputValue(e.target.value);
     
-    // Convert DD/MM/YYYY to YYYY-MM-DD format for proper date handling
+    // Store the display format (DD/MM/YYYY) directly for validation
+    handleChange("dateOfBirth", e.target.value);
+    
+    // If it's a complete and valid date, also update the calendar date state
     if (e.target.value && e.target.value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
       const [day, month, year] = e.target.value.split('/');
       const isoFormatDate = `${year}-${month}-${day}`;
-      handleChange("dateOfBirth", isoFormatDate);
       
       // Also update the date state to keep the calendar in sync
       const parsedDate = new Date(isoFormatDate);
       if (!isNaN(parsedDate.getTime())) {
         setDate(parsedDate);
       }
-    } else {
-      // For incomplete dates, just store the display value
-      handleChange("dateOfBirth", e.target.value);
     }
   };
 

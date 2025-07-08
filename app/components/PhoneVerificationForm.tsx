@@ -56,16 +56,9 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
           // Log the successful verification
           console.log("Phone verified automatically:", phoneNumber);
           
-          // Store email for password creation and redirect
-          const registrationEmail = sessionStorage.getItem('registrationEmail');
-          
-          // Add a slight delay before redirect to ensure backend processes the phone number
+          // Complete the verification process
           setTimeout(() => {
-            if (registrationEmail) {
-              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
-            } else {
-              router.push("/auth/create-password");
-            }
+            onCompleteAction();
           }, 1000);
         }
       } else {
@@ -74,15 +67,9 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
         
         if (isAlreadyVerified) {
           info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
-          // Store email for password creation and redirect
-          const registrationEmail = sessionStorage.getItem('registrationEmail');
-          
+          // Complete the verification process
           setTimeout(() => {
-            if (registrationEmail) {
-              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
-            } else {
-              router.push("/auth/create-password");
-            }
+            onCompleteAction();
           }, 1500);
         } else {
           error("Verification failed", response.message || "Please try again");
@@ -116,13 +103,8 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
       if (response.success) {
         success("Phone verified successfully!", "Your phone number has been verified");
         setShowVerificationModal(false);
-        // Store email for password creation and redirect
-        const registrationEmail = sessionStorage.getItem('registrationEmail');
-        if (registrationEmail) {
-          router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
-        } else {
-          router.push("/auth/create-password");
-        }
+        // Complete the verification process
+        onCompleteAction();
       } else {
         // Check if this is an "already verified" response
         const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
@@ -130,15 +112,9 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
         if (isAlreadyVerified) {
           info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
           setShowVerificationModal(false);
-          // Store email for password creation and redirect
-          const registrationEmail = sessionStorage.getItem('registrationEmail');
-          
+          // Complete the verification process
           setTimeout(() => {
-            if (registrationEmail) {
-              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
-            } else {
-              router.push("/auth/create-password");
-            }
+            onCompleteAction();
           }, 1500);
         } else {
           error("Verification failed", response.message || "Invalid verification code");
@@ -176,15 +152,9 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
         if (isAlreadyVerified) {
           info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
           setShowVerificationModal(false);
-          // Store email for password creation and redirect
-          const registrationEmail = sessionStorage.getItem('registrationEmail');
-          
+          // Complete the verification process
           setTimeout(() => {
-            if (registrationEmail) {
-              router.push(`/auth/create-password?email=${encodeURIComponent(registrationEmail)}`);
-            } else {
-              router.push("/auth/create-password");
-            }
+            onCompleteAction();
           }, 1500);
         } else {
           error("Failed to resend OTP", response.message || "Please try again");
@@ -235,7 +205,7 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
               <div className="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center mb-2">
                 2
               </div>
-              <span className="text-sm font-medium opacity-50">Create Password</span>
+              <span className="text-sm font-medium opacity-50">Complete Setup</span>
             </div>
           </div>
         </div>

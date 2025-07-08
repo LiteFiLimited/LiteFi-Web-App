@@ -40,6 +40,14 @@ export function LoanCard({
     return <DashboardCardSkeleton />;
   }
 
+  const safeFormatCurrency = (value: number) => {
+    try {
+      return formatCurrency(value);
+    } catch (error) {
+      return new Intl.NumberFormat('en-NG').format(value);
+    }
+  };
+
   // Format date from ISO string to readable format
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -72,7 +80,7 @@ export function LoanCard({
         <div className="flex items-center gap-2 mt-4 mb-8">
           <div className="text-2xl font-bold">
             {showBalance ? 
-              `₦ ${formatCurrency(outstandingAmount)}` : 
+              `₦ ${safeFormatCurrency(outstandingAmount)}` : 
               "*****"}
           </div>
           <button 
@@ -105,7 +113,7 @@ export function LoanCard({
           <div className="flex justify-between items-center">
             <div>
               <p className="text-gray-500 text-sm mb-1">Next repayment</p>
-              <p className="font-bold">₦{formatCurrency(nextPaymentAmount || 0)}</p>
+              <p className="font-bold">₦{safeFormatCurrency(nextPaymentAmount || 0)}</p>
             </div>
             <div className="text-right">
               <p className="text-gray-500 text-sm mb-1">Due date</p>

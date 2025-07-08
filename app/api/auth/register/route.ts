@@ -15,12 +15,12 @@ export async function POST(request: NextRequest) {
   try {
     // Extract registration data from request body
     const body = await request.json();
-    const { email, firstName, lastName, phone, country, referralCode } = body;
+    const { email, firstName, lastName, password, phone, country, referralCode } = body;
 
     // Validate required fields are present
-    if (!email || !firstName || !lastName) {
+    if (!email || !firstName || !lastName || !password) {
       return createErrorResponse(
-        "Missing required fields: email, firstName, and lastName are required"
+        "Missing required fields: email, firstName, lastName, and password are required"
       );
     }
 
@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return createErrorResponse("Invalid email format");
+    }
+
+    // Validate password strength (basic validation)
+    if (password.length < 8) {
+      return createErrorResponse("Password must be at least 8 characters long");
     }
 
     // Forward registration request to backend API
@@ -46,6 +51,7 @@ export async function POST(request: NextRequest) {
         email,
         firstName,
         lastName,
+        password,
         phone: phone || undefined,
         country: country || "NG",
         referralCode: referralCode || undefined,

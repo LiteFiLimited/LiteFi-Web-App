@@ -7,10 +7,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import EmailVerificationModal from "@/app/components/EmailVerificationModal";
 import { useToastContext } from "@/app/components/ToastProvider";
 import { authApi } from "@/lib/api";
 import { useRedirectIfAuthenticated } from "@/lib/auth";
+import { validatePassword } from "@/lib/passwordValidator";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 
 // Import images directly
 import heroImage from "@/public/assets/images/image.png";
@@ -23,6 +26,8 @@ export default function SignUp() {
     firstName: "",
     lastName: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     country: "NG",
     referralCode: "",
     agreeToTerms: false
@@ -31,9 +36,13 @@ export default function SignUp() {
   const [fieldTouched, setFieldTouched] = React.useState({
     firstName: false,
     lastName: false,
-    email: false
+    email: false,
+    password: false,
+    confirmPassword: false
   });
 
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
   const [showVerificationModal, setShowVerificationModal] = React.useState(false);
   const [userId, setUserId] = React.useState("");
@@ -88,21 +97,29 @@ export default function SignUp() {
   // Field validations
   const isNameValid = (name: string) => name.trim().length > 1;
   const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const passwordValidation = validatePassword(formData.password);
+  const isPasswordValid = passwordValidation.isValid;
+  const doPasswordsMatch = formData.password === formData.confirmPassword && formData.confirmPassword !== "";
 
   const validations = {
     firstName: isNameValid(formData.firstName),
     lastName: isNameValid(formData.lastName),
-    email: isEmailValid(formData.email)
+    email: isEmailValid(formData.email),
+    password: isPasswordValid,
+    confirmPassword: doPasswordsMatch
   };
 
   const showErrors = {
     firstName: fieldTouched.firstName && !validations.firstName,
     lastName: fieldTouched.lastName && !validations.lastName,
-    email: fieldTouched.email && !validations.email
+    email: fieldTouched.email && !validations.email,
+    password: fieldTouched.password && !validations.password,
+    confirmPassword: fieldTouched.confirmPassword && !validations.confirmPassword
   };
 
   const isFormValid = () => {
-    return validations.firstName && validations.lastName && validations.email && formData.agreeToTerms;
+    return validations.firstName && validations.lastName && validations.email && 
+           validations.password && validations.confirmPassword && formData.agreeToTerms;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,7 +129,9 @@ export default function SignUp() {
     setFieldTouched({
       firstName: true,
       lastName: true,
-      email: true
+      email: true,
+      password: true,
+      confirmPassword: true
     });
 
     if (isFormValid()) {
@@ -123,11 +142,12 @@ export default function SignUp() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
+          password: formData.password,
           country: formData.country,
           referralCode: formData.referralCode || undefined
         };
         
-        console.log("Registration data:", userData);
+        console.log("Registration data:", { ...userData, password: '[REDACTED]' });
         
         const response = await authApi.register(userData);
         
@@ -140,12 +160,33 @@ export default function SignUp() {
           setUserId(response.data?.user?.id || "");
           setShowVerificationModal(true);
         } else {
-          error("Registration failed", response.message || "Please try again");
+          // Extract proper error message from backend response
+          let errorMessage = "Please try again";
+          if (response.message) {
+            errorMessage = response.message;
+          }
+          error("Registration failed", errorMessage);
           setIsRegistering(false);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Registration error details:", err);
-        error("Registration failed", "An unexpected error occurred");
+        
+        // Extract the actual error message from the server response
+        let errorMessage = "An unexpected error occurred";
+        
+        if (err?.message && typeof err.message === 'string') {
+          errorMessage = err.message;
+        } else if (err?.error && typeof err.error === 'string') {
+          errorMessage = err.error;
+        } else if (err?.response?.data?.message) {
+          errorMessage = err.response.data.message;
+        } else if (err?.response?.data?.error) {
+          errorMessage = err.response.data.error;
+        } else if (typeof err === 'string') {
+          errorMessage = err;
+        }
+        
+        error("Registration failed", errorMessage);
         setIsRegistering(false);
       } finally {
         setIsLoading(false);
@@ -409,6 +450,91 @@ export default function SignUp() {
               />
               {showErrors.email && (
                 <p className="text-xs text-red-500">Please enter a valid email address</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-500 flex items-center text-sm"
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <>
+                      <EyeOffIcon className="h-4 w-4 mr-1" />
+                      Hide
+                    </>
+                  ) : (
+                    <>
+                      <EyeIcon className="h-4 w-4 mr-1" />
+                      Show
+                    </>
+                  )}
+                </button>
+              </div>
+              <Input 
+                id="password" 
+                type={showPassword ? "text" : "password"} 
+                placeholder="Create a secure password" 
+                className={`bg-gray-50 ${showErrors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                value={formData.password}
+                onChange={handleInputChange}
+                onBlur={() => handleInputBlur('password')}
+                required
+                disabled={isLoading}
+              />
+              
+              {/* Password strength meter */}
+              {formData.password && <PasswordStrengthMeter password={formData.password} />}
+              
+              {/* Password requirements */}
+              {fieldTouched.password && passwordValidation.errors.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {passwordValidation.errors.map((error, index) => (
+                    <p key={index} className="text-xs text-red-500">{error}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-gray-400 hover:text-gray-500 flex items-center text-sm"
+                  disabled={isLoading}
+                >
+                  {showConfirmPassword ? (
+                    <>
+                      <EyeOffIcon className="h-4 w-4 mr-1" />
+                      Hide
+                    </>
+                  ) : (
+                    <>
+                      <EyeIcon className="h-4 w-4 mr-1" />
+                      Show
+                    </>
+                  )}
+                </button>
+              </div>
+              <Input 
+                id="confirmPassword" 
+                type={showConfirmPassword ? "text" : "password"} 
+                placeholder="Confirm your password" 
+                className={`bg-gray-50 ${showErrors.confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                onBlur={() => handleInputBlur('confirmPassword')}
+                required
+                disabled={isLoading}
+              />
+              {showErrors.confirmPassword && (
+                <p className="text-xs text-red-500">Passwords do not match</p>
               )}
             </div>
 
