@@ -344,6 +344,22 @@ export function useUserProfile() {
     }
   };
 
+  const uploadProfilePicture = async (file: File) => {
+    try {
+      setIsLoading(true);
+      const response = await userApi.uploadProfilePicture(file);
+      // Refresh profile to get updated avatarUrl
+      await fetchProfile();
+      success("Success", "Profile picture uploaded successfully");
+      return response.data?.avatarUrl || "";
+    } catch (err: any) {
+      showError("Error", err.message || "Failed to upload profile picture");
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
     fetchBankAccounts();
@@ -379,5 +395,6 @@ export function useUserProfile() {
     setupTransactionPin,
     verifyTransactionPin,
     uploadBankStatement,
+    uploadProfilePicture,
   };
 }

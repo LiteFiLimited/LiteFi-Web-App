@@ -1,10 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { useDropzone } from "react-dropzone";
-import { X } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import PersonalInfoForm from "./components/PersonalInfoForm";
 import EmploymentInfoForm from "./components/EmploymentInfoForm";
@@ -16,16 +12,15 @@ import DocumentsForm from "./components/DocumentsForm";
 import SecuritySettings from "./components/SecuritySettings";
 import BusinessInfoForm from "./components/BusinessInfoForm";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import ProfilePictureUpload from "@/app/components/ProfilePictureUpload";
 
-interface FileWithPreview extends File {
-  preview?: string;
-}
+
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<string>("personal");
-  const [profileImage, setProfileImage] = useState<FileWithPreview | undefined>(undefined);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const router = useRouter();
-  const { profile } = useUserProfile();
+  const { profile, uploadProfilePicture } = useUserProfile();
 
   // Track form completion and read-only status
   const [formCompletionStatus, setFormCompletionStatus] = useState({
@@ -119,33 +114,16 @@ export default function ProfilePage() {
   // Create a list of all tab IDs that are part of the "My Profile" section
   const myProfileTabIds = personalInfoTabs.map(tab => tab.id);
 
-  // Handle file drop for profile image
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles && acceptedFiles.length > 0) {
-      const file = Object.assign(acceptedFiles[0], {
-        preview: URL.createObjectURL(acceptedFiles[0])
-      });
-      setProfileImage(file);
+  // Handle profile picture upload
+  const handleProfilePictureUpload = async (file: File): Promise<string> => {
+    setIsUploadingImage(true);
+    try {
+      const result = await uploadProfilePicture(file);
+      return result;
+    } finally {
+      setIsUploadingImage(false);
     }
-  }, []);
-
-  // Remove profile image
-  const removeProfileImage = () => {
-    if (profileImage?.preview) {
-      URL.revokeObjectURL(profileImage.preview);
-    }
-    setProfileImage(undefined);
   };
-
-  // Set up dropzone
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg']
-    },
-    maxFiles: 1,
-    multiple: false
-  });
 
   // Handle form submissions
   const handleSavePersonalInfo = (data: any) => {
@@ -258,48 +236,15 @@ export default function ProfilePage() {
                       {/* Profile Picture Section */}
                       <div className="mb-8">
                         <h3 className="text-sm font-medium mb-4">Profile picture</h3>
-                        <div className="bg-gray-50 p-5 rounded-sm">
-                          <div className="flex flex-col items-center">
-                            {profileImage ? (
-                              <div className="relative w-full max-w-xs mb-4 overflow-hidden">
-                                <img 
-                                  src={profileImage.preview} 
-                                  alt="Profile Preview" 
-                                  className="w-full h-auto"
-                                />
-                                <button 
-                                  onClick={removeProfileImage}
-                                  className="absolute top-2 right-2 bg-red-50 hover:bg-red-100 text-red rounded-full p-1"
-                                >
-                                  <X size={16} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div 
-                                {...getRootProps()} 
-                                className={`w-full max-w-md border-2 border-dashed border-gray-300 flex items-center justify-center bg-white mb-4 cursor-pointer hover:border-gray-400 transition-colors p-8 ${
-                                  isDragActive ? "bg-gray-50 border-gray-400" : ""
-                                }`}
-                              >
-                                <input {...getInputProps()} />
-                                <div className="flex flex-col items-center gap-2">
-                                  <Image 
-                                    src="/assets/svgs/uplod-photo.svg"
-                                    alt="Upload photo"
-                                    width={80}
-                                    height={80}
-                                  />
-                                  <p className={`text-sm text-center ${isDragActive ? "font-medium text-gray-700" : "text-gray-500"}`}>
-                                    {isDragActive ? "Drop image here" : "Click or drag image here to upload"}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                            <p className="text-gray-500 text-xs max-w-xs text-center">
-                              Note: Please take a new picture or upload a picture which is not more than a month old
-                            </p>
-                          </div>
-                        </div>
+                        <ProfilePictureUpload
+                          currentAvatarUrl={profile?.profile?.avatarUrl}
+                          onUpload={handleProfilePictureUpload}
+                          isUploading={isUploadingImage}
+                          onUploadSuccess={() => {
+                            // Optional: Add any additional success handling here
+                            console.log('Profile picture uploaded successfully');
+                          }}
+                        />
                       </div>
                       
                       {/* Personal Info Form */}
