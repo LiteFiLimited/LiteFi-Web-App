@@ -56,10 +56,8 @@ export function useUserProfile() {
   const updateEmployment = async (data: any) => {
     try {
       setIsLoading(true);
-      const response = (await userApi.updateEmployment(
-        data
-      )) as ApiResponse<UserData>;
-      setProfile(response.data);
+      const response = await userApi.updateEmployment(data);
+      await fetchProfile();
       success("Success", "Employment information updated successfully");
       return true;
     } catch (err: any) {
@@ -79,10 +77,8 @@ export function useUserProfile() {
   const updateBusiness = async (data: any) => {
     try {
       setIsLoading(true);
-      const response = (await userApi.updateBusiness(
-        data
-      )) as ApiResponse<UserData>;
-      setProfile(response.data);
+      const response = await userApi.updateBusiness(data);
+      await fetchProfile();
       success("Success", "Business information updated successfully");
       return true;
     } catch (err: any) {
@@ -99,10 +95,8 @@ export function useUserProfile() {
   const updateNextOfKin = async (data: any) => {
     try {
       setIsLoading(true);
-      const response = (await userApi.updateNextOfKin(
-        data
-      )) as ApiResponse<UserData>;
-      setProfile(response.data);
+      const response = await userApi.updateNextOfKin(data);
+      await fetchProfile();
       success("Success", "Next of kin information updated successfully");
       return true;
     } catch (err: any) {

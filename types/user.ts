@@ -87,6 +87,7 @@ export interface GuarantorInfo {
   phone: string;
   email: string;
   bvn: string;
+  bvnVerified?: boolean;
   occupation: string;
   address: string;
   idCardUrl?: string;

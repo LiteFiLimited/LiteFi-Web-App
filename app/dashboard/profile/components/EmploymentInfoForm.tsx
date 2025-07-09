@@ -18,6 +18,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { validationRules } from '@/lib/formValidator';
 import { EmploymentInfo } from '@/types/user';
 import { useToastContext } from '@/app/components/ToastProvider';
+import ConfirmationModal from '@/app/components/ConfirmationModal';
 
 interface EmploymentInfoFormProps {
   onSave?: (data: any) => void;
@@ -44,29 +45,48 @@ interface EmploymentFormData {
 }
 
 export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false }: EmploymentInfoFormProps) {
-  const { profile, isLoading, updateEmployment } = useUserProfile();
+  const { profile, isLoading, updateEmployment, fetchProfile } = useUserProfile();
   const router = useRouter();
-  const [formReadOnly, setFormReadOnly] = useState(isReadOnly);
   const { error: showError } = useToastContext();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverErrors, setServerErrors] = useState<string[]>([]);
+  const [showSavedModal, setShowSavedModal] = useState(false);
+  const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Individual field read-only states based on actual employment data
+  const [fieldReadOnlyStatus, setFieldReadOnlyStatus] = useState({
+    employmentStatus: false,
+    employer: false,
+    jobTitle: false,
+    workEmail: false,
+    workPhone: false,
+    monthlySalary: false,
+    employerAddress: false,
+    employerStreet: false,
+    employerCity: false,
+    employerState: false,
+    employerCountry: false,
+    startDate: false,
+    salaryPaymentDate: false
+  });
 
   // Map profile data to form data structure
-  const initialFormData: EmploymentFormData = {
-    employmentStatus: profile?.employment?.employmentStatus || 'UNEMPLOYED',
-    employer: profile?.employment?.employer || "",
-    jobTitle: profile?.employment?.jobTitle || "",
-    workEmail: profile?.employment?.workEmail || "",
-    workPhone: profile?.employment?.workPhone || "",
-    monthlySalary: profile?.employment?.monthlySalary || 0,
-    employerAddress: profile?.employment?.employerAddress || "",
-    employerStreet: profile?.employment?.employerStreet || "",
-    employerCity: profile?.employment?.employerCity || "",
-    employerState: profile?.employment?.employerState || "",
-    employerCountry: profile?.employment?.employerCountry || "",
-    startDate: profile?.employment?.startDate || "",
-    salaryPaymentDate: profile?.employment?.salaryPaymentDate || 1
-  };
+  const getInitialFormData = (): EmploymentFormData => ({
+    employmentStatus: 'UNEMPLOYED',
+    employer: "",
+    jobTitle: "",
+    workEmail: "",
+    workPhone: "",
+    monthlySalary: 0,
+    employerAddress: "",
+    employerStreet: "",
+    employerCity: "",
+    employerState: "",
+    employerCountry: "",
+    startDate: "",
+    salaryPaymentDate: 1
+  });
 
   // Initialize form validator with initial data and empty rules
   const {
@@ -78,7 +98,13 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
     touchAllFields,
     isFormValid,
     setValidationRules
-  } = useFormValidator<EmploymentFormData>(initialFormData, {});
+  } = useFormValidator<EmploymentFormData>(getInitialFormData(), {});
+
+  // Custom handleChange that tracks user modifications
+  const handleUserChange = (field: keyof EmploymentFormData, value: string | number) => {
+    handleChange(field, value);
+    setHasUserMadeChanges(true);
+  };
 
   // Set up validation rules after formData is initialized
   useEffect(() => {
@@ -118,13 +144,11 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
     });
   }, [formData.employmentStatus, setValidationRules]);
 
-  const [showSavedModal, setShowSavedModal] = useState(false);
-
   // Update form data when profile is loaded
   useEffect(() => {
     if (profile?.employment) {
       const employment = profile.employment;
-      setFormData({
+      const newFormData: EmploymentFormData = {
         employmentStatus: employment.employmentStatus || 'UNEMPLOYED',
         employer: employment.employer || "",
         jobTitle: employment.jobTitle || "",
@@ -138,18 +162,38 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
         employerCountry: employment.employerCountry || "",
         startDate: employment.startDate || "",
         salaryPaymentDate: employment.salaryPaymentDate || 1
+      };
+      
+      setFormData(newFormData);
+      // Ensure loading employment data doesn't trigger hasUserMadeChanges
+      setHasUserMadeChanges(false);
+
+      // Update field read-only states based on actual employment data
+      // Fields are read-only if they have values (not null/empty)
+      setFieldReadOnlyStatus({
+        employmentStatus: !!employment.employmentStatus,
+        employer: !!employment.employer,
+        jobTitle: !!employment.jobTitle,
+        workEmail: !!employment.workEmail,
+        workPhone: !!employment.workPhone,
+        monthlySalary: !!(employment.monthlySalary && employment.monthlySalary > 0),
+        employerAddress: !!employment.employerAddress,
+        employerStreet: !!employment.employerStreet,
+        employerCity: !!employment.employerCity,
+        employerState: !!employment.employerState,
+        employerCountry: !!employment.employerCountry,
+        startDate: !!employment.startDate,
+        salaryPaymentDate: !!(employment.salaryPaymentDate && employment.salaryPaymentDate > 0)
       });
       
-      // If employment data exists and user is employed, set form to read-only
-      if (employment.employmentStatus === 'EMPLOYED' && employment.employer) {
-        setFormReadOnly(true);
-      }
+      // Make sure loading employment data doesn't trigger save button
+      setHasUserMadeChanges(false);
     }
-  }, [profile, setFormData]);
+  }, [profile]);
 
   // Handle employment status change
   const handleEmploymentStatusChange = (status: EmploymentFormData['employmentStatus']) => {
-    handleChange('employmentStatus', status);
+    handleUserChange('employmentStatus', status);
     setServerErrors([]);
     
     // Reset form if not employed
@@ -193,47 +237,56 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
     setServerErrors([]);
 
     if (isFormValid()) {
-      setIsSubmitting(true);
-      try {
-        // For EMPLOYED status, send all fields
-        // For other statuses, only send the status
-        const employmentData: any = {
-          employmentStatus: formData.employmentStatus
-        };
+      // Show confirmation modal instead of directly submitting
+      setShowConfirmModal(true);
+    }
+  };
 
-        if (formData.employmentStatus === 'EMPLOYED') {
-          employmentData.employer = formData.employer;
-          employmentData.jobTitle = formData.jobTitle;
-          employmentData.workEmail = formData.workEmail;
-          employmentData.workPhone = formData.workPhone;
-          employmentData.monthlySalary = Number(formData.monthlySalary);
-          employmentData.employerAddress = formData.employerAddress;
-          employmentData.employerStreet = formData.employerStreet;
-          employmentData.employerCity = formData.employerCity;
-          employmentData.employerState = formData.employerState;
-          employmentData.employerCountry = formData.employerCountry;
-          employmentData.startDate = formatDateForSubmission(formData.startDate || '');
-          employmentData.salaryPaymentDate = Number(formData.salaryPaymentDate);
-        }
+  const handleConfirmSave = async () => {
+    setShowConfirmModal(false);
+    setIsSubmitting(true);
+    try {
+      // For EMPLOYED status, send all fields
+      // For other statuses, only send the status
+      const employmentData: any = {
+        employmentStatus: formData.employmentStatus
+      };
 
-        const success = await updateEmployment(employmentData);
-        if (success) {
-          setShowSavedModal(true);
-          setFormReadOnly(true);
-          if (onSave) {
-            onSave(employmentData);
-          }
-        }
-      } catch (error: any) {
-        // Handle array of error messages from backend
-        if (Array.isArray(error.message)) {
-          setServerErrors(error.message);
-        } else {
-          showError('Error', error.message || 'Failed to update employment information. Please try again.');
-        }
-      } finally {
-        setIsSubmitting(false);
+      if (formData.employmentStatus === 'EMPLOYED') {
+        employmentData.employer = formData.employer;
+        employmentData.jobTitle = formData.jobTitle;
+        employmentData.workEmail = formData.workEmail;
+        employmentData.workPhone = formData.workPhone;
+        employmentData.monthlySalary = Number(formData.monthlySalary);
+        employmentData.employerAddress = formData.employerAddress;
+        employmentData.employerStreet = formData.employerStreet;
+        employmentData.employerCity = formData.employerCity;
+        employmentData.employerState = formData.employerState;
+        employmentData.employerCountry = formData.employerCountry;
+        employmentData.startDate = formatDateForSubmission(formData.startDate || '');
+        employmentData.salaryPaymentDate = Number(formData.salaryPaymentDate);
       }
+
+      const success = await updateEmployment(employmentData);
+      if (success) {
+        // Refresh the employment data to show updated values
+        await fetchProfile();
+        // Reset the flag since changes have been saved
+        setHasUserMadeChanges(false);
+        setShowSavedModal(true);
+        if (onSave) {
+          onSave(employmentData);
+        }
+      }
+    } catch (error: any) {
+      // Handle array of error messages from backend
+      if (Array.isArray(error.message)) {
+        setServerErrors(error.message);
+      } else {
+        showError('Error', error.message || 'Failed to update employment information. Please try again.');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -245,6 +298,16 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
     setShowSavedModal(false);
     router.push('/dashboard/profile');
   };
+
+  // Check if all editable fields are completed to determine button text
+  const allEditableFieldsCompleted = React.useMemo(() => {
+    // Check if any field that is currently editable (not read-only) has a value
+    const editableFields = Object.keys(fieldReadOnlyStatus).filter(
+      key => !fieldReadOnlyStatus[key as keyof typeof fieldReadOnlyStatus]
+    );
+    
+    return editableFields.length === 0; // All fields are read-only, meaning all are completed
+  }, [fieldReadOnlyStatus]);
 
   if (isLoading) {
     return (
@@ -275,7 +338,7 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
           <Select
             value={formData.employmentStatus}
             onValueChange={handleEmploymentStatusChange}
-            disabled={formReadOnly || isSubmitting}
+            disabled={fieldReadOnlyStatus.employmentStatus || isSubmitting}
           >
             <SelectTrigger id="employmentStatus" className="w-full h-12 rounded-none">
               <SelectValue placeholder="Select employment status" />
@@ -298,10 +361,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="employer"
                 name="employer"
                 value={formData.employer || ''}
-                onChange={(e) => handleChange("employer", e.target.value)}
+                onChange={(e) => handleUserChange("employer", e.target.value)}
                 onBlur={() => handleBlur("employer")}
                 className={`h-12 rounded-none ${showErrors.employer ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.employer || isSubmitting}
                 placeholder="Enter your employer's name"
               />
               {showErrors.employer && (
@@ -315,10 +378,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="jobTitle"
                 name="jobTitle"
                 value={formData.jobTitle || ''}
-                onChange={(e) => handleChange("jobTitle", e.target.value)}
+                onChange={(e) => handleUserChange("jobTitle", e.target.value)}
                 onBlur={() => handleBlur("jobTitle")}
                 className={`h-12 rounded-none ${showErrors.jobTitle ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.jobTitle || isSubmitting}
                 placeholder="Enter your job title"
               />
               {showErrors.jobTitle && (
@@ -333,10 +396,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 name="workEmail"
                 type="email"
                 value={formData.workEmail || ''}
-                onChange={(e) => handleChange("workEmail", e.target.value)}
+                onChange={(e) => handleUserChange("workEmail", e.target.value)}
                 onBlur={() => handleBlur("workEmail")}
                 className={`h-12 rounded-none ${showErrors.workEmail ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.workEmail || isSubmitting}
                 placeholder="Enter your work email address"
               />
               {showErrors.workEmail && (
@@ -350,10 +413,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="workPhone"
                 name="workPhone"
                 value={formData.workPhone || ''}
-                onChange={(e) => handleChange("workPhone", e.target.value)}
+                onChange={(e) => handleUserChange("workPhone", e.target.value)}
                 onBlur={() => handleBlur("workPhone")}
                 className={`h-12 rounded-none ${showErrors.workPhone ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.workPhone || isSubmitting}
                 placeholder="Enter your work phone number"
               />
               {showErrors.workPhone && (
@@ -368,10 +431,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 name="monthlySalary"
                 type="number"
                 value={formData.monthlySalary || ''}
-                onChange={(e) => handleChange("monthlySalary", Number(e.target.value))}
+                onChange={(e) => handleUserChange("monthlySalary", Number(e.target.value))}
                 onBlur={() => handleBlur("monthlySalary")}
                 className={`h-12 rounded-none ${showErrors.monthlySalary ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.monthlySalary || isSubmitting}
                 placeholder="Enter your monthly salary"
                 min="0"
               />
@@ -386,10 +449,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="employerAddress"
                 name="employerAddress"
                 value={formData.employerAddress || ''}
-                onChange={(e) => handleChange("employerAddress", e.target.value)}
+                onChange={(e) => handleUserChange("employerAddress", e.target.value)}
                 onBlur={() => handleBlur("employerAddress")}
                 className={`h-12 rounded-none ${showErrors.employerAddress ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.employerAddress || isSubmitting}
               />
               {showErrors.employerAddress && (
                 <p className="text-red-500 text-sm">Employer address is required</p>
@@ -402,10 +465,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="employerStreet"
                 name="employerStreet"
                 value={formData.employerStreet || ''}
-                onChange={(e) => handleChange("employerStreet", e.target.value)}
+                onChange={(e) => handleUserChange("employerStreet", e.target.value)}
                 onBlur={() => handleBlur("employerStreet")}
                 className={`h-12 rounded-none ${showErrors.employerStreet ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.employerStreet || isSubmitting}
                 placeholder="Enter your employer's street address"
               />
               {showErrors.employerStreet && (
@@ -419,10 +482,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="employerCity"
                 name="employerCity"
                 value={formData.employerCity || ''}
-                onChange={(e) => handleChange("employerCity", e.target.value)}
+                onChange={(e) => handleUserChange("employerCity", e.target.value)}
                 onBlur={() => handleBlur("employerCity")}
                 className={`h-12 rounded-none ${showErrors.employerCity ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.employerCity || isSubmitting}
                 placeholder="Enter your employer's city"
               />
               {showErrors.employerCity && (
@@ -436,10 +499,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="employerState"
                 name="employerState"
                 value={formData.employerState || ''}
-                onChange={(e) => handleChange("employerState", e.target.value)}
+                onChange={(e) => handleUserChange("employerState", e.target.value)}
                 onBlur={() => handleBlur("employerState")}
                 className={`h-12 rounded-none ${showErrors.employerState ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.employerState || isSubmitting}
                 placeholder="Enter your employer's state"
               />
               {showErrors.employerState && (
@@ -453,10 +516,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="employerCountry"
                 name="employerCountry"
                 value={formData.employerCountry || ''}
-                onChange={(e) => handleChange("employerCountry", e.target.value)}
+                onChange={(e) => handleUserChange("employerCountry", e.target.value)}
                 onBlur={() => handleBlur("employerCountry")}
                 className={`h-12 rounded-none ${showErrors.employerCountry ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.employerCountry || isSubmitting}
                 placeholder="Enter your employer's country"
               />
               {showErrors.employerCountry && (
@@ -470,10 +533,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 id="startDate"
                 name="startDate"
                 value={formData.startDate || ''}
-                onChange={(e) => handleChange("startDate", e.target.value)}
+                onChange={(e) => handleUserChange("startDate", e.target.value)}
                 onBlur={() => handleBlur("startDate")}
                 className={`h-12 rounded-none ${showErrors.startDate ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.startDate || isSubmitting}
                 placeholder="DD/MM/YYYY"
               />
               {showErrors.startDate && (
@@ -490,10 +553,10 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 min="1"
                 max="31"
                 value={formData.salaryPaymentDate || ''}
-                onChange={(e) => handleChange("salaryPaymentDate", Number(e.target.value))}
+                onChange={(e) => handleUserChange("salaryPaymentDate", Number(e.target.value))}
                 onBlur={() => handleBlur("salaryPaymentDate")}
                 className={`h-12 rounded-none ${showErrors.salaryPaymentDate ? 'border-red-500' : ''}`}
-                disabled={formReadOnly || isSubmitting}
+                disabled={fieldReadOnlyStatus.salaryPaymentDate || isSubmitting}
                 placeholder="Enter day of month (1-31)"
               />
               {showErrors.salaryPaymentDate && (
@@ -505,7 +568,7 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
       </div>
 
       <div className="flex justify-end space-x-4">
-        {!formReadOnly && (
+        {hasUserMadeChanges && (
           <Button
             type="submit"
             className="bg-red-600 hover:bg-red-700 text-white px-8 py-2 rounded-none"
@@ -517,8 +580,18 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
                 Saving...
               </div>
             ) : (
-              'Save'
+              'Save Changes'
             )}
+          </Button>
+        )}
+        
+        {allEditableFieldsCompleted && !hasUserMadeChanges && (
+          <Button 
+            type="button" 
+            disabled={true}
+            className="bg-gray-400 text-white cursor-not-allowed px-8 py-2 rounded-none"
+          >
+            Employment Locked
           </Button>
         )}
       </div>
@@ -532,6 +605,13 @@ export default function EmploymentInfoForm({ onSave, allFormsCompleted, onGetLoa
           onGetLoan={onGetLoan}
         />
       )}
+
+      <ConfirmationModal
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSave}
+        title="Employment Information"
+      />
     </form>
   );
 }

@@ -3,7 +3,6 @@ import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
 import { X } from 'lucide-react';
 import { validateFileUpload } from '@/lib/api';
-import { transformAvatarUrl } from '@/lib/utils';
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -16,6 +15,22 @@ interface ProfilePictureUploadProps {
   isUploading?: boolean;
   className?: string;
 }
+
+// Local avatar URL transformation function
+const transformAvatarUrl = (avatarUrl?: string): string | undefined => {
+  if (!avatarUrl) return undefined;
+  
+  // Check if it's a legacy CDN URL and transform it
+  if (avatarUrl.includes("https://cdn.litefi.ng/uploads/")) {
+    return avatarUrl.replace(
+      "https://cdn.litefi.ng/uploads/",
+      "https://storage.googleapis.com/litefi-uploads/"
+    );
+  }
+  
+  // Return the URL as-is if it's already in the correct format
+  return avatarUrl;
+};
 
 // Skeleton loader component
 const ProfileImageSkeleton = () => (

@@ -20,6 +20,7 @@ import { useFormValidator, validationRules } from "@/lib/formValidator";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useToastContext } from '@/app/components/ToastProvider';
+import ConfirmationModal from '@/app/components/ConfirmationModal';
 
 interface GuarantorFormProps {
   onSave?: (data: any) => void;
@@ -35,10 +36,33 @@ interface FileWithPreview extends File {
 type ValidationState = "idle" | "loading" | "success" | "error";
 
 export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false }: GuarantorFormProps) {
-  const { profile, isLoading: profileLoading, updateGuarantor } = useUserProfile();
+  const { profile, isLoading: profileLoading, updateGuarantor, fetchProfile } = useUserProfile();
   const { error: showError } = useToastContext();
   
-  const initialFormData = {
+  const [showSavedModal, setShowSavedModal] = useState(false);
+  const [idCardFile, setIdCardFile] = useState<FileWithPreview | null>(null);
+  const router = useRouter();
+  const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  
+  // Add BVN validation state
+  const [bvnValidationState, setBvnValidationState] = useState<ValidationState>("idle");
+  const [bvnReadOnly, setBvnReadOnly] = useState(isReadOnly);
+
+  // Individual field read-only states based on actual guarantor data
+  const [fieldReadOnlyStatus, setFieldReadOnlyStatus] = useState({
+    firstName: false,
+    lastName: false,
+    middleName: false,
+    relationship: false,
+    phoneNumber: false,
+    emailAddress: false,
+    bvn: false,
+    occupation: false,
+    address: false
+  });
+
+  const getInitialFormData = () => ({
     firstName: "",
     lastName: "",
     middleName: "",
@@ -48,15 +72,7 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
     bvn: "",
     occupation: "",
     address: ""
-  };
-
-  const [showSavedModal, setShowSavedModal] = useState(false);
-  const [idCardFile, setIdCardFile] = useState<FileWithPreview | null>(null);
-  const router = useRouter();
-  
-  // Add BVN validation state
-  const [bvnValidationState, setBvnValidationState] = useState<ValidationState>("idle");
-  const [bvnReadOnly, setBvnReadOnly] = useState(isReadOnly);
+  });
 
   // Define validation rules for the form fields
   const rules = {
@@ -81,13 +97,19 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
     handleBlur,
     touchAllFields,
     isFormValid
-  } = useFormValidator(initialFormData, rules);
+  } = useFormValidator(getInitialFormData(), rules);
+
+  // Custom handleChange that tracks user modifications
+  const handleUserChange = (field: keyof typeof formData, value: string) => {
+    handleChange(field, value);
+    setHasUserMadeChanges(true);
+  };
 
   // Update form data when profile is loaded
   useEffect(() => {
     if (profile?.guarantor) {
       const guarantor = profile.guarantor;
-      setFormData({
+      const newFormData = {
         firstName: guarantor.firstName || "",
         lastName: guarantor.lastName || "",
         middleName: guarantor.middleName || "",
@@ -97,6 +119,24 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
         bvn: guarantor.bvn || "",
         occupation: guarantor.occupation || "",
         address: guarantor.address || ""
+      };
+
+      setFormData(newFormData);
+      // Ensure loading guarantor data doesn't trigger hasUserMadeChanges
+      setHasUserMadeChanges(false);
+
+      // Update field read-only states based on actual guarantor data
+      // Fields are read-only if they have values (not null/empty)
+      setFieldReadOnlyStatus({
+        firstName: !!guarantor.firstName,
+        lastName: !!guarantor.lastName,
+        middleName: !!guarantor.middleName,
+        relationship: !!guarantor.relationship,
+        phoneNumber: !!guarantor.phone,
+        emailAddress: !!guarantor.email,
+        bvn: !!guarantor.bvn, // Just check if BVN exists, not verification status
+        occupation: !!guarantor.occupation,
+        address: !!guarantor.address
       });
 
       // Set validation states if values exist
@@ -104,6 +144,9 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
         setBvnValidationState("success");
         setBvnReadOnly(true);
       }
+      
+      // Make sure loading guarantor data doesn't trigger save button
+      setHasUserMadeChanges(false);
     }
   }, [profile]);
 
@@ -114,6 +157,7 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
         preview: URL.createObjectURL(acceptedFiles[0])
       });
       setIdCardFile(file);
+      setHasUserMadeChanges(true); // File upload counts as user change
     }
   }, []);
 
@@ -131,6 +175,7 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
       URL.revokeObjectURL(idCardFile.preview);
     }
     setIdCardFile(null);
+    setHasUserMadeChanges(true); // File removal counts as user change
   };
 
   // Check if form is valid including the required ID card file
@@ -147,6 +192,13 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
       return;
     }
 
+    // Show confirmation modal instead of directly submitting
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowConfirmModal(false);
+    
     try {
       const formDataToSubmit = new FormData();
       formDataToSubmit.append('firstName', formData.firstName);
@@ -164,6 +216,10 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
       }
 
       await updateGuarantor(formDataToSubmit);
+      // Refresh the guarantor data to show updated values
+      await fetchProfile();
+      // Reset the flag since changes have been saved
+      setHasUserMadeChanges(false);
       setShowSavedModal(true);
       if (onSave) onSave(formData);
     } catch (error) {
@@ -193,6 +249,16 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
     }
   };
 
+  // Check if all editable fields are completed to determine button text
+  const allEditableFieldsCompleted = React.useMemo(() => {
+    // Check if any field that is currently editable (not read-only) has a value
+    const editableFields = Object.keys(fieldReadOnlyStatus).filter(
+      key => !fieldReadOnlyStatus[key as keyof typeof fieldReadOnlyStatus]
+    );
+    
+    return editableFields.length === 0; // All fields are read-only, meaning all are completed
+  }, [fieldReadOnlyStatus]);
+
   if (profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -211,10 +277,11 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
               <Input
                 id="firstName"
                 value={formData.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
+                onChange={(e) => handleUserChange("firstName", e.target.value)}
                 onBlur={() => handleBlur("firstName")}
                 placeholder="Enter first name"
                 className={`h-12 rounded-none ${showErrors.firstName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                readOnly={fieldReadOnlyStatus.firstName}
               />
               {showErrors.firstName && (
                 <p className="text-xs text-red-500">First name is required</p>
@@ -226,10 +293,11 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
               <Input
                 id="lastName"
                 value={formData.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
+                onChange={(e) => handleUserChange("lastName", e.target.value)}
                 onBlur={() => handleBlur("lastName")}
                 placeholder="Enter last name"
                 className={`h-12 rounded-none ${showErrors.lastName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                readOnly={fieldReadOnlyStatus.lastName}
               />
               {showErrors.lastName && (
                 <p className="text-xs text-red-500">Last name is required</p>
@@ -243,20 +311,22 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
               <Input
                 id="middleName"
                 value={formData.middleName}
-                onChange={(e) => handleChange("middleName", e.target.value)}
+                onChange={(e) => handleUserChange("middleName", e.target.value)}
                 placeholder="Enter middle name (optional)"
                 className="h-12 rounded-none"
+                readOnly={fieldReadOnlyStatus.middleName}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="relationship">Relationship with Guarantor</Label>
-              <Select 
+              <Select
                 value={formData.relationship}
                 onValueChange={(value) => {
-                  handleChange("relationship", value);
+                  handleUserChange("relationship", value);
                   handleBlur("relationship");
                 }}
+                disabled={fieldReadOnlyStatus.relationship}
               >
                 <SelectTrigger 
                   id="relationship" 
@@ -289,10 +359,11 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
               <Input
                 id="phoneNumber"
                 value={formData.phoneNumber}
-                onChange={(e) => handleChange("phoneNumber", e.target.value)}
+                onChange={(e) => handleUserChange("phoneNumber", e.target.value)}
                 onBlur={() => handleBlur("phoneNumber")}
                 placeholder="Enter phone number"
                 className={`h-12 rounded-none ${showErrors.phoneNumber ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                readOnly={fieldReadOnlyStatus.phoneNumber}
               />
               {showErrors.phoneNumber && (
                 <p className="text-xs text-red-500">Please enter a valid phone number</p>
@@ -305,10 +376,11 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
                 id="emailAddress"
                 type="email"
                 value={formData.emailAddress}
-                onChange={(e) => handleChange("emailAddress", e.target.value)}
+                onChange={(e) => handleUserChange("emailAddress", e.target.value)}
                 onBlur={() => handleBlur("emailAddress")}
                 placeholder="Enter email address"
                 className={`h-12 rounded-none ${showErrors.emailAddress ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                readOnly={fieldReadOnlyStatus.emailAddress}
               />
               {showErrors.emailAddress && (
                 <p className="text-xs text-red-500">Please enter a valid email address</p>
@@ -323,7 +395,7 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
                 <Input
                   id="bvn"
                   value={formData.bvn}
-                  onChange={(e) => handleChange("bvn", e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  onChange={(e) => handleUserChange("bvn", e.target.value.replace(/\D/g, '').slice(0, 11))}
                   onBlur={() => handleBlur("bvn")}
                   placeholder="Enter BVN"
                   className={`h-12 rounded-none pr-10 ${
@@ -350,10 +422,11 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
               <Input
                 id="occupation"
                 value={formData.occupation}
-                onChange={(e) => handleChange("occupation", e.target.value)}
+                onChange={(e) => handleUserChange("occupation", e.target.value)}
                 onBlur={() => handleBlur("occupation")}
                 placeholder="Enter occupation"
                 className={`h-12 rounded-none ${showErrors.occupation ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                readOnly={fieldReadOnlyStatus.occupation}
               />
               {showErrors.occupation && (
                 <p className="text-xs text-red-500">Occupation is required</p>
@@ -367,10 +440,11 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
               <Input
                 id="address"
                 value={formData.address}
-                onChange={(e) => handleChange("address", e.target.value)}
+                onChange={(e) => handleUserChange("address", e.target.value)}
                 onBlur={() => handleBlur("address")}
                 placeholder="Enter full address"
                 className={`h-12 rounded-none ${showErrors.address ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                readOnly={fieldReadOnlyStatus.address}
               />
               {showErrors.address && (
                 <p className="text-xs text-red-500">Address is required</p>
@@ -423,13 +497,26 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
         </div>
 
         <div className="flex justify-end space-x-4">
-          <Button
-            type="submit"
-            className="bg-red-500 hover:bg-red-600 text-white px-8 py-2 h-12 rounded-none"
-            disabled={!isFormWithFileValid()}
-          >
-            Save
-          </Button>
+          {hasUserMadeChanges && (
+            <Button
+              type="submit"
+              className="bg-red-500 hover:bg-red-600 text-white px-8 py-2 h-12 rounded-none"
+              disabled={!isFormWithFileValid()}
+            >
+              Save Changes
+            </Button>
+          )}
+          
+          {allEditableFieldsCompleted && !hasUserMadeChanges && (
+            <Button 
+              type="button" 
+              disabled={true}
+              className="bg-gray-400 text-white cursor-not-allowed px-8 py-2 h-12 rounded-none"
+            >
+              Guarantor Locked
+            </Button>
+          )}
+          
           {allFormsCompleted && (
             <Button
               type="button"
@@ -450,6 +537,13 @@ export default function GuarantorForm({ onSave, allFormsCompleted, onGetLoan, is
           allFormsCompleted={allFormsCompleted}
         />
       )}
+
+      <ConfirmationModal
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSave}
+        title="Guarantor Information"
+      />
     </>
   );
 }
