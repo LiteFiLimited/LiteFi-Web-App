@@ -48,7 +48,7 @@ export function AreaChart({
   const maxValue = Math.max(...data.map(item => Number(item[areaDataKey]) || 0));
   const minValue = Math.min(...data.map(item => Number(item[areaDataKey]) || 0));
 
-  // Create more tick values for the y-axis (as shown in screenshot)
+  // Create more tick values for the y-axis
   const getYAxisTicks = () => {
     const step = maxValue / 8; // Create ~8 tick values for better distribution
     return Array.from({ length: 9 }, (_, i) => Math.round(i * step));

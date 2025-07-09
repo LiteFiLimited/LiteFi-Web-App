@@ -89,9 +89,60 @@ function LoginContent() {
             }, 2000);
           } else if (response.message?.toLowerCase().includes('verify') && 
                      response.message?.toLowerCase().includes('email')) {
-            error("Email not verified", "Please verify your email first");
+            error("Email verification required", "Please verify your email to continue");
             
-            // Optionally redirect to sign-up for email verification
+            // Store email for email verification flow
+            sessionStorage.setItem('registrationEmail', email);
+            
+            // Redirect to sign-up for email verification
+            setTimeout(() => {
+              window.location.href = `/auth/sign-up`;
+            }, 2000);
+          } else if (response.message?.toLowerCase().includes('verify') && 
+                     (response.message?.toLowerCase().includes('phone') || 
+                      response.message?.toLowerCase().includes('otp'))) {
+            error("Phone verification required", "Please verify your phone number to continue");
+            
+            // Store email for phone verification flow
+            sessionStorage.setItem('registrationEmail', email);
+            
+            // Redirect to phone verification
+            setTimeout(() => {
+              window.location.href = `/auth/verify-phone`;
+            }, 2000);
+          } else if (response.message?.toLowerCase().includes('verify') && 
+                     (response.message?.toLowerCase().includes('email') || 
+                      response.message?.toLowerCase().includes('mail'))) {
+            error("Email verification required", "Please verify your email to continue");
+            
+            // Store email for email verification flow
+            sessionStorage.setItem('registrationEmail', email);
+            
+            // Redirect to sign-up for email verification
+            setTimeout(() => {
+              window.location.href = `/auth/sign-up`;
+            }, 2000);
+          } else if (response.message?.toLowerCase().includes('otp') && 
+                     (response.message?.toLowerCase().includes('phone') || 
+                      response.message?.toLowerCase().includes('sms'))) {
+            error("Phone verification required", "Please verify your phone number with OTP to continue");
+            
+            // Store email for phone verification flow
+            sessionStorage.setItem('registrationEmail', email);
+            
+            // Redirect to phone verification
+            setTimeout(() => {
+              window.location.href = `/auth/verify-phone`;
+            }, 2000);
+          } else if (response.message?.toLowerCase().includes('otp') && 
+                     (response.message?.toLowerCase().includes('email') || 
+                      response.message?.toLowerCase().includes('mail'))) {
+            error("Email verification required", "Please verify your email with OTP to continue");
+            
+            // Store email for email verification flow
+            sessionStorage.setItem('registrationEmail', email);
+            
+            // Redirect to sign-up for email verification
             setTimeout(() => {
               window.location.href = `/auth/sign-up`;
             }, 2000);
@@ -139,7 +190,71 @@ function LoginContent() {
         }
         
         console.log("Extracted error message:", errorMessage);
-        error("Login failed", errorMessage);
+        
+        // Handle incomplete registration scenarios in catch block
+        if (errorMessage.toLowerCase().includes('verify') && 
+            (errorMessage.toLowerCase().includes('phone') || 
+             errorMessage.toLowerCase().includes('otp'))) {
+          error("Phone verification required", "Please verify your phone number to continue");
+          
+          // Store email for phone verification flow
+          sessionStorage.setItem('registrationEmail', email);
+          
+          // Redirect to phone verification
+          setTimeout(() => {
+            window.location.href = `/auth/verify-phone`;
+          }, 2000);
+        } else if (errorMessage.toLowerCase().includes('verify') && 
+                   (errorMessage.toLowerCase().includes('email') || 
+                    errorMessage.toLowerCase().includes('mail'))) {
+          error("Email verification required", "Please verify your email to continue");
+          
+          // Store email for email verification flow
+          sessionStorage.setItem('registrationEmail', email);
+          
+          // Redirect to sign-up for email verification
+          setTimeout(() => {
+            window.location.href = `/auth/sign-up`;
+          }, 2000);
+        } else if (errorMessage.toLowerCase().includes('otp') && 
+                   (errorMessage.toLowerCase().includes('phone') || 
+                    errorMessage.toLowerCase().includes('sms'))) {
+          error("Phone verification required", "Please verify your phone number with OTP to continue");
+          
+          // Store email for phone verification flow
+          sessionStorage.setItem('registrationEmail', email);
+          
+          // Redirect to phone verification
+          setTimeout(() => {
+            window.location.href = `/auth/verify-phone`;
+          }, 2000);
+        } else if (errorMessage.toLowerCase().includes('otp') && 
+                   (errorMessage.toLowerCase().includes('email') || 
+                    errorMessage.toLowerCase().includes('mail'))) {
+          error("Email verification required", "Please verify your email with OTP to continue");
+          
+          // Store email for email verification flow
+          sessionStorage.setItem('registrationEmail', email);
+          
+          // Redirect to sign-up for email verification
+          setTimeout(() => {
+            window.location.href = `/auth/sign-up`;
+          }, 2000);
+        } else if (errorMessage.toLowerCase().includes('password not set') || 
+                   errorMessage.toLowerCase().includes('complete registration') ||
+                   errorMessage.toLowerCase().includes('create password')) {
+          error("Registration incomplete", "Please complete your registration by setting a password");
+          
+          // Store email for password creation flow
+          sessionStorage.setItem('registrationEmail', email);
+          
+          // Redirect to password creation after a short delay
+          setTimeout(() => {
+            window.location.href = `/auth/create-password?email=${encodeURIComponent(email)}`;
+          }, 2000);
+        } else {
+          error("Login failed", errorMessage);
+        }
       } finally {
         setIsLoading(false);
       }

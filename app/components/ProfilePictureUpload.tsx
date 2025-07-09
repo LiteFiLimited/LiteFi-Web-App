@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import Image from 'next/image';
 import { X } from 'lucide-react';
 import { validateFileUpload } from '@/lib/api';
+import { transformAvatarUrl } from '@/lib/utils';
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -21,6 +22,19 @@ const ProfileImageSkeleton = () => (
   <div className="w-32 h-32 bg-gray-200 rounded-full animate-pulse mb-4" />
 );
 
+// Default avatar icon component
+const DefaultAvatarIcon = ({ size = 48 }: { size?: number }) => (
+  <svg 
+    className={`text-gray-400`} 
+    style={{ width: size, height: size }}
+    fill="none" 
+    stroke="currentColor" 
+    viewBox="0 0 24 24"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
+
 export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
   currentAvatarUrl,
   onUploadSuccess,
@@ -30,7 +44,7 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
 }) => {
   const [profileImage, setProfileImage] = useState<FileWithPreview | undefined>(undefined);
   const [showUploadInterface, setShowUploadInterface] = useState(!currentAvatarUrl);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(Boolean(currentAvatarUrl));
   const [imageError, setImageError] = useState(false);
 
   // Handle file drop
@@ -109,8 +123,22 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       setShowUploadInterface(false);
     } else {
       setShowUploadInterface(true);
+      setImageLoading(false);
+      setImageError(false);
     }
   }, [currentAvatarUrl]);
+
+  // Handle successful image load
+  const handleImageLoad = () => {
+    setImageLoading(false);
+    setImageError(false);
+  };
+
+  // Handle image load error
+  const handleImageError = () => {
+    setImageLoading(false);
+    setImageError(true);
+  };
 
   return (
     <div className={`bg-gray-50 p-5 rounded-sm ${className}`}>
@@ -118,24 +146,45 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         {/* Show existing avatar if available and not in upload mode */}
         {currentAvatarUrl && !showUploadInterface ? (
           <div className="relative w-32 h-32 mb-4">
-            {imageLoading && <ProfileImageSkeleton />}
-            <img 
-              src={currentAvatarUrl} 
-              alt="Profile Picture" 
-              className={`w-full h-full object-cover rounded-full border-4 border-white shadow-lg ${
-                imageLoading ? 'opacity-0' : 'opacity-100'
-              } transition-opacity duration-300`}
-              loading="lazy"
-              onLoad={() => setImageLoading(false)}
-              onError={() => {
-                setImageLoading(false);
-                setImageError(true);
-                // Fallback to show upload interface if image fails to load
-                setShowUploadInterface(true);
-              }}
-              style={{ display: imageLoading ? 'none' : 'block' }}
-            />
-            {!imageLoading && !imageError && (
+            {/* Show skeleton loader while image is loading */}
+            {imageLoading && (
+              <div className="absolute inset-0 z-10">
+                <ProfileImageSkeleton />
+              </div>
+            )}
+            
+            {/* Main image or fallback */}
+            <div className="w-full h-full rounded-full border-4 border-white shadow-lg overflow-hidden">
+              {(() => {
+                const transformedUrl = transformAvatarUrl(currentAvatarUrl);
+                
+                if (transformedUrl && !imageError) {
+                  return (
+                    <Image
+                      src={transformedUrl}
+                      alt="Profile Picture"
+                      width={128}
+                      height={128}
+                      className="w-full h-full object-cover"
+                      onLoad={handleImageLoad}
+                      onError={handleImageError}
+                      unoptimized={true}
+                      priority={true}
+                    />
+                  );
+                } else {
+                  // Show fallback when no URL or error occurred
+                  return (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                      <DefaultAvatarIcon size={48} />
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+            
+            {/* Change button - only show when image loads successfully or when there's an error */}
+            {!imageLoading && (
               <button 
                 onClick={() => setShowUploadInterface(true)}
                 className="absolute bottom-0 right-0 bg-red hover:bg-red/90 text-white rounded-full p-2 shadow-lg transition-colors"
@@ -153,10 +202,13 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
           <>
             {profileImage ? (
               <div className="relative w-full max-w-xs mb-4 overflow-hidden">
-                <img 
-                  src={profileImage.preview} 
-                  alt="Profile Preview" 
+                <Image
+                  src={profileImage.preview!}
+                  alt="Profile Preview"
+                  width={300}
+                  height={200}
                   className="w-full h-auto rounded-lg"
+                  unoptimized={true}
                 />
                 <button 
                   onClick={removeProfileImage}
@@ -212,8 +264,10 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
                   onClick={() => {
                     setShowUploadInterface(false);
                     removeProfileImage();
-                    setImageError(false);
-                    setImageLoading(true);
+                    if (currentAvatarUrl) {
+                      setImageError(false);
+                      setImageLoading(true);
+                    }
                   }}
                   disabled={isUploading}
                   className="px-4 py-2 bg-gray-300 text-gray-700 hover:bg-gray-400 disabled:opacity-50"
@@ -225,9 +279,12 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
           </>
         )}
         
-        <p className="text-gray-500 text-xs max-w-xs text-center">
-          Note: Please take a new picture or upload a picture which is not more than a month old
-        </p>
+        {/* Only show note when there's no current avatar or when showing upload interface */}
+        {(!currentAvatarUrl || showUploadInterface) && (
+          <p className="text-gray-500 text-xs max-w-xs text-center">
+            Note: Please take a new picture or upload a picture which is not more than a month old
+          </p>
+        )}
       </div>
     </div>
   );

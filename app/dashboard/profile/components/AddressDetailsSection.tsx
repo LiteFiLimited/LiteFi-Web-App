@@ -22,6 +22,26 @@ interface AddressDetailsSectionProps {
   selectedState: string;
   handleStateChange: (value: string) => void;
   availableLgas: string[];
+  fieldReadOnlyStatus?: {
+    firstName: boolean;
+    lastName: boolean;
+    middleName: boolean;
+    phoneNumber: boolean;
+    email: boolean;
+    dateOfBirth: boolean;
+    bvn: boolean;
+    nin: boolean;
+    maritalStatus: boolean;
+    highestEducation: boolean;
+    employmentType: boolean;
+    streetNo: boolean;
+    streetName: boolean;
+    nearestBusStop: boolean;
+    state: boolean;
+    localGovernment: boolean;
+    homeOwnership: boolean;
+    yearsInCurrentAddress: boolean;
+  };
 }
 
 export function AddressDetailsSection({
@@ -32,6 +52,7 @@ export function AddressDetailsSection({
   selectedState,
   handleStateChange,
   availableLgas,
+  fieldReadOnlyStatus,
 }: AddressDetailsSectionProps) {
   return (
     <div className="space-y-6">
@@ -45,6 +66,7 @@ export function AddressDetailsSection({
             onChange={(e) => handleChange("streetNo", e.target.value)}
             className={showErrors.streetNo && !validations.streetNo ? "border-red-500" : ""}
             placeholder="Enter street number"
+            disabled={fieldReadOnlyStatus?.streetNo}
           />
         </div>
 
@@ -56,6 +78,7 @@ export function AddressDetailsSection({
             onChange={(e) => handleChange("streetName", e.target.value)}
             className={showErrors.streetName && !validations.streetName ? "border-red-500" : ""}
             placeholder="Enter street name"
+            disabled={fieldReadOnlyStatus?.streetName}
           />
         </div>
 
@@ -67,6 +90,7 @@ export function AddressDetailsSection({
             onChange={(e) => handleChange("nearestBusStop", e.target.value)}
             className={showErrors.nearestBusStop && !validations.nearestBusStop ? "border-red-500" : ""}
             placeholder="Enter nearest bus stop"
+            disabled={fieldReadOnlyStatus?.nearestBusStop}
           />
         </div>
 
@@ -76,6 +100,7 @@ export function AddressDetailsSection({
             name="state"
             value={formData.state}
             onValueChange={handleStateChange}
+            disabled={fieldReadOnlyStatus?.state}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select state" />
@@ -96,7 +121,7 @@ export function AddressDetailsSection({
             name="localGovernment"
             value={formData.localGovernment}
             onValueChange={(value) => handleChange("localGovernment", value)}
-            disabled={!selectedState}
+            disabled={!selectedState || fieldReadOnlyStatus?.localGovernment}
           >
             <SelectTrigger>
               <SelectValue placeholder={selectedState ? "Select LGA" : "Select state first"} />
@@ -117,6 +142,7 @@ export function AddressDetailsSection({
             name="homeOwnership"
             value={formData.homeOwnership}
             onValueChange={(value) => handleChange("homeOwnership", value)}
+            disabled={fieldReadOnlyStatus?.homeOwnership}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select home ownership" />
@@ -140,6 +166,7 @@ export function AddressDetailsSection({
             type="number"
             className={showErrors.yearsInCurrentAddress && !validations.yearsInCurrentAddress ? "border-red-500" : ""}
             placeholder="Enter number of years"
+            disabled={fieldReadOnlyStatus?.yearsInCurrentAddress}
           />
         </div>
       </div>

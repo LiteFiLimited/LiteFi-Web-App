@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,27 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { success, error, info } = useToastContext();
+
+  // Handle stored email from login redirect
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedEmail = sessionStorage.getItem('registrationEmail');
+      if (storedEmail) {
+        console.log('Phone verification: found stored email from login redirect:', storedEmail);
+        // Keep the email for context but don't clear it yet
+        // It will be cleared when the user completes the entire flow
+      }
+    }
+  }, []);
+
+  // Helper function to complete verification and clean up stored email
+  const completeVerification = () => {
+    // Clear stored email from login redirect
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('registrationEmail');
+    }
+    onCompleteAction();
+  };
 
   const handleSubmitPhone = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +79,7 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
           
           // Complete the verification process
           setTimeout(() => {
-            onCompleteAction();
+            completeVerification();
           }, 1000);
         }
       } else {
@@ -69,7 +90,7 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
           info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
           // Complete the verification process
           setTimeout(() => {
-            onCompleteAction();
+            completeVerification();
           }, 1500);
         } else {
           error("Verification failed", response.message || "Please try again");
@@ -104,7 +125,7 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
         success("Phone verified successfully!", "Your phone number has been verified");
         setShowVerificationModal(false);
         // Complete the verification process
-        onCompleteAction();
+        completeVerification();
       } else {
         // Check if this is an "already verified" response
         const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');

@@ -29,6 +29,7 @@ import {
 import { PersonalInformationSection } from "./PersonalInformationSection";
 import { AddressDetailsSection } from "./AddressDetailsSection";
 import { FormData, ValidationState, ValidationErrors } from './types';
+import ConfirmationModal from '@/app/components/ConfirmationModal';
 
 interface PersonalInfoFormProps {
   onSave?: (data: FormData) => void;
@@ -38,9 +39,10 @@ interface PersonalInfoFormProps {
 }
 
 export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false }: PersonalInfoFormProps) {
-  const { profile, isLoading, updateProfile } = useUserProfile();
+  const { profile, isLoading, updateProfile, fetchProfile } = useUserProfile();
   const { error: showError } = useToastContext();
   const [showSavedModal, setShowSavedModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const router = useRouter();
   
   const [bvnValidationState, setBvnValidationState] = useState<ValidationState>("idle");
@@ -52,6 +54,29 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [selectedState, setSelectedState] = useState<string>("");
   const [availableLgas, setAvailableLgas] = useState<string[]>([]);
+  const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
+
+  // Individual field read-only states based on actual profile data
+  const [fieldReadOnlyStatus, setFieldReadOnlyStatus] = useState({
+    firstName: false,
+    lastName: false,
+    middleName: false,
+    phoneNumber: false,
+    email: false,
+    dateOfBirth: false,
+    bvn: false,
+    nin: false,
+    maritalStatus: false,
+    highestEducation: false,
+    employmentType: false,
+    streetNo: false,
+    streetName: false,
+    nearestBusStop: false,
+    state: false,
+    localGovernment: false,
+    homeOwnership: false,
+    yearsInCurrentAddress: false
+  });
 
   const getInitialFormData = (): FormData => ({
     firstName: "",
@@ -84,25 +109,31 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     touchAllFields,
     isFormValid
   } = useFormValidator<FormData>(getInitialFormData(), {
-    firstName: validationRules.minLength(2),
-    lastName: validationRules.minLength(2),
-    middleName: () => true,
-    phoneNumber: validationRules.phone,
-    email: validationRules.email,
-    dateOfBirth: validationRules.date,
-    bvn: (value: string) => /^\d{10,11}$/.test(value),
-    nin: (value: string) => /^\d{10,11}$/.test(value),
-    maritalStatus: () => true,
-    highestEducation: () => true,
-    employmentType: () => true,
-    streetNo: () => true,
-    streetName: () => true,
-    nearestBusStop: () => true,
-    state: () => true,
-    localGovernment: () => true,
-    homeOwnership: () => true,
-    yearsInCurrentAddress: () => true,
+    firstName: (value: string) => !value || validationRules.minLength(2)(value),
+    lastName: (value: string) => !value || validationRules.minLength(2)(value),
+    middleName: () => true, // Always valid
+    phoneNumber: (value: string) => !value || validationRules.phone(value),
+    email: (value: string) => !value || validationRules.email(value),
+    dateOfBirth: (value: string) => !value || /^\d{2}\/\d{2}\/\d{4}$/.test(value), // Optional field with DD/MM/YYYY format
+    bvn: (value: string) => !value || /^\d{11}$/.test(value), // Optional field, but if provided must be exactly 11 digits
+    nin: (value: string) => !value || /^\d{11}$/.test(value), // Optional field, but if provided must be exactly 11 digits
+    maritalStatus: () => true, // Always valid
+    highestEducation: () => true, // Always valid
+    employmentType: () => true, // Always valid
+    streetNo: () => true, // Always valid
+    streetName: () => true, // Always valid
+    nearestBusStop: () => true, // Always valid
+    state: () => true, // Always valid
+    localGovernment: () => true, // Always valid
+    homeOwnership: () => true, // Always valid
+    yearsInCurrentAddress: () => true, // Always valid
   });
+
+  // Custom handleChange that tracks user modifications
+  const handleUserChange = (field: keyof FormData, value: string) => {
+    handleChange(field, value);
+    setHasUserMadeChanges(true);
+  };
 
   // Update form data when profile is loaded
   useEffect(() => {
@@ -129,6 +160,8 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
       };
       
       setFormData(newFormData);
+      // Ensure loading profile data doesn't trigger hasUserMadeChanges
+      setHasUserMadeChanges(false);
       
       // Initialize date if available
       if (profile.profile?.dateOfBirth) {
@@ -154,8 +187,9 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
           if (parsedDate && !isNaN(parsedDate.getTime())) {
             setDate(parsedDate);
             setDateInputValue(format(parsedDate, "dd/MM/yyyy"));
-            // Update form data with the parsed date in yyyy-mm-dd format for API compatibility
-            handleChange("dateOfBirth", format(parsedDate, "yyyy-MM-dd"));
+            // Keep the date in DD/MM/YYYY format for consistency with validation and display
+            // Use original handleChange to avoid triggering user changes flag during loading
+            handleChange("dateOfBirth", format(parsedDate, "dd/MM/yyyy"));
           } else {
             console.warn("Invalid date value:", dateStr);
             setDate(undefined);
@@ -170,14 +204,24 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
         }
       }
 
-      // Set validation states if values exist
-      if (profile.profile?.bvn) {
+      // Set validation states if values exist and mark as validated
+      // BVN and NIN should only be read-only if they have been successfully validated
+      if (profile.profile?.bvn && profile.profile?.bvnVerified) {
         setBvnValidationState("success");
         setBvnReadOnly(true);
+      } else if (profile.profile?.bvn) {
+        // Has value but not verified - keep editable but show as idle
+        setBvnValidationState("idle");
+        setBvnReadOnly(false);
       }
-      if (profile.profile?.nin) {
+      
+      if (profile.profile?.nin && profile.profile?.ninVerified) {
         setNinValidationState("success");
         setNinReadOnly(true);
+      } else if (profile.profile?.nin) {
+        // Has value but not verified - keep editable but show as idle
+        setNinValidationState("idle");
+        setNinReadOnly(false);
       }
 
       // Set state and LGAs
@@ -188,16 +232,48 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
           setAvailableLgas(stateData.lgas);
         }
       }
+
+      // Update field read-only states based on actual profile data
+      // CORRECT LOGIC: Fields are read-only if they have values (not null/empty)
+      setFieldReadOnlyStatus({
+        firstName: !!profile.firstName,
+        lastName: !!profile.lastName,
+        middleName: false, // Middle name is always editable as it doesn't exist in profile
+        phoneNumber: !!profile.phone,
+        email: !!profile.email,
+        dateOfBirth: !!profile.profile?.dateOfBirth,
+        bvn: !!(profile.profile?.bvn && profile.profile?.bvnVerified),
+        nin: !!(profile.profile?.nin && profile.profile?.ninVerified),
+        maritalStatus: !!profile.profile?.maritalStatus,
+        highestEducation: !!profile.profile?.educationLevel,
+        employmentType: !!profile.employment?.employmentStatus,
+        streetNo: !!profile.profile?.address?.split(' ')[0],
+        streetName: !!profile.profile?.address?.split(' ').slice(1).join(' '),
+        nearestBusStop: !!profile.profile?.nearestBusStop,
+        state: !!profile.profile?.state,
+        localGovernment: !!profile.profile?.city,
+        homeOwnership: !!profile.profile?.homeOwnership,
+        yearsInCurrentAddress: !!profile.profile?.yearsAtAddress
+      });
+      
+      // Make sure loading profile data doesn't trigger save button
+      setHasUserMadeChanges(false);
     }
   }, [profile]);
 
+  // Update readonly states when isReadOnly prop changes
+  useEffect(() => {
+    setBvnReadOnly(isReadOnly);
+    setNinReadOnly(isReadOnly);
+  }, [isReadOnly]);
+
   const handleStateChange = (value: string) => {
-    handleChange("state", value);
+    handleUserChange("state", value);
     setSelectedState(value);
     const stateData = states.find(s => s.state === value);
     if (stateData) {
       setAvailableLgas(stateData.lgas);
-      handleChange("localGovernment", "");
+      handleUserChange("localGovernment", "");
     }
   };
 
@@ -205,7 +281,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     setDateInputValue(e.target.value);
     
     // Store the display format (DD/MM/YYYY) directly for validation
-    handleChange("dateOfBirth", e.target.value);
+    handleUserChange("dateOfBirth", e.target.value);
     
     // If it's a complete and valid date, also update the calendar date state
     if (e.target.value && e.target.value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
@@ -223,16 +299,16 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
   const validateBVN = () => {
     if (!formData.bvn) return;
     setBvnValidationState("loading");
-    // Simulate BVN validation - allow any input with length between 10-11 digits for testing
+    // Simulate BVN validation - allow any input with exactly 11 digits for testing
     setTimeout(() => {
-      const bvnRegex = /^\d{10,11}$/;
+      const bvnRegex = /^\d{11}$/;
       if (bvnRegex.test(formData.bvn)) {
         setBvnValidationState("success");
         setBvnReadOnly(true);
         setValidationErrors(prev => ({ ...prev, bvn: undefined }));
       } else {
         setBvnValidationState("error");
-        setValidationErrors(prev => ({ ...prev, bvn: "BVN must be 11 digits" }));
+        setValidationErrors(prev => ({ ...prev, bvn: "BVN must be exactly 11 digits" }));
       }
     }, 1000);
   };
@@ -240,56 +316,90 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
   const validateNIN = () => {
     if (!formData.nin) return;
     setNinValidationState("loading");
-    // Simulate NIN validation - allow any input with length between 10-11 digits for testing
+    // Simulate NIN validation - allow any input with exactly 11 digits for testing
     setTimeout(() => {
-      const ninRegex = /^\d{10,11}$/;
+      const ninRegex = /^\d{11}$/;
       if (ninRegex.test(formData.nin)) {
         setNinValidationState("success");
         setNinReadOnly(true);
         setValidationErrors(prev => ({ ...prev, nin: undefined }));
       } else {
         setNinValidationState("error");
-        setValidationErrors(prev => ({ ...prev, nin: "NIN must be 11 digits" }));
+        setValidationErrors(prev => ({ ...prev, nin: "NIN must be exactly 11 digits" }));
       }
     }, 1000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    touchAllFields();
+    setShowConfirmModal(true);
+  };
 
-    if (!isFormValid()) {
-      showError("Please fill all required fields correctly");
+  const handleConfirmSave = async () => {
+    setShowConfirmModal(false);
+    
+    // Don't require all fields to be filled - allow partial updates
+    // Only validate the fields that have values
+    const fieldsWithValues = Object.entries(formData).filter(([_, value]) => 
+      value && typeof value === 'string' && value.trim() !== ''
+    );
+    let hasValidationErrors = false;
+    
+    // Check validation only for fields that have values
+    for (const [fieldName] of fieldsWithValues) {
+      if (fieldName in validations && !validations[fieldName as keyof typeof validations]) {
+        hasValidationErrors = true;
+        break;
+      }
+    }
+    
+    if (hasValidationErrors) {
+      showError("Please fix the validation errors in the filled fields");
       return;
     }
 
     try {
-      await updateProfile({
+      // Create flat structure as expected by the API
+      const profileData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
+        middleName: formData.middleName || undefined,
         phone: formData.phoneNumber,
-        email: formData.email,
-        profile: {
+        // Keep date in DD/MM/YYYY format as the backend expects this format
         dateOfBirth: formData.dateOfBirth,
-          bvn: formData.bvn,
-          nin: formData.nin,
-          maritalStatus: formData.maritalStatus as MaritalStatus,
-          educationLevel: formData.highestEducation as EducationLevel,
-          address: `${formData.streetNo} ${formData.streetName}`,
-          nearestBusStop: formData.nearestBusStop,
-          state: formData.state,
-        city: formData.localGovernment,
-          homeOwnership: formData.homeOwnership as HomeOwnership,
-          yearsAtAddress: formData.yearsInCurrentAddress
-        },
-        employment: {
-          employmentStatus: formData.employmentType as EmploymentStatus
-        }
-      });
-      setShowSavedModal(true);
-      if (onSave) onSave(formData);
+        gender: "MALE", // Default value - TODO: should be collected from form
+        address: `${formData.streetNo} ${formData.streetName}`.trim(),
+        streetName: formData.streetName || undefined,
+        nearestBusStop: formData.nearestBusStop || undefined,
+        city: formData.localGovernment || undefined,
+        state: formData.state || undefined,
+        localGovernment: formData.localGovernment || undefined,
+        country: "Nigeria", // Default value
+        nationality: "Nigerian", // Default value
+        bvn: formData.bvn || undefined,
+        nin: formData.nin || undefined,
+        maritalStatus: formData.maritalStatus || undefined,
+        educationLevel: formData.highestEducation || undefined,
+        homeOwnership: formData.homeOwnership || undefined,
+        yearsAtAddress: formData.yearsInCurrentAddress || undefined,
+        employmentStatus: formData.employmentType || undefined,
+      };
+
+      // Remove undefined fields to avoid sending empty values
+      const cleanData = Object.fromEntries(
+        Object.entries(profileData).filter(([_, value]) => value !== undefined)
+      );
+
+      const success = await updateProfile(cleanData);
+      if (success) {
+        // Refresh the profile data to show updated values
+        await fetchProfile();
+        // Reset the flag since changes have been saved
+        setHasUserMadeChanges(false);
+        setShowSavedModal(true);
+      }
     } catch (error) {
-      showError("Failed to save profile. Please try again.");
+      console.error("Profile update failed:", error);
     }
   };
   
@@ -327,6 +437,16 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     }
   };
 
+  // Check if all editable fields are completed to determine button text
+  const allEditableFieldsCompleted = React.useMemo(() => {
+    // Check if any field that is currently editable (not read-only) has a value
+    const editableFields = Object.keys(fieldReadOnlyStatus).filter(
+      key => !fieldReadOnlyStatus[key as keyof typeof fieldReadOnlyStatus]
+    );
+    
+    return editableFields.length === 0; // All fields are read-only, meaning all are completed
+  }, [fieldReadOnlyStatus]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -339,7 +459,7 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
     <form onSubmit={handleSubmit} className="space-y-8">
       <PersonalInformationSection
         formData={formData}
-        handleChange={handleChange}
+        handleChange={handleUserChange}
         handleBlur={handleBlur}
         showErrors={showErrors}
         validations={validations}
@@ -354,30 +474,57 @@ export default function PersonalInfoForm({ onSave, allFormsCompleted, onGetLoan,
         validationErrors={validationErrors}
         validateBVN={validateBVN}
         validateNIN={validateNIN}
+        fieldReadOnlyStatus={fieldReadOnlyStatus}
       />
 
       <AddressDetailsSection
         formData={formData}
-        handleChange={handleChange}
+        handleChange={handleUserChange}
         showErrors={showErrors}
         validations={validations}
         selectedState={selectedState}
         handleStateChange={handleStateChange}
         availableLgas={availableLgas}
+        fieldReadOnlyStatus={fieldReadOnlyStatus}
       />
 
       <div className="flex justify-end space-x-4">
-        <Button type="submit" disabled={isLoading} className="bg-red-500 hover:bg-red-600 text-white">
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            "Save Changes"
-          )}
+        {hasUserMadeChanges && (
+          <Button 
+            type="submit" 
+            disabled={isLoading} 
+            className="bg-red-500 hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
-        </div>
+        )}
+        
+        {allEditableFieldsCompleted && !hasUserMadeChanges && (
+          <Button 
+            type="button" 
+            disabled={true}
+            className="bg-gray-400 text-white cursor-not-allowed"
+          >
+            Profile Locked
+          </Button>
+        )}
+      </div>
+      
+      <ConfirmationModal
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSave}
+        title="Confirm Profile Changes"
+        confirmText="Save Changes"
+        cancelText="Cancel"
+      />
       
       {showSavedModal && (
         <ProfileSavedModal 

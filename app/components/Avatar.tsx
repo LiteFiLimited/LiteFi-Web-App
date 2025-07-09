@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { transformAvatarUrl } from '@/lib/utils';
 
 interface AvatarProps {
   user?: {
@@ -31,7 +32,7 @@ const Avatar: React.FC<AvatarProps> = ({
     xl: 'w-24 h-24 text-lg'
   };
 
-  const avatarUrl = user?.profile?.avatarUrl;
+  const avatarUrl = transformAvatarUrl(user?.profile?.avatarUrl);
   const displayName = alt || `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
   const initials = displayName
     .split(' ')

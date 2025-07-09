@@ -60,16 +60,23 @@ export default function ProfilePage() {
   // Initialize read-only states based on profile data
   useEffect(() => {
     if (profile) {
-      setFormReadOnlyStatus({
-        personal: !!profile.firstName || !!profile.lastName,
-        employment: !!profile.employment?.employmentStatus,
-        business: false,
-        kin: !!profile.nextOfKin?.firstName,
-        guarantor: !!profile.guarantor?.firstName,
-        bankAccount: !!profile.bankAccounts?.[0]?.accountNumber,
-        bankStatement: !!profile.bankStatement?.documentUrl,
-        documents: false // Documents can be updated
-      });
+      // Add a small delay to ensure profile data is fully loaded
+      const timer = setTimeout(() => {
+        // CORRECT LOGIC: Fields are read-only if they have values (not null/empty)
+        // Fields are editable if they are null/empty
+        setFormReadOnlyStatus(prev => ({
+          ...prev,
+          personal: !!(profile.firstName && profile.lastName), // Read-only if both first and last name exist
+          employment: !!profile.employment?.employmentStatus, // Read-only if employment status exists
+          kin: !!profile.nextOfKin?.firstName, // Read-only if next of kin exists
+          guarantor: !!profile.guarantor?.firstName, // Read-only if guarantor exists
+          bankAccount: !!profile.bankAccounts?.[0]?.accountNumber, // Read-only if bank account exists
+          bankStatement: !!profile.bankStatement?.documentUrl, // Read-only if bank statement exists
+          documents: false // Documents can always be updated
+        }));
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
   }, [profile]);
 

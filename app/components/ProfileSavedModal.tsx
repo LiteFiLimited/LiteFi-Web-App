@@ -33,6 +33,17 @@ export default function ProfileSavedModal({
     }
   };
 
+  const handleContinue = () => {
+    onClose();
+    // Reload the page to show fresh data
+    window.location.reload();
+  };
+
+  const handleViewProfile = () => {
+    onClose();
+    onViewProfile();
+  };
+
   const content = allFormsCompleted ? {
     title: "Congratulations! Your Profile is Updated.",
     subtitle: "You Can Now Access a Loan!",
@@ -43,7 +54,7 @@ export default function ProfileSavedModal({
     title: "Profile Section Updated",
     body: "Your profile section has been successfully updated. Continue updating other sections to complete your profile.",
     primaryButton: "View Profile",
-    primaryAction: onViewProfile,
+    primaryAction: handleViewProfile,
   };
 
   return (
@@ -82,7 +93,7 @@ export default function ProfileSavedModal({
             </Button>
             
             <Button 
-              onClick={onClose} 
+              onClick={handleContinue} 
               variant="outline"
               className="w-full border-gray-300 h-12"
             >

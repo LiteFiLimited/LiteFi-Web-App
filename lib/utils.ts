@@ -21,3 +21,23 @@ export const formatCurrency = (value: number): string => {
     return value.toLocaleString("en-US");
   }
 };
+
+/**
+ * Transform avatar URL from legacy CDN to Google Cloud Storage format
+ * @param avatarUrl - The original avatar URL
+ * @returns Transformed URL for Google Cloud Storage
+ */
+export const transformAvatarUrl = (avatarUrl?: string): string | undefined => {
+  if (!avatarUrl) return undefined;
+
+  // Check if it's a legacy CDN URL and transform it
+  if (avatarUrl.includes("https://cdn.litefi.ng/uploads/")) {
+    return avatarUrl.replace(
+      "https://cdn.litefi.ng/uploads/",
+      "https://storage.googleapis.com/litefi-uploads/"
+    );
+  }
+
+  // Return the URL as-is if it's already in the correct format
+  return avatarUrl;
+};

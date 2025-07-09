@@ -60,6 +60,26 @@ export default function SignUp() {
     }
   }, []);
 
+  // Check for stored email from login redirect
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedEmail = sessionStorage.getItem('registrationEmail');
+      if (storedEmail) {
+        console.log('Sign-up page: found stored email from login redirect:', storedEmail);
+        setFormData(prev => ({
+          ...prev,
+          email: storedEmail
+        }));
+        
+        // Show verification modal immediately if email is already set
+        setShowVerificationModal(true);
+        
+        // Clean up the stored email
+        sessionStorage.removeItem('registrationEmail');
+      }
+    }
+  }, []);
+
   // Only redirect if already authenticated and not in the middle of registration
   React.useEffect(() => {
     console.log('Sign-up page: checking auth state', { isRegistering, hasToken: !!localStorage.getItem('token') });

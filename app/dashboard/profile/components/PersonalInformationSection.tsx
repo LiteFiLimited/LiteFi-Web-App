@@ -38,6 +38,26 @@ interface PersonalInformationSectionProps {
   validationErrors: ValidationErrors;
   validateBVN: () => void;
   validateNIN: () => void;
+  fieldReadOnlyStatus?: {
+    firstName: boolean;
+    lastName: boolean;
+    middleName: boolean;
+    phoneNumber: boolean;
+    email: boolean;
+    dateOfBirth: boolean;
+    bvn: boolean;
+    nin: boolean;
+    maritalStatus: boolean;
+    highestEducation: boolean;
+    employmentType: boolean;
+    streetNo: boolean;
+    streetName: boolean;
+    nearestBusStop: boolean;
+    state: boolean;
+    localGovernment: boolean;
+    homeOwnership: boolean;
+    yearsInCurrentAddress: boolean;
+  };
 }
 
 export function PersonalInformationSection({
@@ -56,7 +76,8 @@ export function PersonalInformationSection({
   ninReadOnly,
   validationErrors,
   validateBVN,
-  validateNIN
+  validateNIN,
+  fieldReadOnlyStatus
 }: PersonalInformationSectionProps) {
   const renderValidationIndicator = (state: "idle" | "loading" | "success" | "error") => {
     switch (state) {
@@ -84,6 +105,7 @@ export function PersonalInformationSection({
             onBlur={() => handleBlur("firstName")}
             className={showErrors.firstName && !validations.firstName ? "border-red-500" : ""}
             placeholder="Enter first name"
+            disabled={fieldReadOnlyStatus?.firstName}
           />
         </div>
 
@@ -96,6 +118,7 @@ export function PersonalInformationSection({
             onBlur={() => handleBlur("lastName")}
             className={showErrors.lastName && !validations.lastName ? "border-red-500" : ""}
             placeholder="Enter last name"
+            disabled={fieldReadOnlyStatus?.lastName}
           />
         </div>
 
@@ -106,6 +129,7 @@ export function PersonalInformationSection({
             value={formData.middleName}
             onChange={(e) => handleChange("middleName", e.target.value)}
             placeholder="Enter middle name"
+            disabled={fieldReadOnlyStatus?.middleName}
           />
         </div>
 
@@ -118,6 +142,7 @@ export function PersonalInformationSection({
             onBlur={() => handleBlur("phoneNumber")}
             className={showErrors.phoneNumber && !validations.phoneNumber ? "border-red-500" : ""}
             placeholder="Enter phone number (e.g. +234 or 0...)"
+            disabled={fieldReadOnlyStatus?.phoneNumber}
           />
           {showErrors.phoneNumber && !validations.phoneNumber && (
             <span className="text-red-500 text-sm">Please enter a valid phone number</span>
@@ -133,6 +158,7 @@ export function PersonalInformationSection({
             onBlur={() => handleBlur("email")}
             className={showErrors.email && !validations.email ? "border-red-500" : ""}
             placeholder="Enter email address"
+            disabled={fieldReadOnlyStatus?.email}
           />
         </div>
 
@@ -163,6 +189,7 @@ export function PersonalInformationSection({
                 "pr-12"
               )}
               maxLength={10}
+              disabled={fieldReadOnlyStatus?.dateOfBirth}
             />
             <Popover>
               <PopoverTrigger asChild>
@@ -171,6 +198,7 @@ export function PersonalInformationSection({
                   size="sm"
                   className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 hover:bg-gray-100"
                   type="button"
+                  disabled={fieldReadOnlyStatus?.dateOfBirth}
                 >
                   <CalendarIcon className="h-4 w-4 text-gray-500" />
                 </Button>
@@ -204,14 +232,19 @@ export function PersonalInformationSection({
             <Input
               name="bvn"
               value={formData.bvn}
-              onChange={(e) => handleChange("bvn", e.target.value)}
+              onChange={(e) => {
+                // Only allow numbers and limit to 11 digits
+                const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
+                handleChange("bvn", numericValue);
+              }}
               onBlur={validateBVN}
-              readOnly={bvnReadOnly}
+              disabled={fieldReadOnlyStatus?.bvn}
               className={cn(
                 "pr-10",
                 showErrors.bvn && !validations.bvn ? "border-red-500" : ""
               )}
-              placeholder="Enter BVN"
+              placeholder="Enter BVN (11 digits)"
+              maxLength={11}
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               {renderValidationIndicator(bvnValidationState)}
@@ -220,6 +253,9 @@ export function PersonalInformationSection({
           {validationErrors.bvn && (
             <p className="text-sm text-red-500">{validationErrors.bvn}</p>
           )}
+          <p className="text-xs text-gray-500">
+            BVN must be exactly 11 digits. Only numbers are allowed. ({formData.bvn.length}/11)
+          </p>
         </div>
 
         <div className="space-y-4">
@@ -228,14 +264,19 @@ export function PersonalInformationSection({
             <Input
               name="nin"
               value={formData.nin}
-              onChange={(e) => handleChange("nin", e.target.value)}
+              onChange={(e) => {
+                // Only allow numbers and limit to 11 digits
+                const numericValue = e.target.value.replace(/\D/g, '').slice(0, 11);
+                handleChange("nin", numericValue);
+              }}
               onBlur={validateNIN}
-              readOnly={ninReadOnly}
+              disabled={fieldReadOnlyStatus?.nin}
               className={cn(
                 "pr-10",
                 showErrors.nin && !validations.nin ? "border-red-500" : ""
               )}
-              placeholder="Enter NIN"
+              placeholder="Enter NIN (11 digits)"
+              maxLength={11}
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               {renderValidationIndicator(ninValidationState)}
@@ -244,6 +285,9 @@ export function PersonalInformationSection({
           {validationErrors.nin && (
             <p className="text-sm text-red-500">{validationErrors.nin}</p>
           )}
+          <p className="text-xs text-gray-500">
+            NIN must be exactly 11 digits. Only numbers are allowed. ({formData.nin.length}/11)
+          </p>
         </div>
 
         <div className="space-y-4">
@@ -252,6 +296,7 @@ export function PersonalInformationSection({
             name="maritalStatus"
             value={formData.maritalStatus}
             onValueChange={(value) => handleChange("maritalStatus", value)}
+            disabled={fieldReadOnlyStatus?.maritalStatus}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select marital status" />
@@ -272,6 +317,7 @@ export function PersonalInformationSection({
             name="highestEducation"
             value={formData.highestEducation}
             onValueChange={(value) => handleChange("highestEducation", value)}
+            disabled={fieldReadOnlyStatus?.highestEducation}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select education level" />
@@ -292,6 +338,7 @@ export function PersonalInformationSection({
             name="employmentType"
             value={formData.employmentType}
             onValueChange={(value) => handleChange("employmentType", value)}
+            disabled={fieldReadOnlyStatus?.employmentType}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select employment type" />

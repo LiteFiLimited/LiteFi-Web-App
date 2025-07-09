@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   title: "LiteFi - Financial Services",
   description: "Fast track to financial freedom",
   icons: {
-    icon: "/logo.svg",
+    icon: "/favicon.ico",
   },
 };
 
@@ -32,6 +32,7 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+        <link rel="icon" href="/favicon.ico" />
       </head>
       <body suppressHydrationWarning className={`min-h-screen bg-background ${outfit.className}`}>
         <ClientWrapper>

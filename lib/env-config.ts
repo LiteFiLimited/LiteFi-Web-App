@@ -40,11 +40,6 @@ export const ENV = {
 
 // Helper function to get API URL with validation
 export const getApiUrl = (): string => {
-  // Force localhost:3000 in development
-  if (process.env.NODE_ENV === "development") {
-    return "https://litefi-backend-741585839791.us-central1.run.app";
-  }
-
   if (!ENV.API_URL) {
     throw new Error(
       "API URL not configured. Please set NEXT_PUBLIC_API_URL or BACKEND_API_URL environment variable."
@@ -58,6 +53,9 @@ if (ENV.NODE_ENV !== "production") {
   console.log("Environment Configuration:", {
     hasApiUrl: !!ENV.API_URL,
     environment: ENV.NODE_ENV,
-    forcedApiUrl: process.env.NODE_ENV === "development" ? "http://localhost:3000" : undefined
+    forcedApiUrl:
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:3000"
+        : undefined,
   });
 }
