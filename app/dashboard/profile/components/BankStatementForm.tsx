@@ -7,6 +7,7 @@ import { useDropzone } from "react-dropzone";
 import { Trash2 } from "lucide-react";
 import { HiOutlineUpload } from "react-icons/hi";
 import ProfileSavedModal from "@/app/components/ProfileSavedModal";
+import ConfirmationModal from "@/app/components/ConfirmationModal";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToastContext } from '@/app/components/ToastProvider';
@@ -25,6 +26,7 @@ interface FileWithPreview extends File {
 export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly }: BankStatementFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [showSavedModal, setShowSavedModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { uploadBankStatement } = useUserProfile();
@@ -67,7 +69,14 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
       return;
     }
 
+    // Show confirmation modal instead of direct submission
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowConfirmModal(false);
     setIsSubmitting(true);
+    
     try {
       const formData = new FormData();
       files.forEach((file, index) => {
@@ -195,6 +204,13 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
           onGetLoan={onGetLoan}
         />
       )}
+
+      <ConfirmationModal
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSave}
+        title="Bank Statement Upload"
+      />
     </>
   );
 }

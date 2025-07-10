@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import PhoneVerificationModal from "@/app/components/PhoneVerificationModal";
 import { useToastContext } from "@/app/components/ToastProvider";
 import { authApi } from "@/lib/api";
-import { isNigerianNumber, getPhoneNumberInfo } from "@/lib/phoneValidator";
+import { getPhoneNumberInfo } from "@/lib/phoneValidator";
 
 import logoImage from "@/public/assets/images/logo.png";
 
@@ -19,8 +19,6 @@ interface PhoneVerificationFormProps {
 
 export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerificationFormProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [verificationId, setVerificationId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { success, error, info } = useToastContext();
@@ -57,7 +55,7 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
     setIsLoading(true);
     
     try {
-      // Call the send-phone-otp endpoint first
+      // All phone numbers are now saved in international format automatically
       const response = await authApi.sendPhoneOtp({
         phone: phoneNumber
       });
@@ -65,23 +63,16 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
       console.log("Send phone OTP response:", response);
 
       if (response.success || (response.data && response.data.verified)) {
-        if (response.data?.requiresOtp) {
-          // Nigerian number - show verification modal for OTP
-          setVerificationId(response.data.verificationId || "");
-          info("OTP Sent", "We've sent a verification code to your phone number");
-          setShowVerificationModal(true);
-        } else {
-          // International number - automatically verified
-          success("Phone number saved!", "International numbers are verified automatically");
-          
-          // Log the successful verification
-          console.log("Phone verified automatically:", phoneNumber);
-          
-          // Complete the verification process
-          setTimeout(() => {
-            completeVerification();
-          }, 1000);
-        }
+        // All numbers are now automatically verified and saved in international format
+        success("Phone number saved!", "Your phone number has been saved and verified automatically");
+        
+        // Log the successful verification
+        console.log("Phone verified automatically:", phoneNumber);
+        
+        // Complete the verification process
+        setTimeout(() => {
+          completeVerification();
+        }, 1000);
       } else {
         // Check if this is an "already verified" response
         const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
@@ -102,96 +93,6 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleVerifyOtp = async (otp: string) => {
-    if (!verificationId) {
-      error("Verification failed", "Missing verification ID. Please try again.");
-      return;
-    }
-
-    setIsLoading(true);
-    
-    try {
-      const response = await authApi.verifyPhoneOtp({
-        phone: phoneNumber,
-        verificationId: verificationId,
-        otp: otp
-      });
-
-      console.log("Phone OTP verification response:", response);
-
-      if (response.success) {
-        success("Phone verified successfully!", "Your phone number has been verified");
-        setShowVerificationModal(false);
-        // Complete the verification process
-        completeVerification();
-      } else {
-        // Check if this is an "already verified" response
-        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
-        
-        if (isAlreadyVerified) {
-          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
-          setShowVerificationModal(false);
-          // Complete the verification process
-          setTimeout(() => {
-            onCompleteAction();
-          }, 1500);
-        } else {
-          error("Verification failed", response.message || "Invalid verification code");
-        }
-      }
-    } catch (err) {
-      error("Verification failed", "An unexpected error occurred");
-      console.error("Phone OTP verification error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    setIsLoading(true);
-    
-    try {
-      // Use the resend phone OTP endpoint
-      const response = await authApi.resendPhoneOtp({
-        phone: phoneNumber
-      });
-      
-      console.log("Resend phone OTP response:", response);
-      
-      if (response.success && response.data) {
-        // Update verification ID from the resend response
-        if (response.data.verificationId) {
-          setVerificationId(response.data.verificationId);
-        }
-        info("OTP sent", "A new verification code has been sent to your phone");
-      } else {
-        // Check if this is an "already verified" response
-        const isAlreadyVerified = response.message?.toLowerCase().includes('already verified');
-        
-        if (isAlreadyVerified) {
-          info("Phone already verified", "Your phone number is already verified. Proceeding to next step...");
-          setShowVerificationModal(false);
-          // Complete the verification process
-          setTimeout(() => {
-            onCompleteAction();
-          }, 1500);
-        } else {
-          error("Failed to resend OTP", response.message || "Please try again");
-        }
-      }
-    } catch (err) {
-      error("Failed to resend OTP", "An unexpected error occurred");
-      console.error("Resend phone OTP error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleChangePhone = () => {
-    setShowVerificationModal(false);
-    setVerificationId("");
   };
 
   const isPhoneValid = phoneNumber && phoneNumber.length > 8;
@@ -249,17 +150,15 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
                 disabled={isLoading}
               />
               
-              {/* Phone number info - only show country */}
+              {/* Phone number info - simplified for all numbers */}
               {phoneInfo && (
                 <div className="mt-2 p-3 bg-gray-50 rounded-md">
                   <p className="text-sm text-gray-600">
-                    <strong>Country:</strong> {phoneInfo.country}
+                    <strong>Format:</strong> {phoneInfo.country}
                   </p>
-                  {!phoneInfo.requiresVerification && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      International numbers are automatically saved and verified manually by our team.
-                    </p>
-                  )}
+                  <p className="text-xs text-blue-600 mt-1">
+                    All phone numbers are automatically saved in international format.
+                  </p>
                 </div>
               )}
             </div>
@@ -269,23 +168,11 @@ export default function PhoneVerificationForm({ onCompleteAction }: PhoneVerific
               className="w-full bg-red-600 hover:bg-red-700 h-12 mt-6"
               disabled={!isPhoneValid || isLoading}
             >
-              {isLoading ? "Processing..." : phoneInfo?.requiresVerification ? "Send OTP" : "Save Phone Number"}
+              {isLoading ? "Processing..." : "Save Phone Number"}
             </Button>
           </form>
         </div>
       </div>
-
-      {/* Phone Verification Modal */}
-      {showVerificationModal && (
-        <PhoneVerificationModal
-          phoneNumber={phoneNumber}
-          onCloseAction={() => setShowVerificationModal(false)}
-          onVerifyAction={handleVerifyOtp}
-          onResendOtpAction={handleResendOtp}
-          onChangePhoneAction={handleChangePhone}
-          isLoading={isLoading}
-        />
-      )}
     </div>
   );
 }

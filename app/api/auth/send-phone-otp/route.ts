@@ -5,18 +5,13 @@ import {
   handleOptionsRequest,
 } from "@/lib/api-config";
 
-/**
- * Handle CORS preflight requests for send phone OTP endpoint
- */
-export async function OPTIONS(request: NextRequest) {
-  return handleOptionsRequest();
-}
+export const OPTIONS = handleOptionsRequest;
 
 /**
  * Send Phone OTP Endpoint
  *
  * Forwards phone OTP requests to the backend API.
- * Handles sending SMS OTP for Nigerian numbers and auto-verification for international numbers.
+ * All phone numbers are now handled uniformly and saved in international format.
  *
  * @param request - HTTP request containing phone number
  * @returns JSON response with verification details
@@ -45,7 +40,7 @@ export async function POST(request: NextRequest) {
       return createErrorResponse("Backend API URL not configured", 500);
     }
 
-    console.log("Forwarding send phone OTP to backend:", { phone });
+    console.log("Forwarding phone number to backend for international format saving:", { phone });
 
     const backendResponse = await fetch(`${backendUrl}/auth/send-phone-otp`, {
       method: "POST",
@@ -57,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const backendData = await backendResponse.json();
 
-    console.log("Backend send phone OTP response:", {
+    console.log("Backend phone save response:", {
       status: backendResponse.status,
       data: backendData,
     });
@@ -65,12 +60,12 @@ export async function POST(request: NextRequest) {
     // Return the backend response
     if (backendResponse.ok) {
       return createSuccessResponse(
-        backendData.message || "Phone verification processed",
+        backendData.message || "Phone number saved successfully",
         backendData.data
       );
     } else {
       return createErrorResponse(
-        backendData.message || "Failed to process phone verification",
+        backendData.message || "Failed to save phone number",
         backendResponse.status
       );
     }

@@ -7,14 +7,17 @@ import { useDropzone } from "react-dropzone";
 import { Trash2 } from "lucide-react";
 import { HiOutlineUpload } from "react-icons/hi";
 import ProfileSavedModal from "@/app/components/ProfileSavedModal";
+import ConfirmationModal from "@/app/components/ConfirmationModal";
 import { useRouter } from "next/navigation";
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { useToastContext } from '@/app/components/ToastProvider';
 
 interface DocumentsFormProps {
   onSave?: (data: any) => void;
   allFormsCompleted?: boolean;
   onGetLoan?: () => void;
   isReadOnly?: boolean;
-  savedDocuments?: boolean; // Add this new prop
+  savedDocuments?: boolean;
 }
 
 interface FileWithPreview extends File {
@@ -31,10 +34,31 @@ interface DocumentsState {
   goodsImages?: FileWithPreview;
 }
 
-export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly = false, savedDocuments = false }: DocumentsFormProps) {
+// Document type mapping for API
+const DOCUMENT_TYPE_MAPPING = {
+  governmentId: 'ID_DOCUMENT',
+  utilityBill: 'UTILITY_BILL',
+  workId: 'ID_DOCUMENT',
+  cacCertificate: 'OTHER',
+  cacMemart: 'OTHER',
+  storeFront: 'OTHER',
+  goodsImages: 'OTHER'
+} as const;
+
+export default function DocumentsForm({ 
+  onSave, 
+  allFormsCompleted, 
+  onGetLoan, 
+  isReadOnly = false, 
+  savedDocuments = false 
+}: DocumentsFormProps) {
   const [documents, setDocuments] = useState<DocumentsState>({});
   const [showSavedModal, setShowSavedModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const { uploadDocument } = useUserProfile();
+  const { error: showError } = useToastContext();
 
   // Define which documents can be edited even after saving
   const editableAfterSave = ['storeFront', 'goodsImages'];
@@ -90,7 +114,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
   // Document upload boxes configurations
   const documentTypes = [
     {
-      id: 'governmentId',
+      id: 'governmentId' as keyof DocumentsState,
       label: 'Valid Government Issued ID (Compulsory)',
       file: documents.governmentId,
       dropzoneProps: createDropzoneProps('governmentId'),
@@ -99,7 +123,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
       editable: !savedDocuments || editableAfterSave.includes('governmentId')
     },
     {
-      id: 'utilityBill',
+      id: 'utilityBill' as keyof DocumentsState,
       label: 'Utility Bill (Compulsory)',
       file: documents.utilityBill,
       dropzoneProps: createDropzoneProps('utilityBill'),
@@ -108,7 +132,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
       editable: !savedDocuments || editableAfterSave.includes('utilityBill')
     },
     {
-      id: 'workId',
+      id: 'workId' as keyof DocumentsState,
       label: 'Work ID',
       file: documents.workId,
       dropzoneProps: createDropzoneProps('workId'),
@@ -117,7 +141,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
       editable: !savedDocuments || editableAfterSave.includes('workId')
     },
     {
-      id: 'cacCertificate',
+      id: 'cacCertificate' as keyof DocumentsState,
       label: 'CAC Certificate',
       file: documents.cacCertificate,
       dropzoneProps: createDropzoneProps('cacCertificate'),
@@ -126,7 +150,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
       editable: !savedDocuments || editableAfterSave.includes('cacCertificate')
     },
     {
-      id: 'cacMemart',
+      id: 'cacMemart' as keyof DocumentsState,
       label: 'CAC 2 and 7or Memart or CAC Application Status',
       file: documents.cacMemart, 
       dropzoneProps: createDropzoneProps('cacMemart'),
@@ -135,7 +159,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
       editable: !savedDocuments || editableAfterSave.includes('cacMemart')
     },
     {
-      id: 'storeFront',
+      id: 'storeFront' as keyof DocumentsState,
       label: 'Picture of front of Shop or Store or Business',
       file: documents.storeFront,
       dropzoneProps: createDropzoneProps('storeFront'),
@@ -144,7 +168,7 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
       editable: true // Always editable
     },
     {
-      id: 'goodsImages',
+      id: 'goodsImages' as keyof DocumentsState,
       label: 'Pictures of Goods or Inside of Business',
       file: documents.goodsImages, 
       dropzoneProps: createDropzoneProps('goodsImages'),
@@ -158,19 +182,54 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
   const isFormValid = () => {
     return documentTypes
       .filter(doc => doc.required)
-      .every(doc => documents[doc.id as keyof DocumentsState]);
+      .every(doc => documents[doc.id]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!isFormValid()) {
+      showError('Error', 'Please upload all required documents');
       return;
     }
 
-    if (onSave) {
-      onSave(documents);
-      setShowSavedModal(true);
+    // Show confirmation modal instead of direct submission
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSave = async () => {
+    setShowConfirmModal(false);
+    setIsSubmitting(true);
+
+    try {
+      // Upload each document individually using the documents endpoint
+      const uploadPromises = Object.entries(documents)
+        .filter(([_, file]) => file) // Only upload files that exist
+        .map(async ([docType, file]) => {
+          const formData = new FormData();
+          formData.append('file', file as File);
+          formData.append('type', DOCUMENT_TYPE_MAPPING[docType as keyof typeof DOCUMENT_TYPE_MAPPING]);
+          formData.append('description', documentTypes.find(d => d.id === docType)?.label || docType);
+          
+          return uploadDocument(formData);
+        });
+
+      // Wait for all uploads to complete
+      const results = await Promise.all(uploadPromises);
+      
+      // Check if all uploads were successful
+      if (results.every(result => result)) {
+        setShowSavedModal(true);
+        if (onSave) {
+          onSave(documents);
+        }
+      } else {
+        throw new Error('Some documents failed to upload');
+      }
+    } catch (error: any) {
+      showError('Error', error.message || 'Failed to upload documents');
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -218,27 +277,25 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
                     </Button>
                   )}
                 </div>
+              ) : doc.editable ? (
+                <div
+                  {...doc.dropzoneProps.getRootProps()}
+                  className={`cursor-pointer transition-all duration-200 h-32 flex flex-col items-center justify-center border-2 border-dashed 
+                    ${doc.dropzoneProps.isDragAccept 
+                      ? 'border-gray-400 bg-gray-50' 
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                    }`}
+                >
+                  <input {...doc.dropzoneProps.getInputProps()} />
+                  <HiOutlineUpload className="w-6 h-6 text-gray-400 mb-2" />
+                  <div className="text-sm text-gray-600 text-center">
+                    {doc.dropzoneProps.isDragAccept ? 'Drop file here' : 'Upload'}
+                  </div>
+                </div>
               ) : (
-                doc.editable ? (
-                  <div
-                    {...doc.dropzoneProps.getRootProps()}
-                    className={`cursor-pointer transition-all duration-200 h-32 flex flex-col items-center justify-center border-2 border-dashed 
-                      ${doc.dropzoneProps.isDragAccept 
-                        ? 'border-gray-400 bg-gray-50' 
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
-                      }`}
-                  >
-                    <input {...doc.dropzoneProps.getInputProps()} />
-                    <HiOutlineUpload className="w-6 h-6 text-gray-400 mb-2" />
-                    <div className="text-sm text-gray-600 text-center">
-                      {doc.dropzoneProps.isDragAccept ? 'Drop file here' : 'Upload'}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400">
-                    <p className="text-sm">Document required</p>
-                  </div>
-                )
+                <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 bg-gray-50 text-gray-400">
+                  <p className="text-sm">Document required</p>
+                </div>
               )}
               
               {doc.required && !doc.file && (
@@ -252,17 +309,17 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
           <Button 
             type="submit" 
             className={`h-12 px-16 rounded-none ${
-              isFormValid() 
+              isFormValid() && !isSubmitting
                 ? "bg-red-600 hover:bg-red-700 text-white" 
                 : "bg-red-300 cursor-not-allowed text-white"
             }`}
-            disabled={!isFormValid()}
+            disabled={!isFormValid() || isSubmitting}
           >
-            Save
+            {isSubmitting ? 'Uploading...' : 'Save'}
           </Button>
         </div>
       </form>
-      
+
       {showSavedModal && (
         <ProfileSavedModal
           open={showSavedModal}
@@ -272,6 +329,13 @@ export default function DocumentsForm({ onSave, allFormsCompleted, onGetLoan, is
           onGetLoan={onGetLoan}
         />
       )}
+
+      <ConfirmationModal
+        open={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSave}
+        title="Document Upload"
+      />
     </>
   );
-}
+} 

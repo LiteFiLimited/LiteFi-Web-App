@@ -113,19 +113,56 @@ export function useUserProfile() {
   const updateGuarantor = async (data: FormData) => {
     try {
       const token = getToken();
-      const response = await fetch("/api/users/guarantor", {
-        method: "PUT",
-        body: data,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      
+      // Extract file and other data from FormData
+      const idCardFile = data.get('idCard') as File;
+      
+      // Create guarantor data object (without file)
+      const guarantorData: any = {};
+      // Use Array.from to convert the FormData entries iterator to an array
+      Array.from(data.entries()).forEach(([key, value]) => {
+        if (key !== 'idCard') {
+          guarantorData[key] = value;
+        }
       });
 
-      if (!response.ok) {
+      // First, update guarantor information
+      const guarantorResponse = await fetch("/api/users/guarantor", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(guarantorData),
+      });
+
+      if (!guarantorResponse.ok) {
         throw new Error("Failed to update guarantor information");
       }
 
+      // If there's an ID card file, upload it as a document
+      if (idCardFile) {
+        const documentFormData = new FormData();
+        documentFormData.append('file', idCardFile);
+        documentFormData.append('type', 'GUARANTOR_ID');
+        documentFormData.append('description', 'Guarantor ID Card');
+
+        const documentResponse = await fetch("/api/documents/upload", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: documentFormData,
+        });
+
+        if (!documentResponse.ok) {
+          const error = await documentResponse.json();
+          throw new Error(error.message || "Failed to upload guarantor ID card");
+        }
+      }
+
       await fetchProfile();
+      return true;
     } catch (error) {
       throw error;
     }
@@ -218,9 +255,20 @@ export function useUserProfile() {
   const uploadDocument = async (formData: FormData) => {
     try {
       setIsLoading(true);
-      const response = (await userApi.uploadDocument(
-        formData
-      )) as ApiResponse<Document>;
+      const token = getToken();
+      const response = await fetch("/api/documents/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to upload document");
+      }
+
       await fetchDocuments(); // Refresh documents after upload
       success("Success", "Document uploaded successfully");
       return true;
@@ -314,12 +362,22 @@ export function useUserProfile() {
     try {
       setIsLoading(true);
       const token = getToken();
-      const response = await fetch("/api/users/bank-statement", {
+      
+      // Create new FormData with document type for bank statement
+      const documentFormData = new FormData();
+      const file = formData.get('statement') as File;
+      if (file) {
+        documentFormData.append('file', file);
+        documentFormData.append('type', 'BANK_STATEMENT');
+        documentFormData.append('description', 'Bank Statement');
+      }
+
+      const response = await fetch("/api/documents/upload", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: formData,
+        body: documentFormData,
       });
 
       if (!response.ok) {
@@ -327,7 +385,7 @@ export function useUserProfile() {
         throw new Error(error.message || "Failed to upload bank statement");
       }
 
-      const data = await response.json();
+      await fetchDocuments(); // Refresh documents after upload
       success("Success", "Bank statement uploaded successfully");
       return true;
     } catch (err: any) {

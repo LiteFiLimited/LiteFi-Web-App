@@ -5,18 +5,15 @@ import {
   handleOptionsRequest,
 } from "@/lib/api-config";
 
-/**
- * Handle CORS preflight requests for verify phone OTP endpoint
- */
-export async function OPTIONS(request: NextRequest) {
-  return handleOptionsRequest();
-}
+export const OPTIONS = handleOptionsRequest;
 
 /**
- * Verify Phone OTP Endpoint
+ * Verify Phone OTP Endpoint (Legacy)
  *
- * Forwards phone OTP verification requests to the backend API.
- * Verifies SMS OTP codes sent to Nigerian phone numbers.
+ * This endpoint is maintained for backwards compatibility but is no longer needed
+ * since all phone numbers are now automatically verified and saved in international format.
+ * 
+ * All phone verification is now handled uniformly by the backend without requiring OTP.
  *
  * @param request - HTTP request containing phone, verificationId, and OTP
  * @returns JSON response confirming phone verification status
@@ -27,59 +24,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { phone, verificationId, otp } = body;
 
-    // Validate required fields
-    if (!phone || !verificationId || !otp) {
-      return createErrorResponse(
-        "Phone number, verification ID, and OTP are required"
-      );
+    // Validate phone number is provided
+    if (!phone) {
+      return createErrorResponse("Phone number is required");
     }
 
-    // Validate OTP format (6-digit code)
-    if (!/^\d{6}$/.test(otp)) {
-      return createErrorResponse("Invalid OTP format. Must be a 6-digit code.");
-    }
-
-    // Forward request to backend API
-    const backendUrl =
-      process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_API_URL;
-
-    if (!backendUrl) {
-      return createErrorResponse("Backend API URL not configured", 500);
-    }
-
-    console.log("Forwarding verify phone OTP to backend:", {
-      phone,
-      verificationId,
-      otp,
-    });
-
-    const backendResponse = await fetch(`${backendUrl}/auth/verify-phone-otp`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ phone, verificationId, otp }),
-    });
-
-    const backendData = await backendResponse.json();
-
-    console.log("Backend verify phone OTP response:", {
-      status: backendResponse.status,
-      data: backendData,
-    });
-
-    // Return the backend response
-    if (backendResponse.ok) {
-      return createSuccessResponse(
-        backendData.message || "Phone number verified successfully",
-        backendData.data
-      );
-    } else {
-      return createErrorResponse(
-        backendData.message || "Phone verification failed",
-        backendResponse.status
-      );
-    }
+    // Since all numbers are now auto-verified, this endpoint returns success
+    // regardless of OTP to maintain backwards compatibility
+    console.log("Legacy OTP verification called for phone:", phone);
+    
+    return createSuccessResponse(
+      "Phone number verified successfully (auto-verified in international format)",
+      {
+        phone: phone,
+        verified: true,
+        method: "international_format"
+      }
+    );
+    
   } catch (error) {
     console.error("Verify phone OTP error:", error);
     return createErrorResponse("Internal server error", 500);
