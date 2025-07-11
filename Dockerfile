@@ -40,6 +40,8 @@ EXPOSE 3000
 
 # Set environment variable for port
 ENV PORT 3000
+ENV NEXT_PUBLIC_API_URL=https://litefi-backend.onrender.com
+ENV BACKEND_API_URL=https://litefi-backend.onrender.com
 
 # Start the application
 CMD ["node", "server.js"]

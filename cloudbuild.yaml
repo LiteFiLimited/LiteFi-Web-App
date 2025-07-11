@@ -35,7 +35,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL},BACKEND_API_URL=${_BACKEND_API_URL}'
+      - 'NEXT_PUBLIC_API_URL=https://litefi-backend.onrender.com,BACKEND_API_URL=https://litefi-backend.onrender.com'
       - '--max-instances'
       - '10'
       - '--memory'

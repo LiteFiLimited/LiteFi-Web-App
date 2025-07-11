@@ -12,17 +12,10 @@ const validateEnvVars = () => {
     BACKEND_API_URL: process.env.BACKEND_API_URL,
   };
 
-  const missing: string[] = [];
-
-  // Check if at least one API URL is configured
+  // Check if at least one API URL is configured, or use hardcoded fallback
   if (!requiredVars.NEXT_PUBLIC_API_URL && !requiredVars.BACKEND_API_URL) {
-    missing.push("NEXT_PUBLIC_API_URL or BACKEND_API_URL");
-  }
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}\n` +
-        "Please set these in your .env file or deployment environment."
+    console.warn(
+      "⚠️  No API URL environment variables found. Using hardcoded fallback: https://litefi-backend.onrender.com"
     );
   }
 };
@@ -33,7 +26,9 @@ validateEnvVars();
 // Export validated environment variables
 export const ENV = {
   API_URL:
-    process.env.NEXT_PUBLIC_API_URL || (process.env.BACKEND_API_URL as string),
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.BACKEND_API_URL ||
+    "https://litefi-backend.onrender.com",
   NODE_ENV: process.env.NODE_ENV,
   IS_PRODUCTION: process.env.NODE_ENV === "production",
 } as const;
