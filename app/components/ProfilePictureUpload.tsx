@@ -28,6 +28,14 @@ const transformAvatarUrl = (avatarUrl?: string): string | undefined => {
     );
   }
   
+  // Check if it's a backend URL and transform it to Google Cloud Storage
+  if (avatarUrl.includes("https://litefi-backend.onrender.com/uploads/")) {
+    return avatarUrl.replace(
+      "https://litefi-backend.onrender.com/uploads/",
+      "https://storage.googleapis.com/litefi-uploads/"
+    );
+  }
+  
   // Return the URL as-is if it's already in the correct format
   return avatarUrl;
 };
