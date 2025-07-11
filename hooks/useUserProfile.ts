@@ -25,12 +25,54 @@ export function useUserProfile() {
   const fetchProfile = async () => {
     try {
       setIsLoading(true);
-      const response = (await userApi.getProfile()) as ApiResponse<UserData>;
-      setProfile(response.data);
-      setError(null);
+      const response = await userApi.getProfile();
+
+      console.log("Raw profile response:", response);
+
+      // Handle different response structures
+      let userData: UserData;
+      if (response && typeof response === "object") {
+        // Handle nested structure: response.data.data
+        if (
+          "data" in response &&
+          response.data &&
+          typeof response.data === "object" &&
+          "data" in response.data &&
+          response.data.data
+        ) {
+          userData = response.data.data as UserData;
+          console.log("Found nested data structure:", userData);
+        }
+        // If response has a data property with user data directly
+        else if (
+          "data" in response &&
+          response.data &&
+          "firstName" in (response.data as any)
+        ) {
+          userData = response.data as UserData;
+          console.log("Found data property:", userData);
+        }
+        // If response is the user data directly
+        else if ("firstName" in response) {
+          userData = response as unknown as UserData;
+          console.log("Found direct user data:", userData);
+        }
+        // If none of the above, try to use the response as is
+        else {
+          console.warn("Unexpected profile response structure:", response);
+          userData = response as unknown as UserData;
+        }
+
+        setProfile(userData);
+        setError(null);
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (err: any) {
+      console.error("Profile fetch error:", err);
       setError(err.message || "Failed to fetch profile");
       showError("Error", "Failed to fetch profile data");
+      setProfile(null);
     } finally {
       setIsLoading(false);
     }
@@ -39,13 +81,55 @@ export function useUserProfile() {
   const updateProfile = async (data: Partial<UserData>) => {
     try {
       setIsLoading(true);
-      const response = (await userApi.updateProfile(
-        data
-      )) as ApiResponse<UserData>;
-      setProfile(response.data);
-      success("Success", "Profile updated successfully");
-      return true;
+      const response = await userApi.updateProfile(data);
+
+      console.log("Raw update profile response:", response);
+
+      // Handle different response structures
+      let userData: UserData;
+      if (response && typeof response === "object") {
+        // Handle nested structure: response.data.data
+        if (
+          "data" in response &&
+          response.data &&
+          typeof response.data === "object" &&
+          "data" in response.data &&
+          response.data.data
+        ) {
+          userData = response.data.data as UserData;
+          console.log("Found nested data structure:", userData);
+        }
+        // If response has a data property with user data directly
+        else if (
+          "data" in response &&
+          response.data &&
+          "firstName" in (response.data as any)
+        ) {
+          userData = response.data as UserData;
+          console.log("Found data property:", userData);
+        }
+        // If response is the user data directly
+        else if ("firstName" in response) {
+          userData = response as unknown as UserData;
+          console.log("Found direct user data:", userData);
+        }
+        // If none of the above, try to use the response as is
+        else {
+          console.warn(
+            "Unexpected update profile response structure:",
+            response
+          );
+          userData = response as unknown as UserData;
+        }
+
+        setProfile(userData);
+        success("Success", "Profile updated successfully");
+        return true;
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (err: any) {
+      console.error("Profile update error:", err);
       showError("Error", err.message || "Failed to update profile");
       return false;
     } finally {
@@ -114,7 +198,7 @@ export function useUserProfile() {
     try {
       setIsLoading(true);
       const token = getToken();
-      
+
       // Send the entire FormData (including file) to the guarantor endpoint
       const response = await fetch("/api/users/guarantor", {
         method: "PUT",
@@ -126,14 +210,19 @@ export function useUserProfile() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to update guarantor information");
+        throw new Error(
+          error.message || "Failed to update guarantor information"
+        );
       }
 
       await fetchProfile(); // Refresh profile to get updated guarantor data
       success("Success", "Guarantor information updated successfully");
       return true;
     } catch (err: any) {
-      showError("Error", err.message || "Failed to update guarantor information");
+      showError(
+        "Error",
+        err.message || "Failed to update guarantor information"
+      );
       throw err;
     } finally {
       setIsLoading(false);
@@ -224,28 +313,35 @@ export function useUserProfile() {
     }
   };
 
-  const uploadDocument = async (file: File, documentType: string, description: string) => {
+  const uploadDocument = async (
+    file: File,
+    documentType: string,
+    description: string
+  ) => {
     try {
       setIsLoading(true);
       const token = getToken();
-      
+
       // Create FormData with the file and description
       const formData = new FormData();
-      formData.append('file', file);
-      formData.append('description', description);
-      
+      formData.append("file", file);
+      formData.append("description", description);
+
       // Use the new document type-specific endpoint with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-      
-      const response = await fetch(`/api/users/upload-document/${documentType}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-        signal: controller.signal
-      });
+
+      const response = await fetch(
+        `/api/users/upload-document/${documentType}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+          signal: controller.signal,
+        }
+      );
 
       clearTimeout(timeoutId);
 
@@ -257,8 +353,8 @@ export function useUserProfile() {
       await fetchDocuments(); // Refresh documents after upload
       return true;
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        throw new Error('Upload timed out. Please try again.');
+      if (err.name === "AbortError") {
+        throw new Error("Upload timed out. Please try again.");
       }
       throw err;
     } finally {
@@ -348,19 +444,22 @@ export function useUserProfile() {
     try {
       setIsLoading(true);
       const token = getToken();
-      
+
       // Use the new document type-specific endpoint with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
-      
-      const response = await fetch(`/api/users/upload-document/BANK_STATEMENT`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-        signal: controller.signal
-      });
+
+      const response = await fetch(
+        `/api/users/upload-document/BANK_STATEMENT`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+          signal: controller.signal,
+        }
+      );
 
       clearTimeout(timeoutId);
 
@@ -372,8 +471,8 @@ export function useUserProfile() {
       await fetchDocuments(); // Refresh documents after upload
       return true;
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        throw new Error('Upload timed out. Please try again.');
+      if (err.name === "AbortError") {
+        throw new Error("Upload timed out. Please try again.");
       }
       throw err;
     } finally {

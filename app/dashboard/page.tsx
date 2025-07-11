@@ -123,6 +123,17 @@ export default function DashboardPage() {
   // Use the useUserProfile hook to get consistent profile data
   const { profile, isLoading: profileLoading } = useUserProfile();
   
+  // Debug profile data
+  useEffect(() => {
+    console.log('Dashboard profile data:', {
+      profile,
+      profileLoading,
+      hasFirstName: profile?.firstName,
+      hasLastName: profile?.lastName,
+      fullProfileObject: profile
+    });
+  }, [profile, profileLoading]);
+  
   // State for eligibility status
   const [isLoading, setIsLoading] = useState(true);
   const [investmentEligible, setInvestmentEligible] = useState(false);
@@ -236,7 +247,17 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">Your Financial Dashboard</h1>
       </div>
       
-      <p className="text-muted-foreground mb-6">Welcome back, {profile ? `${profile.firstName} ${profile.lastName}` : 'User'}</p>
+      <p className="text-muted-foreground mb-6">
+        Welcome back, {
+          profile && profile.firstName && profile.lastName 
+            ? `${profile.firstName} ${profile.lastName}` 
+            : profile && (profile.firstName || profile.lastName)
+            ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+            : profileLoading 
+            ? 'Loading...' 
+            : 'User'
+        }
+      </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Wallet Card */}
@@ -246,7 +267,13 @@ export default function DashboardPage() {
           showBalance={showWalletBalance}
           toggleShowBalance={() => setShowWalletBalance(!showWalletBalance)}
           walletBalance={walletBalance}
-          userName={profile ? `${profile.firstName} ${profile.lastName}` : 'User'}
+          userName={
+            profile && profile.firstName && profile.lastName 
+              ? `${profile.firstName} ${profile.lastName}` 
+              : profile && (profile.firstName || profile.lastName)
+              ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+              : 'User'
+          }
           onHistoryClick={handleHistoryClick}
           onFundClick={() => checkEligibilityStatus()} // Refresh data after successful funding
           onWithdrawClick={() => info("Withdrawal request", "Processing your withdrawal request")}
