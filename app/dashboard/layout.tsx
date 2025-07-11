@@ -15,7 +15,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationButtonRef = useRef<HTMLButtonElement>(null);
-  const { success, info } = useToastContext();
+  const { success, info, error } = useToastContext();
   
   // Use the authentication hook to protect dashboard routes
   const { isAuthenticated, isLoading } = useAuth();
@@ -105,11 +105,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 isOpen={isNotificationOpen}
                 onClose={() => setIsNotificationOpen(false)}
                 triggerRef={notificationButtonRef}
-                onNotificationChange={(newNotifications) => {
-                  const unread = newNotifications.filter(n => !n.isRead).length;
+                onNotificationChange={(unread) => {
                   setUnreadCount(unread);
                 }}
-                onShowToast={{ success, info }}
+                onShowToast={{ success, info, error }}
               />
             </div>
             <button className="p-1" onClick={handleLogout}>

@@ -112,59 +112,31 @@ export function useUserProfile() {
 
   const updateGuarantor = async (data: FormData) => {
     try {
+      setIsLoading(true);
       const token = getToken();
       
-      // Extract file and other data from FormData
-      const idCardFile = data.get('idCard') as File;
-      
-      // Create guarantor data object (without file)
-      const guarantorData: any = {};
-      // Use Array.from to convert the FormData entries iterator to an array
-      Array.from(data.entries()).forEach(([key, value]) => {
-        if (key !== 'idCard') {
-          guarantorData[key] = value;
-        }
-      });
-
-      // First, update guarantor information
-      const guarantorResponse = await fetch("/api/users/guarantor", {
+      // Send the entire FormData (including file) to the guarantor endpoint
+      const response = await fetch("/api/users/guarantor", {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify(guarantorData),
+        body: data, // Send FormData directly
       });
 
-      if (!guarantorResponse.ok) {
-        throw new Error("Failed to update guarantor information");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to update guarantor information");
       }
 
-      // If there's an ID card file, upload it as a document
-      if (idCardFile) {
-        const documentFormData = new FormData();
-        documentFormData.append('file', idCardFile);
-        documentFormData.append('type', 'GUARANTOR_ID');
-        documentFormData.append('description', 'Guarantor ID Card');
-
-        const documentResponse = await fetch("/api/documents/upload", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: documentFormData,
-        });
-
-        if (!documentResponse.ok) {
-          const error = await documentResponse.json();
-          throw new Error(error.message || "Failed to upload guarantor ID card");
-        }
-      }
-
-      await fetchProfile();
+      await fetchProfile(); // Refresh profile to get updated guarantor data
+      success("Success", "Guarantor information updated successfully");
       return true;
-    } catch (error) {
-      throw error;
+    } catch (err: any) {
+      showError("Error", err.message || "Failed to update guarantor information");
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -252,17 +224,30 @@ export function useUserProfile() {
     }
   };
 
-  const uploadDocument = async (formData: FormData) => {
+  const uploadDocument = async (file: File, documentType: string, description: string) => {
     try {
       setIsLoading(true);
       const token = getToken();
-      const response = await fetch("/api/documents/upload", {
+      
+      // Create FormData with the file and description
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('description', description);
+      
+      // Use the new document type-specific endpoint with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
+      const response = await fetch(`/api/users/upload-document/${documentType}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
         body: formData,
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const error = await response.json();
@@ -270,11 +255,12 @@ export function useUserProfile() {
       }
 
       await fetchDocuments(); // Refresh documents after upload
-      success("Success", "Document uploaded successfully");
       return true;
     } catch (err: any) {
-      showError("Error", err.message || "Failed to upload document");
-      return false;
+      if (err.name === 'AbortError') {
+        throw new Error('Upload timed out. Please try again.');
+      }
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -363,22 +349,20 @@ export function useUserProfile() {
       setIsLoading(true);
       const token = getToken();
       
-      // Create new FormData with document type for bank statement
-      const documentFormData = new FormData();
-      const file = formData.get('statement') as File;
-      if (file) {
-        documentFormData.append('file', file);
-        documentFormData.append('type', 'BANK_STATEMENT');
-        documentFormData.append('description', 'Bank Statement');
-      }
-
-      const response = await fetch("/api/documents/upload", {
+      // Use the new document type-specific endpoint with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
+      const response = await fetch(`/api/users/upload-document/BANK_STATEMENT`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: documentFormData,
+        body: formData,
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const error = await response.json();
@@ -386,11 +370,12 @@ export function useUserProfile() {
       }
 
       await fetchDocuments(); // Refresh documents after upload
-      success("Success", "Bank statement uploaded successfully");
       return true;
     } catch (err: any) {
-      showError("Error", err.message || "Failed to upload bank statement");
-      return false;
+      if (err.name === 'AbortError') {
+        throw new Error('Upload timed out. Please try again.');
+      }
+      throw err;
     } finally {
       setIsLoading(false);
     }

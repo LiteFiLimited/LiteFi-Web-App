@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useDropzone } from "react-dropzone";
@@ -11,6 +11,7 @@ import ConfirmationModal from "@/app/components/ConfirmationModal";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToastContext } from '@/app/components/ToastProvider';
+import { Document } from '@/types/user';
 
 interface DocumentsFormProps {
   onSave?: (data: any) => void;
@@ -34,16 +35,25 @@ interface DocumentsState {
   goodsImages?: FileWithPreview;
 }
 
-// Document type mapping for API
+// Updated document type mapping according to upload.md
 const DOCUMENT_TYPE_MAPPING = {
   governmentId: 'ID_DOCUMENT',
-  utilityBill: 'UTILITY_BILL',
+  utilityBill: 'UTILITY_BILL', 
   workId: 'ID_DOCUMENT',
-  cacCertificate: 'OTHER',
-  cacMemart: 'OTHER',
-  storeFront: 'OTHER',
-  goodsImages: 'OTHER'
+  cacCertificate: 'BUSINESS_REGISTRATION',
+  cacMemart: 'BUSINESS_REGISTRATION',
+  storeFront: 'PICTURE_OF_BUSINESS_FRONT',
+  goodsImages: 'PICTURES_OF_GOODS'
 } as const;
+
+// Mapping from backend document types to frontend keys
+const BACKEND_TO_FRONTEND_MAPPING = {
+  'ID_DOCUMENT': ['governmentId', 'workId'],
+  'UTILITY_BILL': ['utilityBill'],
+  'BUSINESS_REGISTRATION': ['cacCertificate', 'cacMemart'],
+  'PICTURE_OF_BUSINESS_FRONT': ['storeFront'],
+  'PICTURES_OF_GOODS': ['goodsImages']
+};
 
 export default function DocumentsForm({ 
   onSave, 
@@ -53,33 +63,90 @@ export default function DocumentsForm({
   savedDocuments = false 
 }: DocumentsFormProps) {
   const [documents, setDocuments] = useState<DocumentsState>({});
+  const [existingDocuments, setExistingDocuments] = useState<Document[]>([]);
+  const [lockedDocuments, setLockedDocuments] = useState<Set<string>>(new Set());
   const [showSavedModal, setShowSavedModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { uploadDocument } = useUserProfile();
-  const { error: showError } = useToastContext();
+  const { uploadDocument, fetchDocuments } = useUserProfile();
+  const { error: showError, success } = useToastContext();
 
   // Define which documents can be edited even after saving
   const editableAfterSave = ['storeFront', 'goodsImages'];
 
+  // Load existing documents on component mount
+  useEffect(() => {
+    const loadExistingDocuments = async () => {
+      try {
+        setIsLoading(true);
+        const docs = await fetchDocuments();
+        
+        // Ensure docs is an array
+        const validDocs = Array.isArray(docs) ? docs : [];
+        setExistingDocuments(validDocs);
+        
+        // Create a set of locked documents based on existing uploads
+        const locked = new Set<string>();
+        validDocs.forEach((doc: Document) => {
+          if (!doc || !doc.type) return; // Skip invalid documents
+          
+          const frontendKeys = BACKEND_TO_FRONTEND_MAPPING[doc.type as keyof typeof BACKEND_TO_FRONTEND_MAPPING];
+          if (frontendKeys) {
+            frontendKeys.forEach((key: string) => {
+              // Only lock if it's not in the editable after save list
+              if (!editableAfterSave.includes(key)) {
+                locked.add(key);
+              }
+            });
+          }
+        });
+        setLockedDocuments(locked);
+      } catch (error) {
+        console.error('Failed to load existing documents:', error);
+        showError('Error', 'Failed to load existing documents. Please refresh the page.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExistingDocuments();
+  }, [fetchDocuments, editableAfterSave, showError]);
+
+  // Check if document exists and is locked
+  const isDocumentLocked = useCallback((docType: keyof DocumentsState) => {
+    return lockedDocuments.has(docType) || (savedDocuments && !editableAfterSave.includes(docType));
+  }, [lockedDocuments, savedDocuments, editableAfterSave]);
+
+  // Check if document already exists
+  const getExistingDocument = useCallback((docType: keyof DocumentsState) => {
+    const backendType = DOCUMENT_TYPE_MAPPING[docType];
+    if (!backendType || !existingDocuments) return null;
+    
+    return existingDocuments.find(doc => 
+      doc && doc.type === backendType && 
+      BACKEND_TO_FRONTEND_MAPPING[doc.type as keyof typeof BACKEND_TO_FRONTEND_MAPPING]?.includes(docType)
+    );
+  }, [existingDocuments]);
+
   // Generic handler for document drop
   const handleDocumentDrop = useCallback((docType: keyof DocumentsState) => {
     return (acceptedFiles: File[]) => {
-      if (acceptedFiles && acceptedFiles.length > 0) {
+      if (acceptedFiles && acceptedFiles.length > 0 && !isDocumentLocked(docType)) {
         const file = Object.assign(acceptedFiles[0], {
           preview: URL.createObjectURL(acceptedFiles[0])
         });
         setDocuments(prev => ({ ...prev, [docType]: file }));
       }
     };
-  }, []);
+  }, [isDocumentLocked]);
 
   // Modified document removal handler to check if document can be edited
   const handleDocumentRemove = useCallback((docType: keyof DocumentsState) => {
     return () => {
-      // If documents are saved and this document is not in the editable list, prevent removal
-      if (savedDocuments && !editableAfterSave.includes(docType)) {
+      // If document is locked, prevent removal
+      if (isDocumentLocked(docType)) {
         return;
       }
       
@@ -92,12 +159,12 @@ export default function DocumentsForm({
         return updated;
       });
     };
-  }, [documents, savedDocuments]);
+  }, [documents, isDocumentLocked]);
 
   // Create modified dropzone props that respect locked documents
   const createDropzoneProps = (docType: keyof DocumentsState) => {
     const { getRootProps, getInputProps, isDragAccept } = useDropzone({
-      onDrop: savedDocuments && !editableAfterSave.includes(docType) 
+      onDrop: isDocumentLocked(docType) 
         ? () => {} // No-op if document is locked
         : handleDocumentDrop(docType),
       accept: {
@@ -105,7 +172,7 @@ export default function DocumentsForm({
         'image/*': ['.png', '.jpg', '.jpeg']
       },
       maxFiles: 1,
-      disabled: savedDocuments && !editableAfterSave.includes(docType), // Disable if document is locked
+      disabled: isDocumentLocked(docType), // Disable if document is locked
     });
 
     return { getRootProps, getInputProps, isDragAccept };
@@ -120,7 +187,8 @@ export default function DocumentsForm({
       dropzoneProps: createDropzoneProps('governmentId'),
       onRemove: handleDocumentRemove('governmentId'),
       required: true,
-      editable: !savedDocuments || editableAfterSave.includes('governmentId')
+      editable: !isDocumentLocked('governmentId'),
+      existing: getExistingDocument('governmentId')
     },
     {
       id: 'utilityBill' as keyof DocumentsState,
@@ -129,7 +197,8 @@ export default function DocumentsForm({
       dropzoneProps: createDropzoneProps('utilityBill'),
       onRemove: handleDocumentRemove('utilityBill'),
       required: true,
-      editable: !savedDocuments || editableAfterSave.includes('utilityBill')
+      editable: !isDocumentLocked('utilityBill'),
+      existing: getExistingDocument('utilityBill')
     },
     {
       id: 'workId' as keyof DocumentsState,
@@ -138,7 +207,8 @@ export default function DocumentsForm({
       dropzoneProps: createDropzoneProps('workId'),
       onRemove: handleDocumentRemove('workId'),
       required: false,
-      editable: !savedDocuments || editableAfterSave.includes('workId')
+      editable: !isDocumentLocked('workId'),
+      existing: getExistingDocument('workId')
     },
     {
       id: 'cacCertificate' as keyof DocumentsState,
@@ -147,7 +217,8 @@ export default function DocumentsForm({
       dropzoneProps: createDropzoneProps('cacCertificate'),
       onRemove: handleDocumentRemove('cacCertificate'),
       required: false,
-      editable: !savedDocuments || editableAfterSave.includes('cacCertificate')
+      editable: !isDocumentLocked('cacCertificate'),
+      existing: getExistingDocument('cacCertificate')
     },
     {
       id: 'cacMemart' as keyof DocumentsState,
@@ -156,7 +227,8 @@ export default function DocumentsForm({
       dropzoneProps: createDropzoneProps('cacMemart'),
       onRemove: handleDocumentRemove('cacMemart'),
       required: false,
-      editable: !savedDocuments || editableAfterSave.includes('cacMemart')
+      editable: !isDocumentLocked('cacMemart'),
+      existing: getExistingDocument('cacMemart')
     },
     {
       id: 'storeFront' as keyof DocumentsState,
@@ -165,7 +237,8 @@ export default function DocumentsForm({
       dropzoneProps: createDropzoneProps('storeFront'),
       onRemove: handleDocumentRemove('storeFront'),
       required: false,
-      editable: true // Always editable
+      editable: true, // Always editable
+      existing: getExistingDocument('storeFront')
     },
     {
       id: 'goodsImages' as keyof DocumentsState,
@@ -174,15 +247,16 @@ export default function DocumentsForm({
       dropzoneProps: createDropzoneProps('goodsImages'),
       onRemove: handleDocumentRemove('goodsImages'),
       required: false,
-      editable: true // Always editable
+      editable: true, // Always editable
+      existing: getExistingDocument('goodsImages')
     },
   ];
 
-  // Check if required documents are uploaded
+  // Check if required documents are uploaded or already exist
   const isFormValid = () => {
     return documentTypes
       .filter(doc => doc.required)
-      .every(doc => documents[doc.id]);
+      .every(doc => documents[doc.id] || doc.existing);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -202,29 +276,41 @@ export default function DocumentsForm({
     setIsSubmitting(true);
 
     try {
-      // Upload each document individually using the documents endpoint
+      // Upload each document individually using the new endpoint structure
       const uploadPromises = Object.entries(documents)
         .filter(([_, file]) => file) // Only upload files that exist
         .map(async ([docType, file]) => {
-          const formData = new FormData();
-          formData.append('file', file as File);
-          formData.append('type', DOCUMENT_TYPE_MAPPING[docType as keyof typeof DOCUMENT_TYPE_MAPPING]);
-          formData.append('description', documentTypes.find(d => d.id === docType)?.label || docType);
+          const documentType = DOCUMENT_TYPE_MAPPING[docType as keyof typeof DOCUMENT_TYPE_MAPPING];
+          const description = documentTypes.find(d => d.id === docType)?.label || docType;
           
-          return uploadDocument(formData);
+          try {
+            await uploadDocument(file as File, documentType, description);
+            return true;
+          } catch (error) {
+            console.error(`Failed to upload ${docType}:`, error);
+            showError('Error', `Failed to upload ${documentTypes.find(d => d.id === docType)?.label || docType}: ${error}`);
+            return false;
+          }
         });
 
       // Wait for all uploads to complete
       const results = await Promise.all(uploadPromises);
       
       // Check if all uploads were successful
+      if (results.length === 0) {
+        showError('Error', 'No new documents to upload');
+        return;
+      }
+      
       if (results.every(result => result)) {
+        success('Success', 'Documents uploaded successfully');
         setShowSavedModal(true);
         if (onSave) {
           onSave(documents);
         }
-      } else {
-        throw new Error('Some documents failed to upload');
+        // Reload existing documents
+        const docs = await fetchDocuments();
+        setExistingDocuments(docs);
       }
     } catch (error: any) {
       showError('Error', error.message || 'Failed to upload documents');
@@ -242,6 +328,14 @@ export default function DocumentsForm({
     router.push('/dashboard/profile');
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading documents...</div>
+      </div>
+    );
+  }
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-10">
@@ -250,14 +344,52 @@ export default function DocumentsForm({
             <div key={doc.id} className="space-y-2">
               <Label className="block mb-3">
                 {doc.label}
-                {!doc.editable && doc.file && <span className="ml-2 text-xs text-gray-500">(Locked)</span>}
+                {!doc.editable && <span className="ml-2 text-xs text-gray-500">(Locked)</span>}
+                {doc.existing && <span className="ml-2 text-xs text-green-600">✓ Uploaded</span>}
               </Label>
               
-              {doc.file ? (
+              {/* Show existing document if it exists and no new file is selected */}
+              {doc.existing && !doc.file ? (
+                <div className="flex items-center justify-between bg-green-50 p-3 border border-green-200">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-green-600 text-xs">✓</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate text-green-800">{doc.existing.fileName}</p>
+                      <p className="text-xs text-green-600">{(doc.existing.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  </div>
+                  
+                  {doc.editable && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        // Allow replacing existing document if editable
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = '.pdf,.png,.jpg,.jpeg';
+                        input.onchange = (e) => {
+                          const files = (e.target as HTMLInputElement).files;
+                          if (files && files.length > 0) {
+                            handleDocumentDrop(doc.id)([files[0]]);
+                          }
+                        };
+                        input.click();
+                      }}
+                      className="flex-shrink-0 ml-4 text-xs text-green-600 hover:text-green-800"
+                    >
+                      Replace
+                    </Button>
+                  )}
+                </div>
+              ) : doc.file ? (
                 <div className="flex items-center justify-between bg-white p-3 border">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-red-600 text-xs">DOC</span>
+                      <span className="text-red-600 text-xs">NEW</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{doc.file.name}</p>
@@ -298,7 +430,7 @@ export default function DocumentsForm({
                 </div>
               )}
               
-              {doc.required && !doc.file && (
+              {doc.required && !doc.file && !doc.existing && (
                 <p className="text-xs text-red-500 mt-1">{doc.label} is required</p>
               )}
             </div>

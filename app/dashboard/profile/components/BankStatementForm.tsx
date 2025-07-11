@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useDropzone } from "react-dropzone";
@@ -11,6 +11,7 @@ import ConfirmationModal from "@/app/components/ConfirmationModal";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useToastContext } from '@/app/components/ToastProvider';
+import { Document } from '@/types/user';
 
 interface BankStatementFormProps {
   onSave?: (data: any) => void;
@@ -25,22 +26,51 @@ interface FileWithPreview extends File {
 
 export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan, isReadOnly }: BankStatementFormProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
+  const [existingBankStatement, setExistingBankStatement] = useState<Document | null>(null);
   const [showSavedModal, setShowSavedModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { uploadBankStatement } = useUserProfile();
-  const { error: showError } = useToastContext();
+  const { uploadBankStatement, fetchDocuments } = useUserProfile();
+  const { error: showError, success } = useToastContext();
 
-  // Handle file drop for statements
+  // Load existing bank statement on component mount
+  useEffect(() => {
+    const loadExistingBankStatement = async () => {
+      try {
+        setIsLoading(true);
+        const docs = await fetchDocuments();
+        
+        // Find existing bank statement
+        const bankStatement = docs.find((doc: Document) => doc.type === 'BANK_STATEMENT');
+        if (bankStatement) {
+          setExistingBankStatement(bankStatement);
+        }
+      } catch (error) {
+        console.error('Failed to load existing bank statements:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExistingBankStatement();
+  }, []);
+
+  // Handle file drop for statements - only allow if no existing bank statement
   const handleDrop = useCallback((acceptedFiles: File[]) => {
+    if (existingBankStatement) {
+      showError('Error', 'Bank statement already uploaded. You cannot upload multiple bank statements.');
+      return;
+    }
+    
     const filesWithPreview = acceptedFiles.map(file => 
       Object.assign(file, {
         preview: URL.createObjectURL(file)
       })
     );
     setFiles(prev => [...prev, ...filesWithPreview]);
-  }, []);
+  }, [existingBankStatement, showError]);
 
   // Remove file
   const removeFile = (fileToRemove: FileWithPreview) => {
@@ -58,11 +88,17 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
       'image/*': ['.png', '.jpg', '.jpeg']
     },
     noClick: false, // Ensure clicks are processed
-    noKeyboard: false // Allow keyboard navigation 
+    noKeyboard: false, // Allow keyboard navigation 
+    disabled: !!existingBankStatement // Disable if bank statement already exists
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (existingBankStatement) {
+      showError('Error', 'Bank statement already uploaded. You cannot upload multiple bank statements.');
+      return;
+    }
     
     if (files.length === 0) {
       showError('Error', 'Please upload at least one bank statement');
@@ -78,17 +114,42 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
     setIsSubmitting(true);
     
     try {
-      const formData = new FormData();
-      files.forEach((file, index) => {
-        formData.append(`statement`, file);
+      // Upload each file individually using the new uploadBankStatement function
+      const uploadPromises = files.map(async (file) => {
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('description', 'Bank Statement (Last 6 Months)'); // More descriptive label
+          
+          await uploadBankStatement(formData);
+          return true;
+        } catch (error) {
+          console.error(`Failed to upload bank statement:`, error);
+          showError('Error', `Failed to upload ${file.name}: ${error}`);
+          return false;
+        }
       });
 
-      const success = await uploadBankStatement(formData);
-      if (success) {
+      // Wait for all uploads to complete
+      const results = await Promise.all(uploadPromises);
+      
+      // Check if all uploads were successful
+      if (results.every(result => result)) {
+        success('Success', 'Bank statement uploaded successfully');
         setShowSavedModal(true);
         if (onSave) {
           onSave({ files });
         }
+        
+        // Reload existing documents to update the UI
+        const docs = await fetchDocuments();
+        const bankStatement = docs.find((doc: Document) => doc.type === 'BANK_STATEMENT');
+        if (bankStatement) {
+          setExistingBankStatement(bankStatement);
+        }
+        
+        // Clear uploaded files since they're now saved
+        setFiles([]);
       }
     } catch (error: any) {
       showError('Error', error.message || 'Failed to upload bank statement');
@@ -107,17 +168,46 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
   };
 
   const isFormValid = () => {
-    return files.length > 0;
+    return files.length > 0 && !existingBankStatement;
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading bank statements...</div>
+      </div>
+    );
+  }
 
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-10">
         <div className="space-y-8">
           <div>
-            <Label className="block mb-4">Upload Bank Statement</Label>
+            <Label className="block mb-4">
+              Upload Bank Statement
+              {existingBankStatement && <span className="ml-2 text-xs text-green-600">✓ Already Uploaded</span>}
+            </Label>
             
-            {files.length === 0 ? (
+            {/* Show existing bank statement if it exists */}
+            {existingBankStatement ? (
+              <div className="bg-green-50 p-4 border border-green-200 rounded">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-green-600 text-sm font-semibold">✓</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-800">{existingBankStatement.fileName}</p>
+                    <p className="text-xs text-green-600">
+                      {(existingBankStatement.fileSize / 1024 / 1024).toFixed(2)} MB • Uploaded on {new Date(existingBankStatement.uploadedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-green-700 mt-2">
+                  Bank statement has been uploaded successfully. According to our policy, only one bank statement can be uploaded per profile.
+                </p>
+              </div>
+            ) : files.length === 0 ? (
               <div 
                 className={`cursor-pointer transition-all duration-200 p-8 border-2 border-dashed 
                   ${isDragActive 
@@ -162,37 +252,26 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
                     </Button>
                   </div>
                 ))}
-
-                {/* Add more files option */}
-                <div 
-                  className="cursor-pointer transition-all duration-200 p-6 text-center border-2 border-dashed border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 mt-4"
-                  onClick={open}
-                  {...getRootProps()}
-                >
-                  <input {...getInputProps()} />
-                  <div className="flex flex-col items-center">
-                    <HiOutlineUpload className="w-5 h-5 text-gray-400 mb-2" />
-                    <div className="text-sm text-gray-600">Add more files</div>
-                  </div>
-                </div>
               </div>
             )}
           </div>
         </div>
 
-        <div className="pt-4">
-          <Button 
-            type="submit" 
-            className={`h-12 px-16 rounded-none ${
-              isFormValid() && !isSubmitting
-                ? "bg-red-600 hover:bg-red-700 text-white" 
-                : "bg-red-300 cursor-not-allowed text-white"
-            }`}
-            disabled={!isFormValid() || isSubmitting}
-          >
-            {isSubmitting ? 'Uploading...' : 'Save'}
-          </Button>
-        </div>
+        {!existingBankStatement && (
+          <div className="pt-4">
+            <Button 
+              type="submit" 
+              className={`h-12 px-16 rounded-none ${
+                isFormValid() && !isSubmitting
+                  ? "bg-red-600 hover:bg-red-700 text-white" 
+                  : "bg-red-300 cursor-not-allowed text-white"
+              }`}
+              disabled={!isFormValid() || isSubmitting}
+            >
+              {isSubmitting ? 'Uploading...' : 'Save'}
+            </Button>
+          </div>
+        )}
       </form>
 
       {showSavedModal && (

@@ -4,68 +4,44 @@ import React, { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bell, Check, X, CreditCard, TrendingUp, AlertCircle, DollarSign } from "lucide-react";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: "success" | "warning" | "info" | "error";
-  timestamp: string;
-  isRead: boolean;
-  icon: React.ReactNode;
-}
+import { useNotifications } from "@/hooks/useNotifications";
+import { formatNotificationTime } from "@/lib/notificationApi";
 
 interface NotificationDropdownProps {
   isOpen: boolean;
   onClose: () => void;
   triggerRef: React.RefObject<HTMLButtonElement>;
-  onNotificationChange?: (notifications: Notification[]) => void;
+  onNotificationChange?: (unreadCount: number) => void;
   onShowToast?: {
     success: (title: string, message?: string, duration?: number) => void;
     info: (title: string, message?: string, duration?: number) => void;
+    error: (title: string, message?: string, duration?: number) => void;
   };
 }
 
-export default function NotificationDropdown({ isOpen, onClose, triggerRef, onNotificationChange, onShowToast }: NotificationDropdownProps) {
+// Client-side only component
+const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ 
+  isOpen, 
+  onClose, 
+  triggerRef, 
+  onNotificationChange, 
+  onShowToast 
+}) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      title: "Loan Payment Due",
-      message: "Your salary loan payment of ₦40,000 is due in 3 days",
-      type: "warning",
-      timestamp: "2 hours ago",
-      isRead: false,
-      icon: <CreditCard className="w-4 h-4" />
-    },
-    {
-      id: "2",
-      title: "Investment Matured",
-      message: "Your Naira investment has matured. Earnings: ₦14,000",
-      type: "success",
-      timestamp: "5 hours ago",
-      isRead: false,
-      icon: <TrendingUp className="w-4 h-4" />
-    },
-    {
-      id: "3",
-      title: "Wallet Funded",
-      message: "Your wallet has been credited with ₦50,000",
-      type: "success",
-      timestamp: "1 day ago",
-      isRead: true,
-      icon: <DollarSign className="w-4 h-4" />
-    },
-    {
-      id: "4",
-      title: "Profile Verification",
-      message: "Please complete your profile verification to access all features",
-      type: "info",
-      timestamp: "2 days ago",
-      isRead: true,
-      icon: <AlertCircle className="w-4 h-4" />
-    }
-  ]);
+  const { 
+    notifications, 
+    unreadCount, 
+    loading, 
+    error, 
+    markAsRead, 
+    markAllAsRead: markAllNotificationsAsRead,
+    refreshNotifications 
+  } = useNotifications();
+
+  // Notify parent component of unread count changes
+  useEffect(() => {
+    onNotificationChange?.(unreadCount);
+  }, [unreadCount, onNotificationChange]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -89,46 +65,57 @@ export default function NotificationDropdown({ isOpen, onClose, triggerRef, onNo
     };
   }, [isOpen, onClose, triggerRef]);
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => {
-      const updated = prev.map(notification =>
-        notification.id === id ? { ...notification, isRead: true } : notification
-      );
-      // Use setTimeout to defer the parent state update
-      setTimeout(() => {
-        onNotificationChange?.(updated);
-      }, 0);
-      return updated;
-    });
+  // Handle marking single notification as read
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await markAsRead(id);
     onShowToast?.success("Notification marked as read");
+    } catch (error) {
+      onShowToast?.error("Failed to mark notification as read");
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => {
-      const updated = prev.map(notification => ({ ...notification, isRead: true }));
-      // Use setTimeout to defer the parent state update
-      setTimeout(() => {
-        onNotificationChange?.(updated);
-      }, 0);
-      return updated;
-    });
+  // Handle marking all notifications as read
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
     onShowToast?.success("All notifications marked as read");
+    } catch (error) {
+      onShowToast?.error("Failed to mark all notifications as read");
+    }
   };
 
-  const removeNotification = (id: string) => {
-    setNotifications(prev => {
-      const updated = prev.filter(notification => notification.id !== id);
-      // Use setTimeout to defer the parent state update
-      setTimeout(() => {
-        onNotificationChange?.(updated);
-      }, 0);
-      return updated;
-    });
-    onShowToast?.info("Notification removed");
+  // Get icon based on notification type or content
+  const getNotificationIcon = (notification: any) => {
+    const { title, message, type } = notification;
+    
+    // Check title/message content for specific icons
+    if (title.toLowerCase().includes('loan') || title.toLowerCase().includes('payment')) {
+      return <CreditCard className="w-4 h-4" />;
+    }
+    if (title.toLowerCase().includes('investment') || title.toLowerCase().includes('earnings')) {
+      return <TrendingUp className="w-4 h-4" />;
+    }
+    if (title.toLowerCase().includes('wallet') || title.toLowerCase().includes('fund')) {
+      return <DollarSign className="w-4 h-4" />;
+    }
+    
+    // Fallback to type-based icons
+    switch (type?.toLowerCase()) {
+      case 'success':
+        return <TrendingUp className="w-4 h-4" />;
+      case 'warning':
+        return <AlertCircle className="w-4 h-4" />;
+      case 'error':
+        return <X className="w-4 h-4" />;
+      case 'info':
+      default:
+        return <Bell className="w-4 h-4" />;
+    }
   };
 
-  const getTypeStyles = (type: string) => {
-    switch (type) {
+  const getTypeStyles = (type?: string) => {
+    switch (type?.toLowerCase()) {
       case "success":
         return "text-green-600 bg-green-50";
       case "warning":
@@ -141,8 +128,6 @@ export default function NotificationDropdown({ isOpen, onClose, triggerRef, onNo
         return "text-gray-600 bg-gray-50";
     }
   };
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   if (!isOpen) return null;
 
@@ -164,22 +149,53 @@ export default function NotificationDropdown({ isOpen, onClose, triggerRef, onNo
                 </span>
               )}
             </div>
+            <div className="flex items-center gap-2">
             {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleMarkAllAsRead}
+                  className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                  disabled={loading}
+                >
+                  Mark all read
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={markAllAsRead}
-                className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={refreshNotifications}
+                className="text-xs text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                disabled={loading}
               >
-                Mark all read
+                Refresh
               </Button>
-            )}
+            </div>
           </div>
         </div>
 
         {/* Notifications List */}
         <div className="max-h-80 overflow-y-auto">
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="p-6 text-center text-gray-500">
+              <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300 animate-pulse" />
+              <p className="text-sm">Loading notifications...</p>
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center text-red-500">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 text-red-300" />
+              <p className="text-sm">Failed to load notifications</p>
+              <p className="text-xs text-red-400 mt-1">{error}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refreshNotifications}
+                className="mt-2 text-xs"
+              >
+                Try again
+              </Button>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="p-6 text-center text-gray-500">
               <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
               <p className="text-sm">No notifications yet</p>
@@ -194,7 +210,7 @@ export default function NotificationDropdown({ isOpen, onClose, triggerRef, onNo
               >
                 <div className="flex items-start gap-3">
                   <div className={`p-2 rounded-full ${getTypeStyles(notification.type)}`}>
-                    {notification.icon}
+                    {getNotificationIcon(notification)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
@@ -206,26 +222,20 @@ export default function NotificationDropdown({ isOpen, onClose, triggerRef, onNo
                           {notification.message}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {notification.timestamp}
+                          {formatNotificationTime(notification.timestamp)}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 ml-2">
                         {!notification.isRead && (
                           <button
-                            onClick={() => markAsRead(notification.id)}
+                            onClick={() => handleMarkAsRead(notification.id)}
                             className="p-1 hover:bg-gray-200 rounded-full transition-colors"
                             title="Mark as read"
+                            disabled={loading}
                           >
                             <Check className="w-3 h-3 text-gray-500" />
                           </button>
                         )}
-                        <button
-                          onClick={() => removeNotification(notification.id)}
-                          className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                          title="Remove notification"
-                        >
-                          <X className="w-3 h-3 text-gray-500" />
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -250,4 +260,6 @@ export default function NotificationDropdown({ isOpen, onClose, triggerRef, onNo
       </Card>
     </div>
   );
-} 
+};
+
+export default NotificationDropdown; 
