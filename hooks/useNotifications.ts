@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
+import { useState, useEffect, useCallback } from "react";
+import {
   fetchNotifications,
   getUnreadCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
-  type Notification as ApiNotification
-} from '../lib/notificationApi';
+  type Notification as ApiNotification,
+} from "../lib/notificationApi";
 
 export interface Notification {
   id: string;
@@ -18,11 +18,13 @@ export interface Notification {
 }
 
 // Transform API notification to our local interface
-const transformApiNotification = (apiNotification: ApiNotification): Notification => ({
+const transformApiNotification = (
+  apiNotification: ApiNotification
+): Notification => ({
   id: apiNotification.id,
   title: apiNotification.title,
   message: apiNotification.message,
-  type: apiNotification.type || 'info',
+  type: "info", // Default type since API doesn't include type
   timestamp: apiNotification.createdAt,
   isRead: apiNotification.read,
 });
@@ -38,18 +40,22 @@ export const useNotifications = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const apiNotifications = await fetchNotifications();
-      const transformedNotifications = apiNotifications.map(transformApiNotification);
-      
+      const transformedNotifications = apiNotifications.map(
+        transformApiNotification
+      );
+
       setNotifications(transformedNotifications);
-      
+
       // Update unread count
       const count = await getUnreadCount();
       setUnreadCount(count);
     } catch (err) {
-      console.error('Failed to fetch notifications:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch notifications');
+      console.error("Failed to fetch notifications:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch notifications"
+      );
     } finally {
       setLoading(false);
     }
@@ -59,19 +65,25 @@ export const useNotifications = () => {
   const markAsRead = useCallback(async (id: string) => {
     try {
       await markNotificationAsRead(id);
-      
+
       // Update local state
-      setNotifications(prev =>
-        prev.map(notification =>
-          notification.id === id ? { ...notification, isRead: true } : notification
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification.id === id
+            ? { ...notification, isRead: true }
+            : notification
         )
       );
-      
+
       // Update unread count
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
-      console.error('Failed to mark notification as read:', err);
-      setError(err instanceof Error ? err.message : 'Failed to mark notification as read');
+      console.error("Failed to mark notification as read:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to mark notification as read"
+      );
     }
   }, []);
 
@@ -79,43 +91,52 @@ export const useNotifications = () => {
   const markAllAsRead = useCallback(async () => {
     try {
       await markAllNotificationsAsRead();
-      
+
       // Update local state
-      setNotifications(prev =>
-        prev.map(notification => ({ ...notification, isRead: true }))
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, isRead: true }))
       );
-      
+
       // Reset unread count
       setUnreadCount(0);
     } catch (err) {
-      console.error('Failed to mark all notifications as read:', err);
-      setError(err instanceof Error ? err.message : 'Failed to mark all notifications as read');
+      console.error("Failed to mark all notifications as read:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to mark all notifications as read"
+      );
     }
   }, []);
 
   // Legacy methods for backward compatibility (local state only)
-  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
-      isRead: false,
-    };
-    
-    setNotifications(prev => [newNotification, ...prev]);
-    setUnreadCount(prev => prev + 1);
-  }, []);
+  const addNotification = useCallback(
+    (notification: Omit<Notification, "id" | "timestamp" | "isRead">) => {
+      const newNotification: Notification = {
+        ...notification,
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        isRead: false,
+      };
+
+      setNotifications((prev) => [newNotification, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+    },
+    []
+  );
 
   const removeNotification = useCallback((id: string) => {
-    setNotifications(prev => {
-      const notification = prev.find(n => n.id === id);
-      const newNotifications = prev.filter(notification => notification.id !== id);
-      
+    setNotifications((prev) => {
+      const notification = prev.find((n) => n.id === id);
+      const newNotifications = prev.filter(
+        (notification) => notification.id !== id
+      );
+
       // Update unread count if removing an unread notification
       if (notification && !notification.isRead) {
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
       }
-      
+
       return newNotifications;
     });
   }, []);
@@ -150,4 +171,4 @@ export const useNotifications = () => {
     removeNotification,
     clearAllNotifications,
   };
-}; 
+};
