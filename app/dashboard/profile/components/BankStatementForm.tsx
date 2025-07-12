@@ -42,20 +42,26 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
         setIsLoading(true);
         const docs = await fetchDocuments();
         
-        // Find existing bank statement
-        const bankStatement = docs.find((doc: Document) => doc.type === 'BANK_STATEMENT');
-        if (bankStatement) {
-          setExistingBankStatement(bankStatement);
+        // Ensure docs is an array before using find
+        if (Array.isArray(docs)) {
+          // Find existing bank statement
+          const bankStatement = docs.find((doc: Document) => doc.type === 'BANK_STATEMENT');
+          if (bankStatement) {
+            setExistingBankStatement(bankStatement);
+          }
+        } else {
+          console.warn('fetchDocuments did not return an array:', docs);
         }
       } catch (error) {
         console.error('Failed to load existing bank statements:', error);
+        showError('Error', 'Failed to load existing bank statements');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadExistingBankStatement();
-  }, []);
+  }, [fetchDocuments]); // Now safe to include since fetchDocuments is memoized
 
   // Handle file drop for statements - only allow if no existing bank statement
   const handleDrop = useCallback((acceptedFiles: File[]) => {
@@ -125,7 +131,9 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
           return true;
         } catch (error) {
           console.error(`Failed to upload bank statement:`, error);
-          showError('Error', `Failed to upload ${file.name}: ${error}`);
+          // Extract the error message and clean it up
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          showError('Error', `Failed to upload ${file.name}: ${errorMessage}`);
           return false;
         }
       });
@@ -199,7 +207,7 @@ export default function BankStatementForm({ onSave, allFormsCompleted, onGetLoan
                   <div className="flex-1">
                     <p className="text-sm font-medium text-green-800">{existingBankStatement.fileName}</p>
                     <p className="text-xs text-green-600">
-                      {(existingBankStatement.fileSize / 1024 / 1024).toFixed(2)} MB • Uploaded on {new Date(existingBankStatement.uploadedAt).toLocaleDateString()}
+                      {(existingBankStatement.fileSize / 1024 / 1024).toFixed(2)} MB • Uploaded on {new Date(existingBankStatement.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>

@@ -10,14 +10,14 @@ export interface UserProfile {
   createdAt: string;
   updatedAt: string;
   profile?: {
-  dateOfBirth?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER';
-  address?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  bvn?: string;
-  nin?: string;
+    dateOfBirth?: string;
+    gender?: "MALE" | "FEMALE" | "OTHER";
+    address?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    bvn?: string;
+    nin?: string;
     maritalStatus?: string;
     educationLevel?: string;
     nearestBusStop?: string;
@@ -39,7 +39,12 @@ export interface UserProfile {
 }
 
 export interface EmploymentInfo {
-  employmentStatus: 'EMPLOYED' | 'SELF_EMPLOYED' | 'UNEMPLOYED' | 'STUDENT' | 'RETIRED';
+  employmentStatus:
+    | "EMPLOYED"
+    | "SELF_EMPLOYED"
+    | "UNEMPLOYED"
+    | "STUDENT"
+    | "RETIRED";
   employer?: string;
   jobTitle?: string;
   workEmail?: string;
@@ -113,13 +118,31 @@ export interface BankStatement {
 
 export interface Document {
   id: string;
-  type: 'ID_DOCUMENT' | 'PROOF_OF_ADDRESS' | 'BANK_STATEMENT' | 'PAYMENT_PROOF' | 'SALARY_SLIP' | 'BUSINESS_REGISTRATION' | 'LOAN_AGREEMENT' | 'OTHER';
+  userId: string;
+  type:
+    | "PROFILE_PICTURE"
+    | "ID_DOCUMENT"
+    | "UTILITY_BILL"
+    | "BANK_STATEMENT"
+    | "BUSINESS_REGISTRATION"
+    | "PICTURE_OF_BUSINESS_FRONT"
+    | "PICTURES_OF_GOODS"
+    | "OTHER";
   fileName: string;
-  fileUrl: string;
-  mimeType: string;
   fileSize: number;
+  fileType: string;
+  filePath: string;
+  url: string;
+  investmentId?: string | null;
+  loanId?: string | null;
+  transactionId?: string | null;
+  verified: boolean;
+  verifiedBy?: string | null;
+  verifiedAt?: string | null;
+  rejectionReason?: string | null;
   description?: string;
-  uploadedAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ApiResponse<T = any> {

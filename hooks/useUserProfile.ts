@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { userApi } from "@/lib/api";
 import { UserData, BankAccount, Document } from "@/types/user";
 import { useToastContext } from "@/app/components/ToastProvider";
@@ -22,7 +22,7 @@ export function useUserProfile() {
 
   const { success, error: showError } = useToastContext();
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await userApi.getProfile();
@@ -76,7 +76,7 @@ export function useUserProfile() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
 
   const updateProfile = async (data: Partial<UserData>) => {
     try {
@@ -230,28 +230,48 @@ export function useUserProfile() {
   };
 
   // Bank account management
-  const fetchBankAccounts = async () => {
+  const fetchBankAccounts = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = (await userApi.getBankAccounts()) as ApiResponse<
-        BankAccount[]
-      >;
-      setBankAccounts(response.data);
-      return response.data;
+      const response = await userApi.getBankAccounts();
+
+      // Handle different response structures
+      let bankAccountsArray: BankAccount[];
+      if (Array.isArray(response)) {
+        // Direct array response
+        bankAccountsArray = response as BankAccount[];
+      } else if (
+        response &&
+        typeof response === "object" &&
+        "data" in response
+      ) {
+        // Wrapped in data property
+        bankAccountsArray = Array.isArray(response.data)
+          ? (response.data as BankAccount[])
+          : [];
+      } else {
+        // Fallback to empty array
+        bankAccountsArray = [];
+      }
+
+      setBankAccounts(bankAccountsArray);
+      return bankAccountsArray;
     } catch (err: any) {
+      console.error("Failed to fetch bank accounts:", err);
       showError("Error", err.message || "Failed to fetch bank accounts");
-      return [];
+      // Always return empty array on error
+      const emptyArray: BankAccount[] = [];
+      setBankAccounts(emptyArray);
+      return emptyArray;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
 
   const addBankAccount = async (data: any) => {
     try {
       setIsLoading(true);
-      const response = (await userApi.addBankAccount(
-        data
-      )) as ApiResponse<BankAccount>;
+      const response = await userApi.addBankAccount(data);
       await fetchBankAccounts(); // Refresh bank accounts after adding
       success("Success", "Bank account added successfully");
       return true;
@@ -297,21 +317,43 @@ export function useUserProfile() {
   };
 
   // Document management
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = (await userApi.getDocuments()) as ApiResponse<
-        Document[]
-      >;
-      setDocuments(response.data);
-      return response.data;
+      const response = await userApi.getDocuments();
+
+      // Handle different response structures
+      let documentsArray: Document[];
+      if (Array.isArray(response)) {
+        // Direct array response
+        documentsArray = response as Document[];
+      } else if (
+        response &&
+        typeof response === "object" &&
+        "data" in response
+      ) {
+        // Wrapped in data property
+        documentsArray = Array.isArray(response.data)
+          ? (response.data as Document[])
+          : [];
+      } else {
+        // Fallback to empty array
+        documentsArray = [];
+      }
+
+      setDocuments(documentsArray);
+      return documentsArray;
     } catch (err: any) {
+      console.error("Failed to fetch documents:", err);
       showError("Error", err.message || "Failed to fetch documents");
-      return [];
+      // Always return empty array on error to prevent undefined issues
+      const emptyArray: Document[] = [];
+      setDocuments(emptyArray);
+      return emptyArray;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [showError]);
 
   const uploadDocument = async (
     file: File,
@@ -347,7 +389,14 @@ export function useUserProfile() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to upload document");
+        let errorMessage = error.message || "Failed to upload document";
+
+        // Clean up error message for duplicate uploads
+        if (errorMessage.includes("cannot be updated once uploaded")) {
+          errorMessage = "Cannot be updated once uploaded.";
+        }
+
+        throw new Error(errorMessage);
       }
 
       await fetchDocuments(); // Refresh documents after upload
@@ -465,7 +514,14 @@ export function useUserProfile() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to upload bank statement");
+        let errorMessage = error.message || "Failed to upload bank statement";
+
+        // Clean up error message for duplicate uploads
+        if (errorMessage.includes("cannot be updated once uploaded")) {
+          errorMessage = "Cannot be updated once uploaded.";
+        }
+
+        throw new Error(errorMessage);
       }
 
       await fetchDocuments(); // Refresh documents after upload

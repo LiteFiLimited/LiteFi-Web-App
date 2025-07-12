@@ -47,12 +47,13 @@ const DOCUMENT_TYPE_MAPPING = {
 } as const;
 
 // Mapping from backend document types to frontend keys
-const BACKEND_TO_FRONTEND_MAPPING = {
+const BACKEND_TO_FRONTEND_MAPPING: Record<string, (keyof DocumentsState)[]> = {
   'ID_DOCUMENT': ['governmentId', 'workId'],
   'UTILITY_BILL': ['utilityBill'],
   'BUSINESS_REGISTRATION': ['cacCertificate', 'cacMemart'],
   'PICTURE_OF_BUSINESS_FRONT': ['storeFront'],
-  'PICTURES_OF_GOODS': ['goodsImages']
+  'PICTURES_OF_GOODS': ['goodsImages'],
+  'OTHER': [] // Handle OTHER type documents
 };
 
 export default function DocumentsForm({ 
@@ -92,7 +93,7 @@ export default function DocumentsForm({
         validDocs.forEach((doc: Document) => {
           if (!doc || !doc.type) return; // Skip invalid documents
           
-          const frontendKeys = BACKEND_TO_FRONTEND_MAPPING[doc.type as keyof typeof BACKEND_TO_FRONTEND_MAPPING];
+          const frontendKeys = BACKEND_TO_FRONTEND_MAPPING[doc.type];
           if (frontendKeys) {
             frontendKeys.forEach((key: string) => {
               // Only lock if it's not in the editable after save list
@@ -112,7 +113,7 @@ export default function DocumentsForm({
     };
 
     loadExistingDocuments();
-  }, [fetchDocuments, editableAfterSave, showError]);
+  }, [fetchDocuments]); // Now safe to include since fetchDocuments is memoized
 
   // Check if document exists and is locked
   const isDocumentLocked = useCallback((docType: keyof DocumentsState) => {
@@ -126,7 +127,7 @@ export default function DocumentsForm({
     
     return existingDocuments.find(doc => 
       doc && doc.type === backendType && 
-      BACKEND_TO_FRONTEND_MAPPING[doc.type as keyof typeof BACKEND_TO_FRONTEND_MAPPING]?.includes(docType)
+      BACKEND_TO_FRONTEND_MAPPING[doc.type]?.includes(docType)
     );
   }, [existingDocuments]);
 
@@ -288,7 +289,9 @@ export default function DocumentsForm({
             return true;
           } catch (error) {
             console.error(`Failed to upload ${docType}:`, error);
-            showError('Error', `Failed to upload ${documentTypes.find(d => d.id === docType)?.label || docType}: ${error}`);
+            // Extract the error message and clean it up
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            showError('Error', `Failed to upload ${documentTypes.find(d => d.id === docType)?.label || docType}: ${errorMessage}`);
             return false;
           }
         });
