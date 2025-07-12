@@ -8,13 +8,16 @@ export type EligibilityType = "investment" | "loan";
 
 // Format field names for better readability
 const formatFieldName = (field: string): string => {
-  // Convert snake_case to proper display format
-  if (field === "proof of_address") return "Proof of Address";
-  if (field === "id document") return "ID Document";
+  // Handle specific field formatting cases
+  if (field === "proof of_address" || field === "proof_of_address") return "Document: Proof of Address";
+  if (field === "id document" || field === "id_document") return "ID Document";
+  if (field === "education level" || field === "education_level") return "Education Level";
+  if (field === "employment information" || field === "employment_information") return "Employment Information";
+  if (field === "next of kin" || field === "next_of_kin") return "Next of Kin";
 
-  // Handle other field formats
+  // Handle other field formats - convert snake_case or space_case to proper format
   return field
-    .split('_')
+    .split(/[_\s]+/) // Split on underscores or spaces
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 };

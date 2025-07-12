@@ -10,15 +10,30 @@ export function cn(...inputs: ClassValue[]) {
  * @param value Number to format
  * @returns Formatted string with commas (e.g. 1,000,000)
  */
-export const formatCurrency = (value: number): string => {
-  if (typeof value !== "number" || isNaN(value)) {
+export const formatCurrency = (value: number | string): string => {
+  // Convert string to number if needed
+  const numValue = typeof value === "string" ? parseFloat(value) : value;
+
+  // Check for invalid input
+  if (typeof numValue !== "number" || isNaN(numValue)) {
     return "0";
   }
+
   try {
-    return new Intl.NumberFormat("en-NG").format(value);
+    // Use Intl.NumberFormat with fallback
+    if (typeof Intl !== "undefined" && Intl.NumberFormat) {
+      return new Intl.NumberFormat("en-NG").format(numValue);
+    } else {
+      // Fallback implementation
+      return numValue.toLocaleString("en-US");
+    }
   } catch (error) {
-    // Fallback for potential Intl issues
-    return value.toLocaleString("en-US");
+    console.warn(
+      "formatCurrency: Intl.NumberFormat failed, using fallback:",
+      error
+    );
+    // Manual fallback for worst case
+    return numValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
 };
 
@@ -40,4 +55,11 @@ export const transformAvatarUrl = (avatarUrl?: string): string | undefined => {
 
   // Return the URL as-is if it's already in the correct format
   return avatarUrl;
+};
+
+// Default export for better compatibility
+export default {
+  cn,
+  formatCurrency,
+  transformAvatarUrl,
 };

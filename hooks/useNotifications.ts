@@ -48,7 +48,7 @@ export const useNotifications = () => {
 
       setNotifications(transformedNotifications);
 
-      // Update unread count
+      // Update unread count from API
       const count = await getUnreadCount();
       setUnreadCount(count);
     } catch (err) {

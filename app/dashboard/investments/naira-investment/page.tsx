@@ -27,6 +27,7 @@ export default function NairaInvestmentPage() {
   // State to store form values
   const [investmentName, setInvestmentName] = useState("");
   const [amount, setAmount] = useState("");
+  const [formattedAmount, setFormattedAmount] = useState(""); // For display with commas
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [tenure, setTenure] = useState("");
   
@@ -212,6 +213,23 @@ export default function NairaInvestmentPage() {
   const startDate = calculatedReturns?.startDate ? formatDate(calculatedReturns.startDate) : formatDate(new Date().toISOString());
   const maturityDate = calculatedReturns?.maturityDate ? formatDate(calculatedReturns.maturityDate) : '';
 
+  // Helper function to handle amount input with formatting
+  const handleAmountChange = (value: string) => {
+    // Remove all non-digit characters except decimal point
+    const numericValue = value.replace(/[^0-9.]/g, '');
+    
+    // Update the raw amount (for calculations)
+    setAmount(numericValue);
+    
+    // Format for display if there's a value
+    if (numericValue) {
+      const formatted = formatCurrency(parseFloat(numericValue) || 0);
+      setFormattedAmount(formatted);
+    } else {
+      setFormattedAmount('');
+    }
+  };
+
   return (
     <div className="flex justify-center">
       <div className="w-full max-w-[800px]">
@@ -283,9 +301,9 @@ export default function NairaInvestmentPage() {
                   <Input
                     id="amount"
                     placeholder="Amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    type="number" 
+                    value={formattedAmount}
+                    onChange={(e) => handleAmountChange(e.target.value)}
+                    type="text" 
                     className="h-12 rounded-none"
                   />
                   <p className="text-xs text-gray-500 mt-1">

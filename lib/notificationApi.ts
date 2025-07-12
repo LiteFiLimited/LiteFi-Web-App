@@ -166,6 +166,10 @@ export const getUnreadCount = async (): Promise<number> => {
       "/notifications/unread-count"
     );
 
+    console.log("Unread count API response:", response.data);
+
+    console.log("Unread count API response:", response.data);
+
     // API returns direct object with count according to documentation
     return response.data.count;
   } catch (error: any) {

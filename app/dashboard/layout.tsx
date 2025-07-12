@@ -20,8 +20,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   // Use the authentication hook to protect dashboard routes
   const { isAuthenticated, isLoading } = useAuth();
   
-  // Track unread count separately to avoid state update conflicts
-  const [unreadCount, setUnreadCount] = useState(2);
+  // Track unread count - should start at 0 and be updated by NotificationDropdown
+  const [unreadCount, setUnreadCount] = useState(0);
   
   const getPageTitle = () => {
     if (pathname.includes("/loans")) return "Loans";
