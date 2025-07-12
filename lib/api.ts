@@ -403,8 +403,16 @@ export const userApi = {
       }>
     >("get", "/wallet/balance"),
   // Security
-  changePassword: (data: { currentPassword: string; newPassword: string }) =>
-    apiRequest<ApiResponse<void>>("post", "/users/change-password", data),
+  changePassword: (data: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) =>
+    apiRequest<ApiResponse<void>>(
+      "post",
+      "/users/security/change-password",
+      data
+    ),
 
   setupTransactionPin: (data: { pin: string }) =>
     apiRequest<ApiResponse<void>>("post", "/users/setup-pin", data),

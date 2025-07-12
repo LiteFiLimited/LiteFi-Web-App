@@ -444,11 +444,16 @@ export function useUserProfile() {
   // Security
   const changePassword = async (
     currentPassword: string,
-    newPassword: string
+    newPassword: string,
+    confirmPassword: string
   ) => {
     try {
       setIsLoading(true);
-      await userApi.changePassword({ currentPassword, newPassword });
+      await userApi.changePassword({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
       success("Success", "Password changed successfully");
       return true;
     } catch (err: any) {

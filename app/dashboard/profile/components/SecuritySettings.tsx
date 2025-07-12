@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 export default function SecuritySettings() {
+  const router = useRouter();
   return (
     <div>
       <h2 className="text-lg font-bold mb-2">Security</h2>
@@ -21,7 +23,11 @@ export default function SecuritySettings() {
             <div>
               <h3 className="text-base font-medium">Change Password</h3>
             </div>
-            <Button variant="outline" className="h-10 rounded-none border-gray-300">
+            <Button 
+              variant="outline" 
+              className="h-10 rounded-none border-gray-300"
+              onClick={() => router.push("/dashboard/change-password")}
+            >
               Change
             </Button>
           </div>
