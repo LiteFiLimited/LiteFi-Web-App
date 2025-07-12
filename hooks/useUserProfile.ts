@@ -464,10 +464,10 @@ export function useUserProfile() {
     }
   };
 
-  const setupTransactionPin = async (pin: string) => {
+  const setupTransactionPin = async (pin: string, confirmPin: string) => {
     try {
       setIsLoading(true);
-      await userApi.setupTransactionPin({ pin });
+      await userApi.setupTransactionPin({ pin, confirmPin });
       success("Success", "Transaction PIN set successfully");
       return true;
     } catch (err: any) {

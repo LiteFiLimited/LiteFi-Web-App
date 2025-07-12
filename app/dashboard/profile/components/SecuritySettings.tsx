@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import TransactionPinModal from "@/app/components/TransactionPinModal";
 
 export default function SecuritySettings() {
   const router = useRouter();
+  const [showTransactionPinModal, setShowTransactionPinModal] = useState(false);
   return (
     <div>
       <h2 className="text-lg font-bold mb-2">Security</h2>
@@ -61,12 +63,26 @@ export default function SecuritySettings() {
             <div>
               <h3 className="text-base font-medium">Transaction Pin</h3>
             </div>
-            <Button variant="outline" className="h-10 rounded-none border-gray-300">
+            <Button 
+              variant="outline" 
+              className="h-10 rounded-none border-gray-300"
+              onClick={() => setShowTransactionPinModal(true)}
+            >
               Set Up
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Transaction PIN Modal */}
+      <TransactionPinModal
+        open={showTransactionPinModal}
+        onCloseAction={() => setShowTransactionPinModal(false)}
+        onSuccessAction={() => {
+          // You can add any additional logic here when PIN is successfully set
+          console.log("Transaction PIN set successfully");
+        }}
+      />
     </div>
   );
 }

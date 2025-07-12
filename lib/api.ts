@@ -414,8 +414,12 @@ export const userApi = {
       data
     ),
 
-  setupTransactionPin: (data: { pin: string }) =>
-    apiRequest<ApiResponse<void>>("post", "/users/setup-pin", data),
+  setupTransactionPin: (data: { pin: string; confirmPin: string }) =>
+    apiRequest<ApiResponse<void>>(
+      "post",
+      "/users/security/transaction-pin/setup",
+      data
+    ),
 
   verifyTransactionPin: (data: { pin: string }) =>
     apiRequest<ApiResponse<void>>("post", "/users/verify-pin", data),
