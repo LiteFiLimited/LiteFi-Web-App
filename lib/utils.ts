@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
  * @param value Number to format
  * @returns Formatted string with commas (e.g. 1,000,000)
  */
-export const formatCurrency = (value: number | string): string => {
+export function formatCurrency(value: number | string): string {
   // Convert string to number if needed
   const numValue = typeof value === "string" ? parseFloat(value) : value;
 
@@ -35,14 +35,14 @@ export const formatCurrency = (value: number | string): string => {
     // Manual fallback for worst case
     return numValue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   }
-};
+}
 
 /**
  * Transform avatar URL from legacy CDN to Google Cloud Storage format
  * @param avatarUrl - The original avatar URL
  * @returns Transformed URL for Google Cloud Storage
  */
-export const transformAvatarUrl = (avatarUrl?: string): string | undefined => {
+export function transformAvatarUrl(avatarUrl?: string): string | undefined {
   if (!avatarUrl) return undefined;
 
   // Check if it's a legacy CDN URL and transform it
@@ -55,7 +55,7 @@ export const transformAvatarUrl = (avatarUrl?: string): string | undefined => {
 
   // Return the URL as-is if it's already in the correct format
   return avatarUrl;
-};
+}
 
 // Default export for better compatibility
 export default {
